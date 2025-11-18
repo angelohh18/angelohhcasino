@@ -40,10 +40,11 @@ html {
     box-shadow:
     0 0 10px #c5a56a88,
     inset 0 0 15px #c5a56a55;
-    width: 1100px; /* Ancho fijo para emular escritorio */
-    max-width: 1100px; /* Asegurar ancho fijo */
-    height: 700px; /* Alto fijo para mantener proporción y evitar distorsión al escalar */
-    max-height: 95vh; /* Salvaguarda para que no se salga de pantallas con aspect ratio extremo */
+    /* CORRECCIÓN PRINCIPAL PARA EL AJUSTE DINÁMICO */
+    width: 98%;           /* Ocupa casi todo el ancho disponible */
+    max-width: 1100px;    /* Mantiene el máximo original para pantallas grandes */
+    height: 98%;          /* Ocupa casi todo el alto disponible */
+    max-height: 98vh;     /* Asegura que no se salga del alto del viewport */
     display: flex;
     flex-direction: column;
     padding: clamp(10px, 2vw, 20px) clamp(15px, 2.5vw, 30px); /* Padding fluido */
@@ -490,6 +491,8 @@ html {
 
 /* Estilos específicos para modal de creación de mesa con scroll */
 #create-room-modal .modal-content {
+    position: relative !important; /* <-- CORRECCIÓN CLAVE: Debe ser relativo a su contenedor */
+    margin: auto !important; /* <-- CORRECCIÓN CLAVE: Asegura el centrado en el flujo */
     max-width: 90vw;
     max-height: 90vh;
     overflow-y: auto;
@@ -724,7 +727,11 @@ html {
     left: 0;
     right: 0;
     bottom: 0;
-    overflow: hidden;
+    overflow-y: auto; /* Permitir scroll si es necesario */
+    display: flex; /* <-- CORRECCIÓN: Usar flex para centrar */
+    align-items: center; /* <-- CORRECCIÓN: Centrado Vertical */
+    justify-content: center; /* <-- CORRECCIÓN: Centrado Horizontal */
+    padding: 10px; /* Añadir un pequeño padding de seguridad */
 }
 #rules-modal { z-index: 10005; }
 #avatar-crop-modal { z-index: 10006; }
@@ -831,6 +838,9 @@ html {
         overflow-y: auto !important;
         overflow-x: hidden !important;
         margin: 0 !important;
+        display: flex !important; /* <-- CORRECCIÓN: Usar flex para centrar */
+        align-items: center !important; /* <-- CORRECCIÓN: Centrado Vertical */
+        justify-content: center !important; /* <-- CORRECCIÓN: Centrado Horizontal */
     }
     
     #create-room-modal .modal-content {
@@ -839,8 +849,8 @@ html {
         max-height: calc(100vh - 20px) !important;
         padding: 20px 15px !important;
         border-radius: 15px;
-        position: relative !important;
-        margin: 0 auto !important;
+        position: relative !important; /* <-- CORRECCIÓN CLAVE: Debe ser relativo a su contenedor */
+        margin: auto !important; /* <-- CORRECCIÓN CLAVE: Asegura el centrado en el flujo */
         transform: none !important;
         left: auto !important;
         right: auto !important;
@@ -1422,6 +1432,10 @@ html {
 
 /* Tablets grandes y laptops pequeñas */
 @media (max-width: 1200px) and (orientation: landscape) {
+    #lobby-overlay .overlay-content {
+        height: 95vh; /* Ocupa el 95% de la altura del viewport */
+        padding: 10px; /* Margen general reducido */
+    }
     .user-panel {
         padding: 15px;
         min-width: 160px;
@@ -1472,6 +1486,17 @@ html {
 
 /* Tablets medianas */
 @media (max-width: 992px) and (orientation: landscape) {
+    #lobby-overlay .overlay-content {
+        height: 96vh; /* Ajuste sutil */
+        max-height: 96vh;
+        padding: 5px;  /* Margen de seguridad reducido */
+        gap: 10px;     /* Reducir el espacio entre paneles */
+    }
+
+    /* Asegurar que los paneles principales ocupen el espacio */
+    .lobby-main {
+        gap: 10px;
+    }
     .user-panel {
         padding: 10px;
         min-width: 140px;
@@ -1525,7 +1550,11 @@ html {
         gap: 8px;
     }
     .overlay-content {
-        padding: 8px !important;
+        /* Aseguramos que la altura use el espacio disponible */
+        height: 98vh !important;
+        max-height: 98vh !important;
+        /* Reducimos el padding al mínimo para maximizar el espacio útil */
+        padding: 5px !important;
     }
     .user-panel, .tables-panel, .chat-header, .chat-messages, .chat-input {
         padding: 10px;

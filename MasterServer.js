@@ -26,8 +26,9 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// Bandera para forzar modo en memoria (solicitud del usuario)
-const DISABLE_DB = true;
+// Bandera para desactivar la base de datos (usar variable de entorno o false por defecto)
+// En producción (Render), establecer DISABLE_DB=false o no definirla para usar PostgreSQL
+const DISABLE_DB = process.env.DISABLE_DB === 'true' || process.env.DISABLE_DB === '1';
 
 // Almacén de usuarios en memoria cuando la DB está desactivada
 const inMemoryUsers = new Map();
@@ -92,8 +93,6 @@ if (!DISABLE_DB) {
       initializeDatabase();
     }
   });
-} else {
-  console.log('⚠️ Base de datos desactivada (modo local). Usando usuarios en memoria.');
 }
 
 // Función para inicializar las tablas de la base de datos
@@ -7866,8 +7865,13 @@ setTimeout(() => {
     setInterval(selfPing, PING_INTERVAL_MS);
 }, 30000); // 30 segundos de espera inicial
 
-server.listen(PORT, async () => {
-  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', async () => {
+  console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
+  if (DISABLE_DB) {
+    console.log('⚠️ Base de datos desactivada (modo local). Usando usuarios en memoria.');
+  } else {
+    console.log('✅ Base de datos PostgreSQL habilitada.');
+  }
   
   // Verificar estructura de la tabla users
   if (!DISABLE_DB) {

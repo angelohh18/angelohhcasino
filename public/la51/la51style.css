@@ -40,10 +40,11 @@ html {
     box-shadow:
     0 0 10px #c5a56a88,
     inset 0 0 15px #c5a56a55;
-    width: 1100px; /* Ancho fijo para emular escritorio */
-    max-width: 1100px; /* Asegurar ancho fijo */
-    height: 700px; /* Alto fijo para mantener proporción y evitar distorsión al escalar */
-    max-height: 95vh; /* Salvaguarda para que no se salga de pantallas con aspect ratio extremo */
+    /* CORRECCIÓN PRINCIPAL PARA EL AJUSTE DINÁMICO */
+    width: 98%;           /* Ocupa casi todo el ancho disponible */
+    max-width: 1100px;    /* Mantiene el máximo original para pantallas grandes */
+    height: 98%;          /* Ocupa casi todo el alto disponible */
+    max-height: 98vh;     /* Asegura que no se salga del alto del viewport */
     display: flex;
     flex-direction: column;
     padding: clamp(10px, 2vw, 20px) clamp(15px, 2.5vw, 30px); /* Padding fluido */
@@ -951,6 +952,10 @@ html {
 
 /* Tablets grandes y laptops pequeñas */
 @media (max-width: 1200px) and (orientation: landscape) {
+    #lobby-overlay .overlay-content {
+        height: 95vh; /* Ocupa el 95% de la altura del viewport */
+        padding: 10px; /* Margen general reducido */
+    }
     .user-panel {
         padding: 15px;
         min-width: 160px;
@@ -1010,6 +1015,17 @@ html {
 
 /* Tablets medianas */
 @media (max-width: 992px) and (orientation: landscape) {
+    #lobby-overlay .overlay-content {
+        height: 96vh; /* Ajuste sutil */
+        max-height: 96vh;
+        padding: 5px;  /* Margen de seguridad reducido */
+        gap: 10px;     /* Reducir el espacio entre paneles */
+    }
+
+    /* Asegurar que los paneles principales ocupen el espacio */
+    .lobby-main {
+        gap: 10px;
+    }
     .user-panel {
         padding: 10px;
         min-width: 140px;
@@ -1072,7 +1088,11 @@ html {
         gap: 8px;
     }
     .overlay-content {
-        padding: 8px !important;
+        /* Aseguramos que la altura use el espacio disponible */
+        height: 98vh !important;
+        max-height: 98vh !important;
+        /* Reducimos el padding al mínimo para maximizar el espacio útil */
+        padding: 5px !important;
     }
     .user-panel, .tables-panel, .chat-header, .chat-messages, .chat-input {
         padding: 10px;

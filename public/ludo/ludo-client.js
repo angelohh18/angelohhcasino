@@ -1046,33 +1046,56 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelBtn.onclick = (e) => { e.stopPropagation(); popup.remove(); };
         popup.appendChild(cancelBtn);
 
-        // Lógica de Posicionamiento (la última versión que implementamos)
+        // ----------------------------------------------------
+        // --- INICIO DEL CÓDIGO DE POSICIONAMIENTO CORREGIDO ---
+        // ----------------------------------------------------
+        
         const parentCell = pieceElement.closest('.path .cell, .svg-cell');
         const boardContainer = document.getElementById('ludo-board-container') || document.body;
-        const boardRect = boardContainer.getBoundingClientRect();
+        const boardRect = boardContainer.getBoundingClientRect(); // Rectángulo del tablero (referencia)
+        const pieceRect = pieceElement.getBoundingClientRect(); // Rectángulo de la pieza (posición)
+        
+        // 1. Posición base (en el centro de la pieza)
+        let popupLeft = (pieceRect.left + pieceRect.width / 2) - boardRect.left;
+        let popupTop = (pieceRect.top - boardRect.top) - 10; // 10px por encima de la pieza
 
-        if (parentCell) {
-            const cellRect = parentCell.getBoundingClientRect();
-            popup.style.position = 'absolute';
-            popup.style.left = `${cellRect.left + cellRect.width / 2 - boardRect.left}px`;
-            popup.style.top = `${cellRect.top - boardRect.top - 10}px`;
-            popup.style.transform = 'translateX(-50%)';
-            popup.style.zIndex = '100';
-            popup.style.whiteSpace = 'nowrap';
-            boardContainer.appendChild(popup);
-            console.log("Popup añadido a boardContainer:", boardContainer);
+        // 2. Crear y añadir el popup al DOM para medir su tamaño real
+        boardContainer.appendChild(popup);
+        popup.style.position = 'absolute';
+        popup.style.top = `${popupTop}px`;
+        popup.style.zIndex = '100';
+        popup.style.whiteSpace = 'nowrap';
+
+        const popupRect = popup.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        
+        // 3. Aplicar corrección de límites (Ajuste Horizontal)
+        
+        // Si el borde izquierdo del popup se sale (es menor que 0)
+        if (pieceRect.left - (popupRect.width / 2) < 5) { // 5px de margen
+            // Fija el popup a 5px del borde izquierdo de la pantalla, relativo al tablero.
+            popupLeft = 5 - boardRect.left; 
+            popup.style.transform = 'none'; // Desactiva el -50%
+            
+        // Si el borde derecho del popup se sale (es mayor que el ancho de la ventana)
+        } else if (pieceRect.right + (popupRect.width / 2) > viewportWidth - 5) { // 5px de margen
+            // Fija el popup al borde derecho de la pantalla, relativo al tablero.
+            popupLeft = (viewportWidth - 5) - boardRect.left - popupRect.width; 
+            popup.style.transform = 'none'; // Desactiva el -50%
+            
         } else {
-             console.error("¡ERROR! No se pudo encontrar la celda padre para posicionar el popup.");
-             // Fallback: Añadir al body (posición puede ser incorrecta)
-             document.body.appendChild(popup);
-             popup.style.position = 'fixed';
-             const rect = pieceElement.getBoundingClientRect();
-             popup.style.left = `${rect.left + rect.width / 2}px`;
-             popup.style.top = `${rect.top - 30}px`;
-             popup.style.transform = 'translateX(-50%)';
-             popup.style.zIndex = '100';
-             console.log("Popup añadido al body como fallback.");
+            // Centrado normal (solo necesita el -50% de transform)
+            popup.style.transform = 'translateX(-50%)';
         }
+        
+        // 4. Aplicar la posición final calculada al elemento
+        popup.style.left = `${popupLeft}px`;
+
+        console.log("Popup añadido a boardContainer. Posición ajustada para límites.");
+        
+        // ----------------------------------------------------
+        // --- FIN DEL CÓDIGO DE POSICIONAMIENTO CORREGIDO ---
+        // ----------------------------------------------------
     }
 
     /**
