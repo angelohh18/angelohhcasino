@@ -1402,36 +1402,41 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
         turnData.doublesCount = (turnData.doublesCount || 0) + 1;
         if (turnData.doublesCount === 3) {
             console.log(`[Parchís] ¡Tercer doble consecutivo! Evaluando castigo.`);
-            let applyPunishment = true;
-            const lastMovedPieceId = turnData.lastMovedPieceId;
-            if (lastMovedPieceId) {
-                const piece = room.gameState.pieces[playerColor]?.find((p) => p.id === lastMovedPieceId);
+            
+            // 1. OBTENER LA FICHA A PENALIZAR
+            const pieceToJail = turnData.lastMovedPieceId;
+            
+            // 2. VERIFICAR SI LA FICHA ESTÁ EN LA ZONA DE META (home_stretch)
+            let isPieceInHomeStretch = false;
+            if (pieceToJail) {
+                const piece = room.gameState.pieces[playerColor]?.find((p) => p.id === pieceToJail);
                 const homeStretch = room.gameState.board.home_stretch[playerColor] || [];
                 if (piece && homeStretch.includes(piece.position)) {
-                    applyPunishment = false;
-                    console.log(`[Parchís] Castigo evitado: ${lastMovedPieceId} está en la recta final.`);
+                    isPieceInHomeStretch = true;
+                    console.log(`[Parchís] Castigo evitado: ${pieceToJail} está en la recta final.`);
                 }
             }
-
-            if (applyPunishment && turnData.lastMovedPieceId) {
-                const punishedPiece = room.gameState.pieces[playerColor]?.find((p) => p.id === turnData.lastMovedPieceId);
+            
+            // 3. APLICAR CASTIGO SOLO SI LA FICHA NO ESTÁ EN LA ZONA DE META
+            if (!isPieceInHomeStretch && pieceToJail) {
+                const punishedPiece = room.gameState.pieces[playerColor]?.find((p) => p.id === pieceToJail);
                 if (punishedPiece) {
+                    // 3.1. ENVIAR FICHA A CASA
                     punishedPiece.state = 'base';
                     punishedPiece.position = -1;
                     console.log(`[Parchís] Ficha ${punishedPiece.id} castigada de vuelta a la base.`);
 
-                    // ▼▼▼ BLOQUE A AÑADIR (INICIO) ▼▼▼
-                    // Emitir la falta a TODOS los jugadores en la sala
+                    // 3.2. ENVIAR NOTIFICACIÓN AL CLIENTE
                     io.to(room.roomId).emit('playSound', 'fault');
                     io.to(room.roomId).emit('ludoFoulPenalty', {
                         type: 'three_doubles',
                         playerName: playerName,
                         penalizedPieceId: punishedPiece.id
                     });
-                    // ▲▲▲ BLOQUE A AÑADIR (FIN) ▲▲▲
                 }
             }
 
+            // 4. REINICIAR Y CAMBIAR TURNO
             turnData.canRoll = false;
             turnData.canRollAgain = false;
             turnData.doublesCount = 0;
