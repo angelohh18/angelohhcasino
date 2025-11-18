@@ -1,0 +1,1857 @@
+/* --- INICIO DE ESTILOS DE LOBBY.HTML --- */
+/* Reset y base */
+* {
+    box-sizing: border-box;
+}
+body, html {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #211e18; /* Cambiado de gradiente a sólido */
+    color: #e0d3b6;
+    overflow: hidden; /* Prevenir movimiento de layout al arrastrar elementos */
+    /* --- OPTIMIZACIÓN GLOBAL ANTI-PARPADEO PARA MÓVILES --- */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+}
+
+/* Tipografía fluida para responsividad */
+html {
+    font-size: clamp(12px, 1.5vw, 16px);
+}
+
+/* Overlay que ocupa toda la pantalla */
+#lobby-overlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(58, 58, 42, 0.85), rgba(33, 30, 24, 0.9));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 0; /* CORREGIDO: Padding ajustado para mejor escala en móviles */
+}
+
+/* Contenedor principal con borde dorado sutil - CORREGIDO */
+.overlay-content {
+    background: #211e18;
+    border: 2px solid #c5a56a;
+    border-radius: 20px;
+    box-shadow:
+    0 0 10px #c5a56a88,
+    inset 0 0 15px #c5a56a55;
+    width: 1100px; /* Ancho fijo para emular escritorio */
+    max-width: 1100px; /* Asegurar ancho fijo */
+    height: 700px; /* Alto fijo para mantener proporción y evitar distorsión al escalar */
+    max-height: 95vh; /* Salvaguarda para que no se salga de pantallas con aspect ratio extremo */
+    display: flex;
+    flex-direction: column;
+    padding: clamp(10px, 2vw, 20px) clamp(15px, 2.5vw, 30px); /* Padding fluido */
+    color: #e0d3b6;
+    /* Para el centrado en la vista de escritorio */
+    position: relative;
+}
+
+.overlay-content h2 {
+    margin: 0 0 20px 0;
+    font-weight: 700;
+    font-size: 1.8rem;
+    text-shadow:
+    0 0 4px #c5a56a88;
+}
+
+/* Layout interno */
+.lobby-main {
+    flex: 1;
+    display: flex;
+    gap: 20px;
+    overflow: hidden;
+}
+
+/* Panel usuario */
+.user-panel {
+    flex: 1 1 220px; /* Permite flexibilidad manteniendo la base */
+    min-width: 240px; /* Ancho mínimo para evitar colapso y mostrar título completo */
+    background: #e0d3b6;
+    border-radius: 15px;
+    box-shadow:
+    0 0 8px #c5a56a88,
+    inset 0 0 8px #c5a56a55;
+    padding: 20px;
+    text-align: center;
+    color: #6d2932;
+    font-weight: 700;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.user-panel .panel-title {
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    font-size: 1.5rem;
+    text-align: center;
+    margin: 0 auto 15px;
+    font-weight: 900;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+    min-height: 45px;
+    background: linear-gradient(145deg, #2a2620, #1c1a16);
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #c5a56a44;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.4);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.panel-title .char {
+    display: inline-block;
+    opacity: 0;
+    animation: fadeInLetter 0.5s forwards;
+    animation-delay: calc(0.6s + var(--i) * 0.1s);
+    color: #c5a56a; /* Solid gold color */
+    text-shadow: 2px 2px 3px rgba(0,0,0,0.5);
+    -webkit-text-stroke: 1px #4a1d23;
+    flex-shrink: 0;
+}
+@keyframes fadeInLetter {
+    from { opacity: 0; transform: translateY(-20px) scale(0.8); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.panel-title .dice {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    background-color: #e0d3b6;
+    border: 2px solid #6D2932;
+    border-radius: 6px;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transform-style: preserve-3d;
+    perspective: 1000px;
+    flex-shrink: 0;
+}
+.panel-title .dice::before {
+    content: '🎲';
+    font-size: 18px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    line-height: 1;
+}
+
+.panel-title .left-dice {
+    animation: flyAndFlipLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.panel-title .right-dice {
+    animation: flyAndFlipRight 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+@keyframes flyAndFlipLeft {
+    0% { transform: translateX(-150px) rotateY(180deg) scale(0.5); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateX(0) rotateY(0deg) scale(1); opacity: 1; }
+}
+@keyframes flyAndFlipRight {
+    0% { transform: translateX(150px) rotateY(-180deg) scale(0.5); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateX(0) rotateY(0deg) scale(1); opacity: 1; }
+}
+.user-panel .avatar-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 15px;
+}
+.user-panel .avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 10px #c5a56a88;
+    background: #bbb;
+}
+.user-panel input[type="file"] {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    opacity: 0;
+    cursor: pointer;
+}
+.user-panel .avatar-label {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    background: #c5a56a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #211e18;
+    font-weight: 900;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 0 5px #c5a56a88;
+    user-select: none;
+}
+.user-panel .username {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.user-panel .credits {
+    background: #c5a56a; /* Cambiado de gradiente a sólido */
+    border-radius: 10px;
+    padding: 12px;
+    font-weight: 900;
+    color: #211e18;
+    box-shadow: inset 0 2px 5px rgba(255,255,255,0.5);
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.button {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    background: #6D2932; /* Cambiado de gradiente a sólido */
+    color: #e0d3b6;
+    font-weight: 700;
+    padding: 12px 0;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    cursor: pointer;
+    user-select: none;
+    border: none;
+    margin-bottom: 15px;
+    font-size: 1rem;
+    transition: background 0.3s ease;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+.button.orange {
+    background: #c5a56a; /* Cambiado de gradiente a sólido */
+    color: #211e18;
+    box-shadow: 0 2px 5px rgba(197,165,106,0.5);
+}
+.button.secondary {
+    background: #6D2932;
+    color: #e0d3b6;
+}
+.button.secondary:hover {
+    background: #58141f;
+}
+.button:hover {
+    background: #58141f; /* Cambiado de gradiente a sólido */
+}
+.button.orange:hover {
+    background: #9d7b40; /* Cambiado de gradiente a sólido */
+}
+.user-panel .user-actions {
+    margin-top: auto;
+}
+
+/* Panel mesas */
+.tables-panel {
+    flex: 2 1 40%; /* Mayor peso en crecimiento, pero puede encogerse */
+    min-width: 240px; /* Ancho mínimo para coherencia */
+    background: #211e18;
+    border-radius: 20px;
+    box-shadow:
+    0 0 10px #c5a56a88,
+    inset 0 0 20px #c5a56a55;
+    padding: 20px;
+    overflow-y: auto;
+    color: #e0d3b6;
+    font-weight: 700;
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Columnas de mesa más flexibles */
+    gap: 18px;
+}
+.tables-panel::-webkit-scrollbar {
+    width: 10px;
+}
+.tables-panel::-webkit-scrollbar-track {
+    background: #6d2932;
+    border-radius: 10px;
+}
+.tables-panel::-webkit-scrollbar-thumb {
+    background: #c5a56a;
+    border-radius: 10px;
+}
+.table-item { /* Renombrado de .table a .table-item para evitar conflicto */
+    background: #6d2932; /* Cambiado de gradiente a sólido */
+    border-radius: 18px;
+    padding: 15px;
+    box-shadow:
+    inset 0 0 8px #c5a56a55;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #e0d3b6;
+    font-size: 0.9rem;
+    min-height: 185px;
+}
+.table-item .info {
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+.table-item .info strong {
+    color: #c5a56a;
+}
+.table-item .player-list {
+    font-size: 0.75rem;
+    color: #e0d3b6;
+    margin-top: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 1.2em;
+}
+.table-item .actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.table-item .play-button {
+    background: #c5a56a; /* Cambiado de gradiente a sólido */
+    border-radius: 10px;
+    padding: 8px;
+    width: 100%;
+    color: #211e18;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow:
+    inset 0 0 8px #e0d3b6;
+    border: none;
+    font-size: 0.8rem;
+    transition: background 0.3s ease;
+}
+.table-item .play-button:hover {
+    background: #9d7b40; /* Cambiado de gradiente a sólido */
+}
+.table-item .play-button:disabled {
+    background: #6d2932; /* Color actualizado */
+    color: #c5a56a;
+    cursor: not-allowed;
+    box-shadow: none;
+
+    /* LÍNEA AÑADIDA: Esta es la solución definitiva */
+    pointer-events: auto !important;
+}
+
+
+/* Panel chat */
+.chat-panel {
+    flex: 1 1 320px; /* Permite flexibilidad manteniendo la base */
+    min-width: 250px; /* Ancho mínimo */
+    background: #e0d3b6;
+    border-radius: 20px;
+    box-shadow:
+    0 0 10px #c5a56a88,
+    inset 0 0 10px #c5a56a55;
+    display: flex;
+    flex-direction: column;
+    color: #6d2932; /* Color actualizado */
+    font-weight: 700;
+}
+.chat-header {
+    background: #c5a56a;
+    color: #211e18;
+    padding: 15px 20px;
+    font-weight: 700;
+    font-size: 1.2rem;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+}
+.chat-messages {
+    flex: 1;
+    padding: 15px 20px;
+    overflow-y: auto;
+    font-size: 1rem;
+    background: #e0d3b6;
+    color: #6d2932; /* Color actualizado */
+    font-weight: 600;
+    box-shadow: inset 0 0 5px #c5a56a88;
+}
+.chat-messages div {
+    margin-bottom: 10px;
+}
+.chat-messages div div:first-child {
+    font-weight: 700;
+    color: #6D2932;
+}
+.chat-messages div div:last-child {
+    font-size: 0.8rem;
+    color: #888;
+}
+.chat-input {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    border-top: 2px solid #c5a56a;
+    background: #e0d3b6;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    position: relative;
+}
+.chat-input textarea {
+    flex: 1;
+    resize: none;
+    border-radius: 15px;
+    border: 2px solid #c5a56a;
+    padding: 12px 15px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #6d2932; /* Color actualizado */
+    font-weight: 700;
+    box-shadow: inset 0 0 5px #c5a56a88;
+}
+.chat-input button {
+    background: #c5a56a;
+    border: none;
+    color: #211e18;
+    font-weight: 700;
+    padding: 12px 20px;
+    margin-left: 10px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow:
+    inset 0 0 8px #e0d3b6;
+    transition: background 0.3s ease;
+}
+.chat-input button:hover {
+    background: #9d7b40;
+}
+/* Estilos para la notificación del chat */
+#chat-toggle-btn {
+    position: relative;
+}
+#chat-notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #ff4444;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 2px solid var(--casino-dark-panel);
+}
+
+/* CORRECCIÓN: Estilos generales para todos los modales */
+#login-modal .modal-content,
+#register-modal .modal-content,
+#credit-modal .modal-content,
+#forgot-password-modal .modal-content,
+#change-password-modal .modal-content,
+#rules-modal .modal-content,
+#create-room-modal .modal-content,
+#avatar-crop-modal .modal-content,
+#insufficient-credits-modal .modal-content,
+#pwa-install-modal .modal-content,
+#functions-modal .modal-content,
+#bot-info-modal .modal-content {
+    background: #211e18;
+    border: 2px solid #c5a56a;
+    border-radius: 20px;
+    padding: 20px;
+    width: 320px;
+    color: #e0d3b6;
+    font-weight: 700;
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    position: relative;
+    margin: auto;
+}
+
+/* Estilos específicos para modal de creación de mesa con scroll */
+#create-room-modal .modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Scrollbar personalizado para el modal de creación de mesa */
+#create-room-modal .modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+#create-room-modal .modal-content::-webkit-scrollbar-track {
+    background: #6d2932;
+    border-radius: 10px;
+}
+#create-room-modal .modal-content::-webkit-scrollbar-thumb {
+    background: #c5a56a;
+    border-radius: 10px;
+}
+
+#login-modal .modal-content h3,
+#register-modal .modal-content h3,
+#credit-modal .modal-content h3,
+#rules-modal .modal-content h3,
+#create-room-modal .modal-content h3,
+#avatar-crop-modal .modal-content h3,
+#change-password-modal .modal-content h3 {
+    margin-top: 0;
+    text-align: center;
+}
+
+#login-modal .modal-content label,
+#register-modal .modal-content label,
+#create-room-modal .modal-content label,
+#change-password-modal .modal-content label {
+    display: block;
+    margin-top: 15px;
+}
+
+/* Estilos específicos para labels en modal de creación de mesa */
+#create-room-modal .modal-content label {
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    color: #c5a56a;
+}
+
+/* ESTILOS PARA INPUTS (SIN FLECHA) */
+#login-modal .modal-content input,
+#register-modal .modal-content input,
+#create-room-modal .modal-content input,
+#change-password-modal .modal-content input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 10px;
+    border: none;
+    box-shadow: inset 0 0 5px #c5a56a88;
+    font-weight: 700;
+    color: #6d2932;
+    background-color: #ffffff;
+    font-family: inherit;
+    font-size: 1rem;
+    padding-right: 10px; /* Padding normal */
+}
+
+/* ESTILOS PARA SELECTS (CON FLECHA) */
+#register-modal .modal-content select,
+#create-room-modal .modal-content select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 10px;
+    border: none;
+    box-shadow: inset 0 0 5px #c5a56a88;
+    font-weight: 700;
+    color: #6d2932;
+    background-color: #ffffff;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+
+    /* Quitamos la apariencia nativa */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    /* Añadimos nuestra propia flecha */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d2932' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+
+    /* Ajustamos el padding para que el texto no se ponga debajo de la flecha */
+    padding-right: 40px;
+}
+
+/* Estilos específicos para select en modal de creación de mesa */
+#create-room-modal .modal-content select {
+    /* Usar los mismos estilos que los inputs para consistencia */
+    background-color: #ffffff; /* Fondo blanco como los inputs */
+    color: #6d2932; /* Color de texto igual que los inputs */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d2932' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+    padding-right: 40px;
+    cursor: pointer;
+    min-height: 40px;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+}
+
+/* (Opcional) Arregla el color del texto de la opción seleccionada en Firefox */
+#create-room-modal .modal-content select {
+    color: #6d2932;
+}
+
+#create-room-modal .modal-content select:focus {
+    outline: none;
+    border: 2px solid #c5a56a;
+    box-shadow: 
+        inset 0 0 5px #c5a56a88,
+        0 0 10px #c5a56a55;
+}
+
+#create-room-modal .modal-content select option {
+    background: #2a2620;
+    color: #e0d3b6;
+    padding: 10px;
+    font-weight: 700;
+}
+
+#login-modal .error,
+#register-modal .error,
+#create-room-modal .error,
+#change-password-modal .error {
+    display: none;
+    margin-top: 10px;
+    color: #c5a56a;
+    font-weight: 900;
+}
+
+#credit-modal .modal-content a {
+    color: #c5a56a;
+    font-weight: 900;
+    text-decoration: none;
+}
+#credit-modal .modal-content a:hover {
+    text-decoration: underline;
+}
+
+#login-modal .modal-content button,
+#register-modal .modal-content button,
+#credit-modal .modal-content button,
+#rules-modal .modal-content button,
+#create-room-modal .modal-content button,
+#avatar-crop-modal .modal-content button,
+#insufficient-credits-modal .modal-content button,
+#functions-modal .modal-content button,
+#bot-info-modal .modal-content button,
+#change-password-modal .modal-content button,
+#forgot-password-modal .modal-content button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 15px;
+    border: none;
+    background: #c5a56a; /* Cambiado de gradiente a sólido */
+    color: #211e18;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow: inset 0 0 8px #e0d3b6;
+    transition: background 0.3s ease;
+}
+
+#login-modal .modal-content button:hover,
+#register-modal .modal-content button:hover,
+#credit-modal .modal-content button:hover,
+#rules-modal .modal-content button:hover,
+#create-room-modal .modal-content button:hover,
+#avatar-crop-modal .modal-content button:hover,
+#insufficient-credits-modal .modal-content button:hover,
+#functions-modal .modal-content button:hover,
+#bot-info-modal .modal-content button:hover,
+#change-password-modal .modal-content button:hover {
+    background: #9d7b40; /* Cambiado de gradiente a sólido */
+}
+
+#login-modal .modal-content button.secondary,
+#register-modal .modal-content button.secondary,
+#create-room-modal .modal-content button.secondary,
+#avatar-crop-modal .modal-content button.secondary,
+#change-password-modal .modal-content button.secondary,
+#forgot-password-modal .modal-content button.secondary {
+    background: #6D2932;
+    color: #e0d3b6;
+    margin-top: 10px;
+}
+
+#login-modal .modal-content button.secondary:hover,
+#register-modal .modal-content button.secondary:hover,
+#create-room-modal .modal-content button.secondary:hover,
+#avatar-crop-modal .modal-content button.secondary:hover,
+#change-password-modal .modal-content button.secondary:hover,
+#forgot-password-modal .modal-content button.secondary:hover {
+    background: #58141f;
+}
+
+/* Modal Login */
+#login-modal, #register-modal, #credit-modal, #rules-modal, #create-room-modal, #avatar-crop-modal, #insufficient-credits-modal,
+#pwa-install-modal,
+#functions-modal,
+#bot-info-modal,
+#forgot-password-modal,
+#change-password-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 10002;
+    overflow-y: auto;
+    padding: 20px 0;
+}
+
+#register-modal { z-index: 10003; }
+#create-room-modal { 
+    z-index: 10004; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+#rules-modal { z-index: 10005; }
+#avatar-crop-modal { z-index: 10006; }
+#credit-modal { z-index: 10001; }
+
+/* ▼▼▼ NUEVOS MODALES ▼▼▼ */
+#forgot-password-modal { z-index: 10007; }
+#change-password-modal { z-index: 10008; }
+/* ▲▲▲ FIN NUEVOS MODALES ▲▲▲ */
+
+/* --- INICIO: Estilos para el modal de información PWA --- */
+
+#pwa-install-modal {
+    z-index: 10010; /* Z-index específico que tenía */
+}
+
+#pwa-install-modal .modal-content {
+    max-width: 500px; /* Un ancho máximo adecuado para el texto */
+    text-align: left; /* Alineamos el texto a la izquierda para mejor legibilidad */
+}
+
+#pwa-install-modal h3 {
+    text-align: center; /* Centramos solo el título principal */
+}
+
+#pwa-install-modal .pwa-subtitle {
+    color: var(--casino-gold);
+    margin-top: 20px;
+}
+
+#pwa-install-modal .pwa-instructions {
+    padding-left: 20px;
+    line-height: 1.6;
+}
+
+#pwa-install-modal .pwa-alternative {
+    border-top: 1px solid #555;
+    padding-top: 15px;
+}
+
+#pwa-install-modal .pwa-optional-note {
+    font-size: 0.9em;
+    color: #aaa;
+    margin-top: 20px;
+    text-align: center; /* Centramos esta nota opcional */
+}
+
+#pwa-install-modal button {
+    width: 100%; /* Hacemos que el botón ocupe todo el ancho como en los otros modales */
+}
+
+/* --- FIN: Estilos para el modal de información PWA --- */
+
+#register-modal .modal-content {
+    width: 360px; /* Ancho específico del modal de registro */
+}
+
+#register-modal .success {
+    display: none;
+    margin-top: 10px;
+    color: #e0d3b6;
+    font-weight: 900;
+}
+
+#credit-modal .modal-content {
+    text-align: center;
+}
+
+#rules-modal {
+    padding: 20px;
+}
+#rules-modal .modal-content,
+#forgot-password-modal .modal-content,
+#pwa-install-modal .modal-content,
+#change-password-modal .modal-content,
+#functions-modal .modal-content,
+#bot-info-modal .modal-content,
+#register-modal .modal-content,
+#elimination-overlay .content {
+    width: 90vw; /* Usa ancho de viewport */
+    max-width: 550px; /* Ancho máximo reducido */
+    max-height: 85vh; /* Alto máximo para evitar desbordamiento vertical */
+    overflow-y: auto; /* Scroll dentro del contenido */
+    padding: clamp(15px, 3vw, 25px); /* Padding fluido */
+    text-align: left;
+    line-height: 1.6;
+    position: relative; /* <-- AÑADE ESTA LÍNEA */
+}
+
+/* Media queries para modal de creación de mesa en móviles */
+@media (max-width: 768px) {
+    #create-room-modal {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        padding: 10px !important;
+        z-index: 10004 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        margin: 0 !important;
+    }
+    
+    #create-room-modal .modal-content {
+        width: calc(100vw - 20px) !important;
+        max-width: calc(100vw - 20px) !important;
+        max-height: calc(100vh - 20px) !important;
+        padding: 20px 15px !important;
+        border-radius: 15px;
+        position: relative !important;
+        margin: 0 auto !important;
+        transform: none !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    
+    #create-room-modal .modal-content h3 {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    }
+    
+    #create-room-modal .modal-content label {
+        font-size: 0.9rem;
+        margin-top: 12px;
+        margin-bottom: 8px;
+        display: block;
+        width: 100%;
+    }
+    
+    #create-room-modal .modal-content input,
+    #create-room-modal .modal-content select {
+        padding: 12px;
+        font-size: 1rem;
+        margin-bottom: 8px;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 44px; /* Tamaño mínimo táctil recomendado */
+    }
+    
+    /* Mejoras específicas para select en móviles */
+    #create-room-modal .modal-content select {
+        background-position: right 15px center;
+        padding-right: 40px;
+        font-size: 1rem;
+        line-height: 1.5;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 1;
+        left: 0 !important;
+        right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        float: none !important;
+        clear: both !important;
+    }
+    
+    /* Forzar que los select se muestren correctamente en móviles */
+    #create-room-modal .modal-content select:active,
+    #create-room-modal .modal-content select:focus {
+        position: relative !important;
+        z-index: 10 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Prevenir cualquier posicionamiento lateral de los select */
+    #create-room-modal .modal-content select {
+        position: relative !important;
+    }
+    
+    #create-room-modal .modal-content select option {
+        padding: 12px;
+        font-size: 1rem;
+        min-height: 44px;
+        line-height: 1.5;
+        background: #2a2620 !important;
+        color: #e0d3b6 !important;
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    /* Forzar que el dropdown nativo se muestre correctamente - Usar comportamiento nativo en móviles */
+    #create-room-modal .modal-content select:not([multiple]) {
+        -webkit-appearance: menulist !important;
+        appearance: menulist !important;
+        /* Permitir que el navegador maneje el dropdown nativamente */
+        position: relative !important;
+    }
+    
+    /* Asegurar que los labels y selects estén en su propia línea */
+    #create-room-modal .modal-content label {
+        display: block !important;
+        width: 100% !important;
+        margin-bottom: 8px !important;
+        clear: both !important;
+        position: relative !important;
+    }
+    
+    /* Forzar que los select ocupen todo el ancho disponible */
+    #create-room-modal .modal-content select {
+        position: relative !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        margin-bottom: 12px !important;
+        padding-left: 12px !important;
+        padding-right: 40px !important;
+        box-sizing: border-box !important;
+        left: 0 !important;
+        right: 0 !important;
+    }
+    
+    /* Asegurar que el modal tenga overflow controlado, pero permitir overflow visible para dropdowns */
+    #create-room-modal .modal-content {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        /* Permitir que los dropdowns se muestren correctamente */
+        position: relative !important;
+    }
+    
+    /* Cuando un select está activo, permitir overflow visible temporalmente */
+    #create-room-modal .modal-content:has(select:focus),
+    #create-room-modal .modal-content:has(select:active) {
+        overflow: visible !important;
+    }
+    
+    #create-room-modal .modal-content label + select,
+    #create-room-modal .modal-content label + input {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-top: 5px !important;
+        margin-bottom: 12px !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Asegurar que los contenedores de select no tengan display inline */
+    #create-room-modal .modal-content > * {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        float: none !important;
+        clear: both !important;
+        position: relative !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    #create-room-modal .modal-content select,
+    #create-room-modal .modal-content input[type="number"],
+    #create-room-modal .modal-content input[type="text"] {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        float: none !important;
+        clear: both !important;
+        position: relative !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    /* Prevenir que el modal se mueva cuando se abre un select */
+    #create-room-modal .modal-content {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* En móviles, usar completamente el comportamiento nativo del select */
+    #create-room-modal .modal-content select {
+        /* Remover cualquier estilo personalizado que interfiera con el dropdown nativo */
+        background-image: none !important;
+        padding-right: 12px !important;
+        /* Usar el dropdown nativo del navegador */
+        -webkit-appearance: menulist !important;
+        appearance: menulist !important;
+        /* Asegurar que el dropdown se abra correctamente */
+        position: relative !important;
+        z-index: auto !important;
+    }
+    
+    /* Cuando el select está enfocado/activo, asegurar que el dropdown se muestre sobre el elemento */
+    #create-room-modal .modal-content select:focus,
+    #create-room-modal .modal-content select:active {
+        z-index: 1000 !important;
+        position: relative !important;
+    }
+    
+    /* Asegurar que los contenedores internos también respeten el ancho */
+    #create-room-modal .modal-content div {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Asegurar que los contenedores de opciones también se muestren en bloque */
+    #create-room-modal .modal-content #ludo-options-container,
+    #create-room-modal .modal-content #parchis-options-container {
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    /* Estilos específicos para iOS - usar comportamiento nativo del dropdown */
+    @supports (-webkit-touch-callout: none) {
+        #create-room-modal .modal-content select {
+            /* Mantener appearance nativo para que el dropdown funcione correctamente */
+            -webkit-appearance: menulist !important;
+            appearance: menulist !important;
+            /* Asegurar que el dropdown se abra sobre el elemento */
+            position: relative !important;
+            z-index: 1 !important;
+        }
+        
+        #create-room-modal .modal-content select:focus,
+        #create-room-modal .modal-content select:active {
+            z-index: 1000 !important;
+            position: relative !important;
+        }
+        
+        #create-room-modal {
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+        
+        /* Permitir que el modal tenga overflow visible cuando el select está abierto */
+        #create-room-modal .modal-content {
+            overflow: visible !important;
+        }
+    }
+    
+    #create-room-modal .modal-content button {
+        padding: 14px;
+        font-size: 1rem;
+        margin-top: 15px;
+        min-height: 44px;
+    }
+    
+    #create-room-modal .modal-content .error {
+        font-size: 0.85rem;
+        padding: 8px;
+        margin-top: 10px;
+    }
+    
+    /* Asegurar que los contenedores de opciones no se corten */
+    #create-room-modal .modal-content #ludo-options-container,
+    #create-room-modal .modal-content #parchis-options-container {
+        margin-top: 15px;
+        margin-bottom: 15px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(197, 165, 106, 0.3);
+    }
+    
+    #create-room-modal .modal-content #ludo-options-container label,
+    #create-room-modal .modal-content #parchis-options-container label {
+        margin-top: 15px;
+    }
+    
+    #create-room-modal .modal-content #ludo-options-container label:first-child,
+    #create-room-modal .modal-content #parchis-options-container label:first-child {
+        margin-top: 0;
+    }
+}
+
+/* Media queries para modal de olvido de contraseña en móviles */
+@media (max-width: 768px) {
+    #forgot-password-modal .modal-content {
+        width: 95vw;
+        max-width: 95vw;
+        max-height: 95vh;
+        padding: 20px 15px;
+    }
+    
+    #forgot-password-modal .modal-content h3 {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    }
+    
+    #forgot-password-modal .modal-content p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    
+    #forgot-password-modal .modal-content h4 {
+        font-size: 1rem;
+        margin-top: 15px;
+        margin-bottom: 8px;
+    }
+    
+    #forgot-password-modal .modal-content a {
+        font-size: 1rem;
+        display: inline-block;
+        padding: 5px 0;
+    }
+    
+    #forgot-password-modal .modal-content small {
+        font-size: 0.75rem;
+    }
+    
+    #forgot-password-modal .modal-content button {
+        margin-top: 15px;
+        padding: 12px;
+    }
+}
+#rules-modal .modal-content::-webkit-scrollbar,
+#register-modal .modal-content::-webkit-scrollbar,
+#elimination-overlay .content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#rules-modal .modal-content::-webkit-scrollbar-track,
+#register-modal .modal-content::-webkit-scrollbar-track,
+#elimination-overlay .content::-webkit-scrollbar-track {
+    background: #6d2932;
+    border-radius: 10px;
+}
+
+#rules-modal .modal-content::-webkit-scrollbar-thumb,
+#register-modal .modal-content::-webkit-scrollbar-thumb,
+#elimination-overlay .content::-webkit-scrollbar-thumb {
+    background: #c5a56a;
+    border-radius: 10px;
+}
+
+/* --- INICIO: Estilos para el modal de Créditos con Scroll --- */
+#credit-modal .modal-content {
+    width: 90vw; /* Usamos un ancho relativo para adaptarse mejor */
+    max-width: 500px; /* Pero con un máximo para no ser demasiado grande en PC */
+    max-height: 85vh; /* Limitamos la altura máxima al 85% de la pantalla */
+    overflow-y: auto; /* AÑADE EL SCROLL VERTICAL SÓLO SI ES NECESARIO */
+    text-align: left; /* Alineamos el texto a la izquierda para mejor lectura */
+    line-height: 1.6;
+}
+
+/* Estilos opcionales para que la barra de scroll coincida con la del modal de reglas */
+#credit-modal .modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+#credit-modal .modal-content::-webkit-scrollbar-track {
+    background: #6d2932;
+    border-radius: 10px;
+}
+#credit-modal .modal-content::-webkit-scrollbar-thumb {
+    background: #c5a56a;
+    border-radius: 10px;
+}
+/* --- FIN: Estilos para el modal de Créditos con Scroll --- */
+
+#rules-modal .modal-content h3,
+#pwa-install-modal .modal-content h3,
+#functions-modal .modal-content h3,
+#bot-info-modal .modal-content h3 {
+    font-size: clamp(1.4rem, 4vw, 1.8rem); /* Tipografía fluida */
+    color: #c5a56a;
+    border-bottom: 1px solid #c5a56a;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+#rules-modal .modal-content h4,
+#pwa-install-modal .modal-content .pwa-subtitle,
+#functions-modal .modal-content h4,
+#bot-info-modal .modal-content h4 {
+    font-size: clamp(1rem, 3vw, 1.2rem); /* Tipografía fluida */
+    color: #c5a56a;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+#rules-modal .modal-content ul,
+#pwa-install-modal .modal-content ol,
+#functions-modal .modal-content ul,
+#functions-modal .modal-content ol,
+#bot-info-modal .modal-content ul,
+#bot-info-modal .modal-content ol {
+    padding-left: 20px;
+    list-style: disc;
+}
+#rules-modal .modal-content li,
+#functions-modal .modal-content li,
+#bot-info-modal .modal-content li {
+    margin-bottom: 8px;
+}
+#rules-modal .modal-content strong,
+#functions-modal .modal-content strong,
+#bot-info-modal .modal-content strong {
+    color: #c5a56a;
+}
+#rules-modal .modal-content .example,
+#functions-modal .modal-content .example,
+#bot-info-modal .modal-content .example {
+    background: #3a3a2a; /* <-- LÍNEA MODIFICADA */
+    border-left: 3px solid #c5a56a;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 0 5px 5px 0;
+    font-style: italic;
+    font-size: 0.9em;
+}
+#btn-close-rules-modal,
+#btn-close-functions-modal,
+#pwa-install-modal #btn-close-pwa-modal,
+#functions-modal button {
+    background: #6D2932;
+    color: #e0d3b6;
+}
+#btn-close-rules-modal:hover,
+#btn-close-functions-modal:hover,
+#pwa-install-modal #btn-close-pwa-modal:hover,
+#functions-modal button:hover {
+    background: #58141f;
+}
+
+/* Estilos para avatares */
+.avatar-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px;
+    background: #211e18;
+    border-radius: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+.avatar-gallery::-webkit-scrollbar { width: 8px; }
+.avatar-gallery::-webkit-scrollbar-track { background: #6d2932; border-radius: 10px; } /* Color actualizado */
+.avatar-gallery::-webkit-scrollbar-thumb { background: #c5a56a; border-radius: 10px; }
+
+.avatar-item {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+    background-color: #6d2932; /* Color actualizado */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    text-align: center;
+    color: #c5a56a;
+}
+.avatar-item img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.avatar-item.selected {
+    border-color: #c5a56a;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px #c5a56a;
+}
+.avatar-item:hover {
+    border-color: #c5a56a;
+    transform: scale(1.05);
+}
+.avatar-preview-container {
+    text-align: center;
+    margin-top: 15px;
+}
+.avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid #c5a56a;
+    object-fit: cover;
+}
+
+/* INICIO: Estilos para el modal de recorte de avatar */
+#avatar-crop-modal .modal-content {
+    width: 380px;
+}
+#crop-container {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+    margin: 20px auto;
+    background: #111;
+    border: 2px solid #c5a56a;
+    cursor: move;
+    user-select: none;
+}
+#crop-image-wrapper {
+    position: absolute;
+}
+#crop-image-preview {
+    width: 100%;
+    height: 100%;
+    display: block; /* CORRECCIÓN: Asegura que la imagen se comporte como un bloque */
+    pointer-events: none; /* Para que los eventos de arrastre pasen al contenedor */
+}
+.crop-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+/* FIN: Estilos para el modal de recorte de avatar */
+
+
+#orientation-message {
+    position: fixed;
+    inset: 0;
+    background: #211e18;
+    color: #e0d3b6;
+    display: none; /* Oculto por defecto */
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    font-size: 1.5rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    padding: 20px;
+}
+
+/* --- INICIO: FORZAR VISTA HORIZONTAL (LOBBY) --- */
+/* Media query para pantallas grandes (desktop) */
+@media (min-width: 1201px) {
+    .user-panel {
+        min-width: 260px;
+    }
+    .user-panel .panel-title {
+        font-size: 1.3rem;
+        padding: 8px 10px;
+        min-height: 45px;
+        gap: 3px;
+    }
+    .user-panel .panel-title .dice {
+        width: 22px;
+        height: 22px;
+    }
+    .user-panel .panel-title .dice::before {
+        font-size: 16px;
+    }
+    .user-panel .panel-title .char {
+        font-size: 1.3rem;
+    }
+}
+
+@media (orientation: portrait) and (max-width: 992px) {
+    /* 1. Ocultar el contenido principal del lobby y todos los modales */
+    #lobby-overlay,
+    #login-modal,
+    #register-modal,
+    #credit-modal,
+    #rules-modal,
+    #create-room-modal,
+    #avatar-crop-modal,
+    #insufficient-credits-modal,
+    #pwa-install-modal,
+    #functions-modal,
+    #bot-info-modal,
+    #forgot-password-modal,
+    #change-password-modal,
+    #simple-funds-modal { /* Aseguramos ocultar también este modal */
+        display: none !important; /* Oculta todo el contenido */
+    }
+
+    /* 2. Mostrar el mensaje de orientación */
+    #orientation-message {
+        display: flex; /* Muestra el mensaje de bloqueo */
+    }
+}
+/* --- FIN: FORZAR VISTA HORIZONTAL (LOBBY) --- */
+
+/* ▼▼▼ MEDIA QUERIES COMPLETAS PARA PANEL DE USUARIO ▼▼▼ */
+
+/* Tablets grandes y laptops pequeñas */
+@media (max-width: 1200px) and (orientation: landscape) {
+    .user-panel {
+        padding: 15px;
+        min-width: 160px;
+    }
+    .user-panel .panel-title {
+        font-size: 1rem;
+        margin-bottom: 10px;
+        padding: 5px 6px;
+        gap: 2px;
+        min-height: 35px;
+    }
+    .user-panel .panel-title .dice {
+        width: 18px;
+        height: 18px;
+    }
+    .user-panel .panel-title .dice::before {
+        font-size: 12px;
+    }
+    .user-panel .panel-title .char {
+        font-size: 1rem;
+    }
+    .user-panel .avatar-container, .user-panel .avatar {
+        width: 90px;
+        height: 90px;
+        margin-bottom: 10px;
+    }
+    .user-panel .avatar-label {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+    .user-panel .username {
+        font-size: 1rem;
+        margin-bottom: 10px;
+    }
+    .user-panel .credits {
+        padding: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+    .button {
+        padding: 8px 0;
+        margin-bottom: 7px;
+        font-size: 0.8rem;
+        border-radius: 12px;
+    }
+}
+
+/* Tablets medianas */
+@media (max-width: 992px) and (orientation: landscape) {
+    .user-panel {
+        padding: 10px;
+        min-width: 140px;
+    }
+    .user-panel .panel-title {
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+        padding: 4px 5px;
+        gap: 1px;
+        min-height: 30px;
+    }
+    .user-panel .panel-title .dice {
+        width: 16px;
+        height: 16px;
+    }
+    .user-panel .panel-title .dice::before {
+        font-size: 10px;
+    }
+    .user-panel .panel-title .char {
+        font-size: 0.85rem;
+    }
+    .user-panel .avatar-container, .user-panel .avatar {
+        width: 70px;
+        height: 70px;
+        margin-bottom: 8px;
+    }
+    .user-panel .avatar-label {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+    .user-panel .username {
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+    }
+    .user-panel .credits {
+        padding: 6px;
+        font-size: 0.75rem;
+        margin-bottom: 10px;
+    }
+    .button {
+        padding: 6px 0;
+        margin-bottom: 5px;
+        font-size: 0.7rem;
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+    .lobby-main {
+        gap: 8px;
+    }
+    .overlay-content {
+        padding: 8px !important;
+    }
+    .user-panel, .tables-panel, .chat-header, .chat-messages, .chat-input {
+        padding: 10px;
+    }
+    .user-panel {
+        min-width: 160px; /* Reducir ancho mínimo */
+        flex-basis: 160px;
+    }
+    .tables-panel {
+        min-width: 0; /* Permitir que se encoja más */
+    }
+    .chat-panel {
+        min-width: 200px; /* Reducir ancho mínimo */
+        flex-basis: 220px;
+    }
+    .user-panel .panel-title {
+        font-size: 0.75rem;
+        margin-bottom: 8px;
+        padding: 3px 4px;
+        gap: 1px;
+        min-height: 28px;
+    }
+    .user-panel .panel-title .dice {
+        width: 14px;
+        height: 14px;
+    }
+    .user-panel .panel-title .dice::before {
+        font-size: 9px;
+    }
+    .user-panel .panel-title .char {
+        font-size: 0.75rem;
+    }
+    .user-panel .avatar-container, .user-panel .avatar {
+        width: 70px;            /* Reducido de 80px */
+        height: 70px;           /* Reducido de 80px */
+    }
+    .user-panel .avatar-label {
+        width: 24px;            /* Reducido de 28px */
+        height: 24px;           /* Reducido de 28px */
+        font-size: 14px;        /* Reducido de 16px */
+    }
+    .user-panel .username {
+        font-size: 0.85rem;      /* Reducido de 0.9rem */
+    }
+    .user-panel .credits {
+        padding: 6px;           /* Reducido de 7px */
+        font-size: 0.8rem;      /* Reducido de 0.85rem */
+        margin-bottom: 8px;     /* Reducido de 10px */
+    }
+    .button {
+        padding: 6px 0;         /* Reducido de 7px */
+        font-size: 0.7rem;      /* Reducido de 0.8rem */
+        border-radius: 8px;
+        margin-bottom: 5px;     /* Reducido de 6px */
+    }
+    .table-item {
+        padding: 12px;
+        min-height: 160px;
+    }
+    .tables-panel {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+    .chat-input textarea {
+        padding: 8px;
+    }
+    .chat-input button {
+        padding: 8px 15px;
+    }
+}
+
+/* ▼▼▼ INICIO: ESTILOS PARA LA LISTA DE JUGADORES CONECTADOS ▼▼▼ */
+.online-users {
+    padding: 0 15px 10px 15px;
+    border-bottom: 2px solid #c5a56a;
+    background: #e0d3b6;
+}
+.online-users-title {
+    margin: 0 0 8px 0;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #6d2932;
+    padding-top: 10px;
+}
+#online-users-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 120px; /* Altura máxima antes de activar el scroll */
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+#online-users-list::-webkit-scrollbar {
+    width: 6px;
+}
+#online-users-list::-webkit-scrollbar-track {
+    background: #c5a56a66;
+    border-radius: 10px;
+}
+#online-users-list::-webkit-scrollbar-thumb {
+    background: #6d2932;
+    border-radius: 10px;
+}
+#online-users-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-radius: 5px;
+}
+#online-users-list li:nth-child(odd) {
+    background-color: rgba(109, 41, 50, 0.08); /* Sombreado ligero para filas impares */
+}
+.user-status {
+    font-weight: bold;
+}
+.status-lobby {
+    color: #28a745; /* Verde para 'En el Lobby' */
+}
+.status-playing {
+    color: #E67E22; /* Naranja oscuro para 'Jugando' (mejor contraste) */
+}
+/* ▲▲▲ FIN: ESTILOS PARA LA LISTA DE JUGADORES ▲▲▲ */
+
+/* --- FIN DE ESTILOS DE LOBBY.HTML --- */
+
+/* --- INICIO: Estilos PWA para lobby --- */
+@media (max-width: 992px) and (orientation: landscape) {
+    #lobby-overlay {
+        transform: none !important;
+        left: 0 !important;
+        top: 0 !important;
+        position: fixed !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        border-radius: 0;
+        border: none;
+        padding: 0; /* Cambiado de 10px a 0 */
+    }
+    
+    .lobby-main {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        padding: 10px;
+    }
+    
+    .tables-panel {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        border-radius: 0;
+        padding: 10px;
+    }
+}
+/* --- FIN: Estilos PWA para lobby --- */
+
+/* ▼▼▼ ESTILOS PARA MODALES DE VICTORIA Y REVANCHA ▼▼▼ */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+.overlay .content {
+    background: var(--casino-dark-panel);
+    border: 2px solid var(--casino-gold);
+    border-radius: 15px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    color: var(--casino-tan);
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.4s ease-out;
+    position: relative; /* <-- AÑADIDO */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#victory-overlay .content h2,
+#ready-overlay .content h2 {
+    color: var(--casino-gold);
+    margin-top: 0;
+    font-size: 1.8rem;
+}
+
+#victory-overlay .content h3 {
+    color: var(--casino-tan);
+    font-size: 1.2rem;
+    margin: 15px 0;
+}
+
+#final-scores {
+    text-align: left;
+    margin: 20px 0;
+    line-height: 1.8;
+}
+
+#final-scores strong {
+    color: var(--casino-gold);
+}
+
+#ready-overlay .content {
+    max-width: 600px;
+}
+
+#rematch-status {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(197, 165, 106, 0.1);
+    border-radius: 10px;
+    text-align: left;
+}
+
+.overlay .button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.overlay .button-group button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: linear-gradient(to bottom, #d1b47a, #b59458);
+    color: var(--casino-dark-panel);
+}
+
+.overlay .button-group button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(197, 165, 106, 0.4);
+}
+
+.overlay .button-group button.secondary {
+    background: var(--casino-burgundy-felt);
+    color: var(--casino-tan);
+}
+
+.overlay .button-group button.secondary:hover {
+    background: #58141f;
+}
+
+.overlay .button-group button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#btn-setup-rematch {
+    background: linear-gradient(to bottom, #d1b47a, #b59458);
+    color: var(--casino-dark-panel);
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px 5px;
+    transition: all 0.3s ease;
+}
+
+#btn-setup-rematch:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(197, 165, 106, 0.4);
+}
+/* ▲▲▲ FIN ESTILOS PARA MODALES DE VICTORIA Y REVANCHA ▲▲▲ */
+
+/* --- ESTILOS PARA BOTÓN DE CERRAR MODAL (AÑADIDO) --- */
+.close-modal-btn {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 2.5rem; /* Tamaño grande para que sea fácil de tocar */
+    color: #aaa;
+    cursor: pointer;
+    line-height: 1;
+    font-weight: bold;
+    transition: color 0.2s;
+    z-index: 10; /* Asegura que esté sobre el contenido */
+}
+.close-modal-btn:hover {
+    color: #fff;
+}
+
+/* Ocultar la 'x' solo en el modal de registro */
+#register-modal .close-modal-btn {
+    display: none;
+}
+
+/* Ocultar la 'x' en el modal de Victoria */
+#victory-overlay .close-modal-btn {
+    display: none;
+}
+
+/* Ocultar la 'x' en el modal de Revancha */
+#ready-overlay .close-modal-btn {
+    display: none;
+}

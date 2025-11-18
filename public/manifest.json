@@ -1,0 +1,48 @@
+{
+  "name": "La 51 - Juego de Cartas",
+  "short_name": "La 51",
+  "description": "Juego de cartas La 51 - Juega con amigos en tiempo real",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#211e18",
+  "theme_color": "#c5a56a",
+  "orientation": "landscape",
+  "scope": "/",
+  "lang": "es",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-144.png",
+      "type": "image/png",
+      "sizes": "144x144",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "type": "image/png",
+      "sizes": "1280x720",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "type": "image/png",
+      "sizes": "750x1334",
+      "form_factor": "narrow"
+    }
+  ]
+}
+

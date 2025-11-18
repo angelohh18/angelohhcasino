@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ludo Game</title>
+    <link rel="stylesheet" href="/ludo/ludostyle.css?v=33">
+    <link rel="stylesheet" href="/ludo/ludo.css?v=33">
+</head>
+<body class="game-active">
+    <div id="orientation-message">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;"><path d="M16.4 3.6a9 9 0 0 1 0 16.8M3.6 7.6a9 9 0 0 1 16.8 0"/><path d="M21 16H3M21 8H3"/></svg>
+        <p>Por favor, gira tu dispositivo a la posición vertical para continuar.</p>
+      </div>
+    </div>
+
+    <div id="ludo-game-container">
+
+        <div id="game-status-container">
+            <div class="game-pot-display">
+                Bote: <span id="game-pot">0</span>
+            </div>
+            <button id="btn-start-game" style="display: none;">Iniciar Juego</button>
+        </div>
+
+        <div id="ludo-board-container">
+            <div id="ludo-board">
+                <div class="area red player-base" data-color="red">
+                    <div class="base-pieces-container" id="base-pieces-red"></div>
+                </div>
+                <div class="path path-vertical" data-path="top" id="path-top"></div>
+                <div class="area blue player-base" data-color="blue">
+                    <div class="base-pieces-container" id="base-pieces-blue"></div>
+                </div>
+
+                <div class="path path-horizontal" data-path="left" id="path-left"></div>
+                <div class="center" id="center-area"></div>
+                <div class="path path-horizontal" data-path="right" id="path-right"></div>
+
+                <div class="area green player-base" data-color="green">
+                    <div class="base-pieces-container" id="base-pieces-green"></div>
+                </div>
+                <div class="path path-vertical" data-path="bottom" id="path-bottom"></div>
+                <div class="area yellow player-base" data-color="yellow">
+                    <div class="base-pieces-container" id="base-pieces-yellow"></div>
+                </div>
+
+            </div>
+
+            <div id="board-cells" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+
+            <div class="pair-label" id="pair-label-red" data-color="red" style="display: none;"></div>
+            <div class="player-info-box info-bot" id="player-info-box-red" data-color="red">
+                <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="player-avatar" alt="Avatar Rojo">
+                <div class="player-details">
+                    <div class="player-name">Jugador Rojo</div>
+                </div>
+            </div>
+            <div class="player-dice-container" id="player-dice-container-red" data-color="red">
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-red-1">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-red-2">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pair-label" id="pair-label-blue" data-color="blue" style="display: none;"></div>
+            <div class="player-info-box info-bot" id="player-info-box-blue" data-color="blue">
+                <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="player-avatar" alt="Avatar Azul">
+                <div class="player-details">
+                    <div class="player-name">Jugador Azul</div>
+                </div>
+            </div>
+            <div class="player-dice-container" id="player-dice-container-blue" data-color="blue">
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-blue-1">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-blue-2">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pair-label" id="pair-label-green" data-color="green" style="display: none;"></div>
+            <div class="player-info-box info-bot" id="player-info-box-green" data-color="green">
+                <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="player-avatar" alt="Avatar Verde">
+                <div class="player-details">
+                    <div class="player-name">Jugador Verde</div>
+                </div>
+            </div>
+            <div class="player-dice-container" id="player-dice-container-green" data-color="green">
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-green-1">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-green-2">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pair-label" id="pair-label-yellow" data-color="yellow" style="display: none;"></div>
+            <div class="player-info-box info-bot" id="player-info-box-yellow" data-color="yellow">
+                <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="player-avatar" alt="Avatar Amarillo">
+                <div class="player-details">
+                    <div class="player-name">Jugador Amarillo</div>
+                </div>
+            </div>
+            <div class="player-dice-container" id="player-dice-container-yellow" data-color="yellow">
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-yellow-1">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+                <div class="dice-cube-container">
+                    <div class="dice player-dice cube" id="player-dice-yellow-2">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face right"></div>
+                        <div class="face left"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-container">
+            <div class="top-controls-wrapper">
+                <button id="game-rules-btn">📜 Reglas Ludo</button>
+                <button id="btn-toggle-sound" title="Silenciar Sonidos">🔊</button>
+                <button id="btn-back-to-lobby-ingame">🚪 Volver al Lobby</button>
+                <button id="chat-toggle-btn">💬 Chat <span id="chat-notification-badge" style="display: none;"></span></button>
+            </div>
+            <div id="chat-window">
+                <ul id="chat-messages">
+                    <div id="chat-messages-inner"></div>
+                </ul>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Escribe un mensaje...">
+                    <button id="chat-send-btn">Enviar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="rules-modal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rules-modal-title" style="display: none; z-index: 10001;">
+
+            <div class="modal-content">
+                <span class="close-modal-btn">&times;</span>
+                <h3 id="rules-modal-title">Reglas de Ludo y Parchís</h3>
+
+                <h4 style="color: #c5a56a; border-bottom: 1px solid #c5a56a; padding-bottom: 5px; margin-top: 10px;">REGLAS DE LUDO</h4>
+                
+                <h4>Configuración de la Partida (Ludo)</h4>
+                <ul>
+                    <li><strong>Creación:</strong> El Anfitrión define la Apuesta, la Moneda, su Color de asiento, el Número de Fichas (2, 3 o 4) y el Modo de Salida.</li>
+                    <li><strong>Modo de Salida:</strong>
+                        <ul style="margin-top: 5px;">
+                            <li><strong>Salida con Doble:</strong> Las fichas empiezan en la base y solo salen con un doble.</li>
+                            <li><strong>Salida Automática:</strong> Todas las fichas (2, 3 o 4) empiezan en la casilla de salida de su color.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Inicio:</strong> Se necesitan 2 o más jugadores. El Anfitrión (creador de la sala) siempre tiene el primer turno.</li>
+                </ul>
+
+                <h4>Reglas de Dados y Turno (Ludo)</h4>
+                <ul>
+                    <li><strong>Tirada:</strong> Se lanzan dos dados.</li>
+                    <li><strong>Sacar Fichas (Modo "Salida con Doble"):</strong>
+                        <ul style="margin-top: 5px;">
+                            <li>Si sacas un doble y tienes <strong>solo 1 ficha</strong> en base, esta sale. Debes mover el valor de uno de los dados y luego recibes un <strong>turno extra</strong>.</li>
+                            <li>Si sacas un doble y tienes <strong>2 o más fichas</strong> en base, todas salen. Tu turno extra se consume para <strong>volver a tirar</strong> inmediatamente.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Turno Extra (Bono):</strong> Ganas un turno extra (vuelves a tirar) si:
+                        <ol style="margin-top: 5px;">
+                            <li>Matas a un oponente.</li>
+                            <li>Llegas con una ficha a la meta.</li>
+                            <li>Sacas un doble (y no tenías fichas en base).</li>
+                        </ol>
+                    </li>
+                    <li><strong>Pérdida de Turno:</strong> Pierdes tu turno si sacas un tiro normal (no doble) y no tienes ningún movimiento legal posible.</li>
+                </ul>
+
+                <h4>Reglas de Movimiento y Combate (Ludo)</h4>
+                <ul>
+                    <li><strong>Movimiento:</strong> Puedes mover dos fichas (una por cada dado) o una sola ficha con la <strong>suma de ambos dados</strong>.</li>
+                    <li><strong>Casillas Seguras:</strong> Las casillas marcadas como seguras (incluyendo las de salida) te protegen. No puedes ser comido en ellas.</li>
+                    <li><strong>Matar:</strong> Si caes en una casilla (no segura) ocupada por un oponente, lo envías a su base y ganas un turno extra.</li>
+                    <li><strong>Matar al Salir:</strong> Si sales de la base y en tu casilla de salida hay un oponente, lo comes.</li>
+                    <li><strong>Meta:</strong> Debes sacar el número exacto para entrar a la meta. Al hacerlo, ganas un turno extra.</li>
+                    <li><strong>Apilamiento (Stacking):</strong> Puedes tener varias fichas (tuyas o de otros) en la misma casilla.</li>
+                </ul>
+
+                <h4>Penalizaciones (Falta) (Ludo)</h4>
+                <ul>
+                    <li><strong>Falta por Matanza ObligatorIA:</strong>
+                        <ul style="margin-top: 5px;">
+                            <li>Si al inicio de tu turno tienes un movimiento que te permite matar a un oponente.</li>
+                            <li>Y eliges hacer un movimiento diferente (que no mata).</li>
+                            <li>Y después de ese movimiento, ya no te es posible realizar la matanza obligatoria.</li>
+                            <li><strong>Castigo:</strong> La ficha tuya que <strong>debía</strong> haber matado es enviada de vuelta a la base.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Abandono:</strong> Si abandonas una partida en curso, tus fichas se retiran y se considera una falta.</li>
+                </ul>
+
+                <h4>Victoria y Fin de Partida (Ludo)</h4>
+                <ul>
+                    <li><strong>Victoria:</strong> Ganas si todas tus fichas (según el número elegido) llegan a la meta. También ganas si todos los demás oponentes abandonan.</li>
+                    <li><strong>Comisión:</strong> Al finalizar la partida, el servidor deduce una <strong>comisión del 10%</strong> del bote total y entrega el resto al ganador.</li>
+                    <li><strong>Revancha:</strong> Al terminar, se activa la pantalla de revancha para los jugadores de la partida.</li>
+                </ul>
+
+                <hr style="border: 0; height: 1px; background: #c5a56a; margin: 30px 0;">
+
+                <h4 style="color: #c5a56a; border-bottom: 1px solid #c5a56a; padding-bottom: 5px; margin-top: 10px;">REGLAS DE PARCHÍS</h4>
+                
+                <h4>Configuración de la Partida (Parchís)</h4>
+                <ul>
+                    <li><strong>Modos de Juego:</strong> 2 Jugadores (1 vs 1), 4 Jugadores (Individual), o 4 Jugadores (Grupos 2 vs 2).</li>
+                    <li><strong>Orden de Turno:</strong> El orden de juego es fijo: Amarillo, luego Azul, luego Rojo, y finalmente Verde.</li>
+                </ul>
+                
+                <h4>Reglas de Salida de Casa (Parchís)</h4>
+                <ul>
+                    <li><strong>Sacar Ficha:</strong> Debes sacar un <strong>5</strong> (ya sea en un dado o como suma de ambos, ej. 2+3) para mover una ficha de la base a la casilla de salida.</li>
+                    <li><strong>Doble 5:</strong> Si sacas doble 5 (5-5), sacas dos fichas de la base (si tienes espacio).</li>
+                    <li><strong>Límite en Salida:</strong> La casilla de salida solo puede tener un máximo de 2 fichas (de cualquier color).</li>
+                    <li><strong>Matar al Salir:</strong> Si sales y en tu casilla de salida hay una ficha oponente, la "comes" (la envías a su base) y ganas un premio de 20 pasos.</li>
+                    <li><strong>Salida Bloqueada:</strong> No puedes sacar una ficha si tu casilla de salida ya está ocupada por 2 fichas *tuyas*.</li>
+                </ul>
+
+                <h4>Reglas de Dados y Penalizaciones (Parchís)</h4>
+                <ul>
+                    <li><strong>Doble (Repetir):</strong> Si sacas un doble (ej. 4-4), mueves y vuelves a tirar.</li>
+                    <li><strong>Penalización (Tres Dobles):</strong> Si sacas <strong>tres dobles seguidos</strong>, la última ficha que moviste es castigada y vuelve a la base. (Excepción: no se aplica si la ficha ya está en la recta final de color).</li>
+                    <li><strong>Doble sin Fichas:</strong> Si sacas un doble (que no sea 5-5) pero no tienes fichas en el tablero, pierdes el doble pero vuelves a tirar.</li>
+                    <li><strong>Tiro Normal sin Fichas:</strong> Si sacas un tiro normal (sin 5) y no tienes fichas en el tablero, pierdes el turno.</li>
+                </ul>
+
+                <h4>Reglas de Movimiento y Combate (Parchís)</h4>
+                <ul>
+                    <li><strong>Bloqueos (Barreras):</strong> Dos fichas (tuyas o mixtas) en la misma casilla (fuera de zona segura) forman una barrera. Ninguna ficha puede pasar por encima de una barrera.</li>
+                    <li><strong>Romper Barrera (Obligatorio):</strong> Si sacas un doble, estás <strong>obligado</strong> a usar uno de los dados para mover una de las fichas que forma tu barrera.</li>
+                    <li><strong>Puentes (Atajos):</strong> El tablero tiene puentes. Si caes en la entrada, saltas automáticamente a la salida del puente.</li>
+                    <li><strong>Llegada a Meta:</strong> Debes sacar el <strong>número exacto</strong> para entrar a la meta. No se permite rebotar.</li>
+                </ul>
+
+                <h4>Premios (Bonificaciones) (Parchís)</h4>
+                <ul>
+                    <li><strong>Por Matar:</strong> Al "comer" a un oponente, ganas un movimiento de premio de <strong>20 pasos</strong>.</li>
+                    <li><strong>Por Llegar a Meta:</strong> Al meter una ficha en la meta, ganas un movimiento de premio de <strong>10 pasos</strong>.</li>
+                    <li>(Los premios son prioritarios y deben jugarse antes que los dados restantes).</li>
+                </ul>
+                
+                <h4>Victoria y Fin de Partida (Parchís)</h4>
+                <ul>
+                    <li><strong>Victoria Individual:</strong> Gana el primer jugador en llevar sus 4 fichas a la meta.</li>
+                    <li><strong>Victoria en Grupos (2 vs 2):</strong> El equipo gana cuando las <strong>8 fichas</strong> (las 4 tuyas y las 4 de tu compañero) están en sus metas.</li>
+                    <li><strong>Regla de Ayuda (Grupos):</strong> Si terminas de meter tus 4 fichas, en tus siguientes turnos pasarás a mover las fichas de tu compañero.</li>
+                    <li><strong>Victoria por Abandono (Grupos):</strong> Si un jugador de un equipo abandona, el equipo *contrario* gana la partida automáticamente.</li>
+                    <li><strong>Comisión:</strong> Se aplica la misma comisión del 10% sobre el bote total.</li>
+                </ul>
+                
+                <button id="btn-close-rules-modal" class="secondary">Entendido</button>
+            </div>
+        </div>
+
+         <div id="confirm-leave-modal" class="overlay" style="display: none;">
+            <div class="content">
+                <span class="close-modal-btn">&times;</span>
+                <h2>Confirmar Salida</h2>
+                <p id="confirm-leave-message">¿Estás seguro de que quieres volver al lobby?</p>
+                <div class="button-group">
+                    <button id="btn-confirm-leave-yes">Sí, salir</button>
+                    <button id="btn-confirm-leave-no" class="secondary">No, quedarme</button>
+                </div>
+            </div>
+         </div>
+
+
+    </div>
+
+    <!-- ▼▼▼ MODAL DE VICTORIA ▼▼▼ -->
+    <div id="victory-overlay" class="overlay hidden">
+        <div class="content">
+            <span class="close-modal-btn">&times;</span>
+            <h2 id="victory-message">¡Victoria!</h2>
+            <div id="final-scores"></div>
+
+            <div class="button-group">
+                <button id="btn-setup-rematch">🏆 Revancha</button>
+                <button onclick="goBackToLobby()" class="secondary">🚪 Volver al Lobby</button>
+            </div>
+        </div>
+    </div>
+    <!-- ▲▲▲ FIN MODAL DE VICTORIA ▲▲▲ -->
+
+    <!-- ▼▼▼ MODAL DE REVANCHA ▼▼▼ -->
+    <div id="ready-overlay" class="overlay hidden">
+        <div class="content">
+            <span class="close-modal-btn">&times;</span>
+            <h2 id="welcome-message"></h2>
+            <p id="bet-info"></p>
+            <div id="rematch-status"></div>
+            <div class="button-group">
+                <button id="btn-ready-main">Confirmar Revancha</button>
+                <button id="btn-spectator-sit" style="display: none;">✔️ Sentarse en la Próxima Partida</button>
+                <button id="btn-start-rematch" style="display: none;">▶️ Iniciar Partida</button>
+                <button onclick="goBackToLobby()" class="secondary">Volver al Lobby</button>
+            </div>
+        </div>
+    </div>
+    <!-- ▲▲▲ FIN MODAL DE REVANCHA ▲▲▲ -->
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/ludo/ludo-client.js?v=33" defer></script>
+    
+    <script>
+    // ======================================================
+    // SCRIPT DE GENERACIÓN DEL TABLERO DE LUDO (RECREADO)
+    // ======================================================
+    (function() {
+        // Mapeo de números para los caminos exteriores (basado en tu HTML original)
+        const numberMapping = {
+            108: 1, 105: 2, 102: 3, 99: 4, 96: 5, 93: 6, 90: 7, 64: 8,
+            65: 9, 81: 10, 82: 11, 83: 12, 84: 13, 85: 14, 86: 15, 87: 16,
+            80: 17, 73: 18, 72: 19, 71: 20, 70: 21, 69: 22, 68: 23, 67: 24,
+            21: 27, 18: 28, 15: 29, 12: 30, 9: 31, 6: 32, 3: 33, 2: 34, 1: 35,
+            4: 36, 7: 37, 10: 38, 13: 39, 16: 40, 19: 41, 28: 44, 27: 45,
+            26: 46, 25: 47, 24: 48, 23: 49, 22: 50, 29: 51,
+            36: 52, 37: 53,
+            38: 54, 39: 55, 40: 56, 41: 57, 42: 58, 88: 61, 91: 62, 94: 63,
+            97: 64, 100: 65, 103: 66, 106: 67, 107: 68, 104: 69, 101: 70,
+            98: 71, 95: 72, 92: 73, 89: 74, 63: 75, 79: 76, 78: 77, 77: 78,
+            76: 79, 75: 80, 74: 81, 5: 83, 8: 84, 11: 85, 14: 86, 17: 87,
+            20: 88, 30: 90, 31: 91, 32: 92, 33: 93, 34: 94, 35: 95
+        };
+
+        // Mapeo para los números dentro del SVG del centro (basado en tu HTML original)
+        // Nota: Los números aquí son los que se mostrarán, no los data-cell.
+        // Números fijos: 8, 9, 82, 25, 26, 89, 42, 43, 96, 59, 60, 75
+        // Resto: del 97 hacia adelante
+        const centerNumberMapping = {
+            cell0_top: 42, cell0_left: 43, cell0_red: 97, cell0_green: 98,
+            cell1_top: 89, cell1_bottom: 99,
+            cell2_top: 26, cell2_right: 25, cell2_red: 100, cell2_blue: 101,
+            cell3_left: 96, cell3_right: 102,
+            cell4_top: 103, cell4_bottom: 104, cell4_left: 105, cell4_right: 106,
+            cell5_left: 107, cell5_right: 82,
+            cell6_left: 59, cell6_bottom: 60, cell6_green: 108, cell6_yellow: 109,
+            cell7_top: 110, cell7_bottom: 75,
+            cell8_bottom: 8, cell8_right: 9, cell8_yellow: 111, cell8_blue: 112,
+            // Casillas adicionales para completar las series
+            cell9_blue: 113, cell10_blue: 114, cell11_blue: 115, cell12_blue: 116, cell13_blue: 117,
+            cell14_yellow: 118, cell15_yellow: 119, cell16_yellow: 120,
+            cell17_red: 121, cell18_red: 122, cell19_red: 123, cell20_red: 124, cell21_red: 125, cell22_red: 126, cell23_red: 127,
+            cell24_green: 128, cell25_green: 129, cell26_green: 130, cell27_green: 131, cell28_green: 132, cell29_green: 133, cell30_green: 134
+        };
+
+        // Celdas de colores específicos
+        const yellowCellNumbers = [5, 12, 68, 69, 70, 71, 72, 73, 74];
+        const blueCellNumbers = [17, 22, 29, 76, 77, 78, 79, 80, 81];
+        const redCellNumbers = [34, 39, 46, 83, 84, 85, 86, 87, 88];
+        const greenCellNumbers = [51, 56, 63, 90, 91, 92, 93, 94, 95];
+
+        // Función para determinar la clase CSS de una celda por su número
+        function getCellClass(number) {
+            if (yellowCellNumbers.includes(number)) return 'cell yellow-cell';
+            if (blueCellNumbers.includes(number)) return 'cell blue-cell';
+            if (redCellNumbers.includes(number)) return 'cell red-cell';
+            if (greenCellNumbers.includes(number)) return 'cell green-cell';
+            return 'cell'; // Celda blanca normal
+        }
+
+        // Función para generar las celdas de un camino
+        function generatePathCells(pathElement, startCounter, count) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                // Usa el mapeo para obtener el número real de la celda
+                const cellNumber = numberMapping[startCounter] || startCounter; // Fallback por si falta un mapeo
+                const cellClass = getCellClass(cellNumber);
+                // `data-cell` tendrá el número real, el texto se mostrará con CSS ::before
+                html += `<div class="${cellClass}" data-cell="${cellNumber}"></div>`; // <-- Número eliminado del contenido
+                startCounter++;
+            }
+            pathElement.innerHTML = html;
+            return startCounter; // Devuelve el siguiente número para continuar la secuencia
+        }
+
+        // Función para generar el área central con SVG
+        function generateCenterArea(centerElement) {
+            const svgCells = [
+                // Celda 0 (esquina superior izquierda) - Rojo/Verde
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="100,42.857 42.857,42.857 0,0 100,0" data-cell="${centerNumberMapping.cell0_top}" fill="white" stroke="var(--border-color)" stroke-width="1.2" />
+                        <polygon points="42.857,100 0,100 0,0 42.857,42.857" data-cell="${centerNumberMapping.cell0_left}" fill="white" stroke="var(--border-color)" stroke-width="1.2" />
+                        <polygon class="red-shape" points="42.857,42.857 100,42.857 100,100" stroke="none" data-cell="${centerNumberMapping.cell0_red}" />
+                        <polygon class="green-shape" points="42.857,42.857 42.857,100 100,100" stroke="none" data-cell="${centerNumberMapping.cell0_green}" />
+                        <line x1="42.857" y1="42.857" x2="100" y2="100" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <line x1="42.857" y1="42.857" x2="100" y2="42.857" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="42.857" y1="42.857" x2="42.857" y2="100" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="0"  y1="0"  x2="100" y2="0"   stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="0"  y1="0"  x2="0"   y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="100" y1="0" x2="100" y2="42.857" stroke="black" stroke-width="0.5"/>
+                        <line x1="100" y1="42.857" x2="100" y2="100" stroke="var(--red-color)" stroke-width="1.2"/>
+                        <line x1="0" y1="100" x2="42.857" y2="100" stroke="black" stroke-width="0.5"/>
+                        <line x1="42.857" y1="100" x2="100" y2="100" stroke="var(--green-color)" stroke-width="1.2"/>
+                        <text x="71.4285" y="21.4285" class="cell-number-svg">${centerNumberMapping.cell0_top}</text>
+                        <text x="21.4285" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell0_left}</text>
+                        <text x="71.4285" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell0_red}</text>
+                        <text x="71.4285" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell0_green}</text>
+                    </svg>
+                </div>`,
+                // Celda 1 (centro superior) - Rojo
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon class="clickable-shape red-shape" points="0,0 100,0 100,42.857 0,42.857" data-cell="${centerNumberMapping.cell1_top}" />
+                        <polygon class="red-shape" points="0,42.857 100,42.857 100,100 0,100" stroke="none" data-cell="${centerNumberMapping.cell1_bottom}"/>
+                        <line x1="0" y1="42.857" x2="100" y2="42.857" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="0" y1="0" x2="100" y2="0" stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="0" y1="100" x2="100" y2="100" stroke="var(--red-color)" stroke-width="1.2"/>
+                         <line x1="0" y1="0" x2="0" y2="42.857" stroke="black" stroke-width="0.5"/>
+                         <line x1="0" y1="42.857" x2="0" y2="100" stroke="var(--red-color)" stroke-width="1.2"/>
+                         <line x1="100" y1="0" x2="100" y2="42.857" stroke="black" stroke-width="0.5"/>
+                         <line x1="100" y1="42.857" x2="100" y2="100" stroke="var(--red-color)" stroke-width="1.2"/>
+                        <text x="50" y="21.4285" class="cell-number-svg">${centerNumberMapping.cell1_top}</text>
+                        <text x="50" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell1_bottom}</text>
+                    </svg>
+                </div>`,
+                 // Celda 2 (esquina superior derecha) - Azul/Rojo
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="0,42.857 0,0 100,0 57.143,42.857" data-cell="${centerNumberMapping.cell2_top}" fill="white" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <polygon points="57.143,100 57.143,42.857 100,0 100,100" data-cell="${centerNumberMapping.cell2_right}" fill="white" stroke="var(--border-color)" stroke-width="1.2" />
+                        <polygon class="red-shape" points="0,42.857 57.143,42.857 0,100" stroke="none" data-cell="${centerNumberMapping.cell2_red}" />
+                        <polygon class="blue-shape" points="57.143,42.857 57.143,100 0,100" stroke="none" data-cell="${centerNumberMapping.cell2_blue}" />
+                        <line x1="0" y1="0" x2="100" y2="0" stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="100" y1="0" x2="100" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="0" y1="100" x2="57.143" y2="100" stroke="var(--blue-color)" stroke-width="1.2"/>
+                        <line x1="57.143" y1="100" x2="100" y2="100" stroke="black" stroke-width="0.5"/>
+                         <line x1="0" y1="0" x2="0" y2="42.857" stroke="black" stroke-width="0.5"/>
+                        <line x1="0" y1="42.857" x2="0" y2="100" stroke="var(--red-color)" stroke-width="1.2"/>
+                        <line x1="57.143" y1="42.857" x2="0" y2="100" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <line x1="57.143" y1="42.857" x2="57.143" y2="100" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="0" y1="42.857" x2="57.143" y2="42.857" stroke="var(--border-color)" stroke-width="2"/>
+                        <text x="28.57" y="21.4285" class="cell-number-svg">${centerNumberMapping.cell2_top}</text>
+                        <text x="78.57" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell2_right}</text>
+                        <text x="28.57" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell2_red}</text>
+                        <text x="28.57" y="71.4285" class="cell-number-svg">${centerNumberMapping.cell2_blue}</text>
+                    </svg>
+                </div>`,
+                // Celda 3 (centro izquierda) - Verde
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon class="clickable-shape green-shape" points="0,0 42.857,0 42.857,100 0,100" data-cell="${centerNumberMapping.cell3_left}" />
+                        <polygon class="green-shape" points="42.857,0 100,0 100,100 42.857,100" stroke="none" data-cell="${centerNumberMapping.cell3_right}" />
+                        <line x1="42.857" y1="0" x2="42.857" y2="100" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="0" y1="0" x2="42.857" y2="0" stroke="black" stroke-width="0.5"/>
+                        <line x1="42.857" y1="0" x2="100" y2="0" stroke="var(--green-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="0" x2="100" y2="100" stroke="var(--green-color)" stroke-width="1.2"/>
+                        <line x1="0" y1="100" x2="42.857" y2="100" stroke="black" stroke-width="0.5"/>
+                        <line x1="42.857" y1="100" x2="100" y2="100" stroke="var(--green-color)" stroke-width="1.2"/>
+                         <line x1="0" y1="0" x2="0" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <text x="21.4285" y="50" class="cell-number-svg">${centerNumberMapping.cell3_left}</text>
+                        <text x="71.4285" y="50" class="cell-number-svg">${centerNumberMapping.cell3_right}</text>
+                    </svg>
+                </div>`,
+                // Celda 4 (centro central) - Todos los colores
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon class="red-shape" points="0,0 100,0 50,50" stroke="none" data-cell="${centerNumberMapping.cell4_top}" />
+                        <polygon class="yellow-shape" points="0,100 100,100 50,50" stroke="none" data-cell="${centerNumberMapping.cell4_bottom}" />
+                        <polygon class="green-shape" points="0,0 0,100 50,50" stroke="none" data-cell="${centerNumberMapping.cell4_left}" />
+                        <polygon class="blue-shape" points="100,0 100,100 50,50" stroke="none" data-cell="${centerNumberMapping.cell4_right}" />
+                        
+                        <line x1="0" y1="0" x2="100" y2="0" stroke="var(--red-color)" stroke-width="1.2"/>
+                        <line x1="0" y1="100" x2="100" y2="100" stroke="var(--yellow-color)" stroke-width="1.2"/>
+                        <line x1="0" y1="0" x2="0" y2="100" stroke="var(--green-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="0" x2="100" y2="100" stroke="var(--blue-color)" stroke-width="1.2"/>
+                        
+                        <line x1="0" y1="0" x2="100" y2="100" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="0" x2="0" y2="100" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <text x="50" y="18" class="cell-number-svg">${centerNumberMapping.cell4_top}</text>
+                        <text x="50" y="82" class="cell-number-svg">${centerNumberMapping.cell4_bottom}</text>
+                        <text x="18" y="50" class="cell-number-svg">${centerNumberMapping.cell4_left}</text>
+                        <text x="82" y="50" class="cell-number-svg">${centerNumberMapping.cell4_right}</text>
+                    </svg>
+                </div>`,
+                // Celda 5 (centro derecha) - Azul
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon class="blue-shape" points="0,0 57.143,0 57.143,100 0,100" stroke="none" data-cell="${centerNumberMapping.cell5_left}" />
+                        <polygon class="clickable-shape blue-shape" points="57.143,0 100,0 100,100 57.143,100" data-cell="${centerNumberMapping.cell5_right}" />
+                        <line x1="57.143" y1="0" x2="57.143" y2="100" stroke="var(--border-color)" stroke-width="2"/>
+                         <line x1="0" y1="0" x2="57.143" y2="0" stroke="var(--blue-color)" stroke-width="1.2"/>
+                         <line x1="57.143" y1="0" x2="100" y2="0" stroke="black" stroke-width="0.5"/>
+                        <line x1="100" y1="0" x2="100" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                         <line x1="0" y1="100" x2="57.143" y2="100" stroke="var(--blue-color)" stroke-width="1.2"/>
+                         <line x1="57.143" y1="100" x2="100" y2="100" stroke="black" stroke-width="0.5"/>
+                         <line x1="0" y1="0" x2="0" y2="100" stroke="var(--blue-color)" stroke-width="1.2"/>
+                        <text x="28.57" y="50" class="cell-number-svg">${centerNumberMapping.cell5_left}</text>
+                        <text x="78.57" y="50" class="cell-number-svg">${centerNumberMapping.cell5_right}</text>
+                    </svg>
+                </div>`,
+                // Celda 6 (esquina inferior izquierda) - Verde/Amarillo
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="42.857,0 42.857,57.143 0,100 0,0" data-cell="${centerNumberMapping.cell6_left}" fill="white" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <polygon points="100,57.143 100,100 0,100 42.857,57.143" data-cell="${centerNumberMapping.cell6_bottom}" fill="white" stroke="var(--border-color)" stroke-width="1.2" />
+                        <polygon class="green-shape" points="42.857,0 100,0 42.857,57.143" stroke="none" data-cell="${centerNumberMapping.cell6_green}" />
+                        <polygon class="yellow-shape" points="100,0 100,57.143 42.857,57.143" stroke="none" data-cell="${centerNumberMapping.cell6_yellow}" />
+                        <line x1="42.857" y1="57.143" x2="100" y2="0" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <line x1="42.857" y1="0" x2="42.857" y2="57.143" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="42.857" y1="57.143" x2="100" y2="57.143" stroke="var(--border-color)" stroke-width="2"/>
+                         <line x1="0" y1="0" x2="42.857" y2="0" stroke="black" stroke-width="0.5"/>
+                         <line x1="42.857" y1="0" x2="100" y2="0" stroke="var(--green-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="0" x2="100" y2="42.857" stroke="var(--yellow-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="42.857" x2="100" y2="100" stroke="black" stroke-width="0.5"/>
+                        <line x1="0" y1="100" x2="100" y2="100" stroke="var(--border-color)" stroke-width="0.5"/>
+                         <line x1="0" y1="0" x2="0" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <text x="21.4285" y="40" class="cell-number-svg">${centerNumberMapping.cell6_left}</text>
+                        <text x="60" y="78.57" class="cell-number-svg">${centerNumberMapping.cell6_bottom}</text>
+                        <text x="71.4285" y="20" class="cell-number-svg">${centerNumberMapping.cell6_green}</text>
+                        <text x="71.4285" y="40" class="cell-number-svg">${centerNumberMapping.cell6_yellow}</text>
+                    </svg>
+                </div>`,
+                 // Celda 7 (centro inferior) - Amarillo
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon class="yellow-shape" points="0,0 100,0 100,57.143 0,57.143" stroke="none" data-cell="${centerNumberMapping.cell7_top}" />
+                        <polygon class="clickable-shape yellow-shape" points="0,57.143 100,57.143 100,100 0,100" data-cell="${centerNumberMapping.cell7_bottom}" />
+                        <line x1="0" y1="57.143" x2="100" y2="57.143" stroke="var(--border-color)" stroke-width="2"/>
+                         <line x1="0" y1="0" x2="100" y2="0" stroke="var(--yellow-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="0" x2="100" y2="57.143" stroke="var(--yellow-color)" stroke-width="1.2"/>
+                        <line x1="100" y1="57.143" x2="100" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="0" y1="100" x2="100" y2="100" stroke="var(--border-color)" stroke-width="0.5"/>
+                         <line x1="0" y1="0" x2="0" y2="57.143" stroke="var(--yellow-color)" stroke-width="1.2"/>
+                        <line x1="0" y1="57.143" x2="0" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <text x="50" y="28.57" class="cell-number-svg">${centerNumberMapping.cell7_top}</text>
+                        <text x="50" y="78.57" class="cell-number-svg">${centerNumberMapping.cell7_bottom}</text>
+                    </svg>
+                </div>`,
+                // Celda 8 (esquina inferior derecha) - Amarillo/Azul
+                `<div class="cell svg-cell" style="background-color: var(--light-gray);">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="0,57.143 57.143,57.143 100,100 0,100" data-cell="${centerNumberMapping.cell8_bottom}" fill="white" stroke="var(--border-color)" stroke-width="1.2" />
+                        <polygon points="57.143,0 100,0 100,100 57.143,57.143" data-cell="${centerNumberMapping.cell8_right}" fill="white" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <polygon class="yellow-shape" points="0,0 0,57.143 57.143,57.143" stroke="none" data-cell="${centerNumberMapping.cell8_yellow}" />
+                        <polygon class="blue-shape" points="0,0 57.143,0 57.143,57.143" stroke="none" data-cell="${centerNumberMapping.cell8_blue}" />
+                        <line x1="0" y1="0" x2="57.143" y2="57.143" stroke="var(--border-color)" stroke-width="1.2"/>
+                        <line x1="0" y1="57.143" x2="57.143" y2="57.143" stroke="var(--border-color)" stroke-width="2"/>
+                        <line x1="57.143" y1="0" x2="57.143" y2="57.143" stroke="var(--border-color)" stroke-width="2"/>
+                         <line x1="0" y1="0" x2="57.143" y2="0" stroke="var(--blue-color)" stroke-width="0.5"/>
+                         <line x1="57.143" y1="0" x2="100" y2="0" stroke="black" stroke-width="0.5"/>
+                        <line x1="100" y1="0" x2="100" y2="100" stroke="var(--border-color)" stroke-width="1"/>
+                        <line x1="0" y1="100" x2="100" y2="100" stroke="var(--border-color)" stroke-width="0.5"/>
+                         <line x1="0" y1="0" x2="0" y2="57.143" stroke="var(--yellow-color)" stroke-width="0.5"/>
+                         <line x1="0" y1="57.143" x2="0" y2="100" stroke="black" stroke-width="0.5"/>
+                        <text x="38.57" y="78.57" class="cell-number-svg">${centerNumberMapping.cell8_bottom}</text>
+                        <text x="78.57" y="28.57" class="cell-number-svg">${centerNumberMapping.cell8_right}</text>
+                        <text x="19" y="28.57" class="cell-number-svg">${centerNumberMapping.cell8_yellow}</text>
+                        <text x="38.57" y="19" class="cell-number-svg">${centerNumberMapping.cell8_blue}</text>
+                    </svg>
+                </div>`
+            ];
+
+            centerElement.innerHTML = svgCells.join('');
+        }
+
+        // ▼▼▼ BLOQUE MODIFICADO PARA ARREGLAR LA CONDICIÓN DE CARRERA ▼▼▼
+
+        // Generar celdas AHORA (no esperar a DOMContentLoaded)
+        let cellCounter = 1; // Contador inicial para el mapeo
+
+        // Camino vertical superior (21 celdas, contador de 1 a 21)
+        const pathTop = document.getElementById('path-top');
+        if (pathTop) cellCounter = generatePathCells(pathTop, cellCounter, 21);
+
+        // Camino horizontal izquierdo (21 celdas, contador de 22 a 42)
+        const pathLeft = document.getElementById('path-left');
+        if (pathLeft) cellCounter = generatePathCells(pathLeft, cellCounter, 21);
+
+        // Centro (9 celdas con SVG)
+        const centerArea = document.getElementById('center-area');
+        if (centerArea) generateCenterArea(centerArea);
+
+        // Reiniciamos contador para el siguiente camino según tu mapeo
+        cellCounter = 67; // El mapeo para path-right empieza en 67
+
+        // Camino horizontal derecho (21 celdas, contador de 67 a 87)
+        const pathRight = document.getElementById('path-right');
+        if (pathRight) cellCounter = generatePathCells(pathRight, cellCounter, 21);
+
+        // Reiniciamos contador para el siguiente camino según tu mapeo
+        cellCounter = 88; // El mapeo para path-bottom empieza en 88
+
+        // Camino vertical inferior (21 celdas, contador de 88 a 108)
+        const pathBottom = document.getElementById('path-bottom');
+        if (pathBottom) cellCounter = generatePathCells(pathBottom, cellCounter, 21);
+
+        // AVISAR AL CLIENTE QUE EL TABLERO ESTÁ LISTO
+        console.log("Tablero Ludo generado (inline script).");
+        window.ludoBoardGenerated = true;
+    })();
+    </script>
+
+    <!-- ▼▼▼ MODAL DE FALTA ▼▼▼ -->
+    <div id="foul-modal" class="overlay" style="display: none; z-index: 10003; background-color: rgba(231, 76, 60, 0.7);">
+        <div class="content" style="background: var(--casino-dark-panel); padding: 25px; border-radius: 10px; border: 2px solid #e74c3c; color: var(--casino-tan); width: 90%; max-width: 400px; text-align: center; position: relative;">
+            <span class="close-modal-btn">&times;</span>
+            <h2 style="color: #e74c3c; margin-top: 0;">¡FALTA!</h2>
+            <p style="font-size: 1.1rem; line-height: 1.6;">Era obligatorio matar.</p>
+            <p id="foul-details" style="font-size: 0.9rem; margin-top: 15px;"></p>
+            <button id="btn-accept-foul" class="secondary" style="margin-top: 20px; padding: 8px 16px; font-size: 14px; border-radius: 6px; border: 1px solid var(--casino-dark-panel); background: var(--casino-burgundy-felt); color: var(--casino-tan); font-weight: bold; cursor: pointer;">Aceptar</button>
+        </div>
+    </div>
+    <!-- ▲▲▲ FIN MODAL DE FALTA ▲▲▲ -->
+
+    <div id="game-sounds" style="display: none;">
+        <audio id="sound-draw" src="/sounds/draw.mp3" preload="auto"></audio>
+        <audio id="sound-discard" src="/sounds/discard.mp3" preload="auto"></audio>
+        <audio id="sound-meld" src="/sounds/meld.mp3" preload="auto"></audio>
+        <audio id="sound-add" src="/sounds/add.mp3" preload="auto"></audio>
+        <audio id="sound-turn" src="/sounds/turn.mp3" preload="auto"></audio>
+        <audio id="sound-shuffle" src="/sounds/shuffle.mp3" preload="auto"></audio>
+        <audio id="sound-notify" src="/sounds/notify.mp3" preload="auto"></audio>
+        <audio id="sound-victory" src="/sounds/victory.mp3" preload="auto"></audio>
+        <audio id="sound-fault" src="/sounds/fault.mp3" preload="auto"></audio>
+        <audio id="sound-deal" src="/sounds/deal.mp3" preload="auto"></audio>
+        <audio id="sound-gunshot" src="/sounds/Gunshot.wav" preload="auto"></audio>
+        <audio id="sound-dados" src="/sounds/dados.wav" preload="auto"></audio>
+        <audio id="sound-tag" src="/sounds/tag.mp3" preload="auto"></audio>
+        <audio id="sound-bloqueo" src="/sounds/bloqueo.wav" preload="auto"></audio>
+    </div>
+
+</body>
+</html>
