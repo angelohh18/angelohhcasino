@@ -7844,7 +7844,6 @@ const selfPing = () => {
     const url = process.env.RENDER_EXTERNAL_URL;
 
     if (!url) {
-        console.log('Ping omitido: La variable RENDER_EXTERNAL_URL no está definida.');
         return;
     }
 
