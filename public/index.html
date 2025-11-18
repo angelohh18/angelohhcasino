@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angelohh Casino</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #211e18;
+            color: #e0d3b6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #login-form {
+            background: #211e18;
+            border: 2px solid #c5a56a;
+            border-radius: 20px;
+            padding: 40px;
+            width: 400px;
+            max-width: 90vw;
+            box-shadow:
+                0 0 20px #c5a56a88,
+                inset 0 0 15px #c5a56a55;
+            position: relative;
+        }
+        #login-form h2 {
+            margin: 0 0 30px 0;
+            text-align: center;
+            font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+            font-size: 2rem;
+            color: #c5a56a;
+            text-shadow: 0 0 4px #c5a56a88;
+        }
+        #login-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #c5a56a;
+        }
+        #login-form input {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 2px solid #c5a56a;
+            background: #2a2620;
+            color: #e0d3b6;
+            font-size: 1rem;
+            font-weight: 700;
+            box-shadow: inset 0 0 5px #c5a56a88;
+            font-family: inherit;
+        }
+        #login-form input::placeholder {
+            color: #9d7b40;
+        }
+        #login-form input:focus {
+            outline: none;
+            border-color: #e0d3b6;
+            box-shadow: 
+                inset 0 0 5px #c5a56a88,
+                0 0 10px #c5a56a55;
+        }
+        #login-form button {
+            width: 100%;
+            background: #c5a56a;
+            color: #211e18;
+            font-weight: 700;
+            padding: 12px 0;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(197,165,106,0.5);
+            transition: background 0.3s ease;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        #login-form button.secondary {
+            background: #6D2932;
+            color: #e0d3b6;
+        }
+        #login-form button:hover {
+            background: #9d7b40;
+        }
+        #login-form button.secondary:hover {
+            background: #58141f;
+        }
+        #login-form button:active {
+            transform: scale(0.98);
+        }
+        #login-form a {
+            display: block;
+            text-align: right;
+            font-size: 0.9em;
+            color: #c5a56a;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            text-decoration: none;
+            font-weight: 700;
+        }
+        #login-form a:hover {
+            text-decoration: underline;
+        }
+        #login-error, #register-error, #register-success {
+            margin-top: 15px;
+            padding: 10px;
+            background: #6D2932;
+            border: 1px solid #c5a56a;
+            border-radius: 10px;
+            text-align: center;
+            color: #ff6b6b;
+            font-weight: 700;
+            display: none;
+        }
+        #register-success {
+            color: #4caf50;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .modal-content {
+            background: #211e18;
+            border: 2px solid #c5a56a;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90vw;
+            max-width: 550px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 0 30px #c5a56a88;
+        }
+        .modal-content h3 {
+            margin: 0 0 20px 0;
+            text-align: center;
+            font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+            font-size: 1.8rem;
+            color: #c5a56a;
+            border-bottom: 1px solid #c5a56a;
+            padding-bottom: 10px;
+        }
+        .modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #c5a56a;
+        }
+        .modal-content input,
+        .modal-content select {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border: 2px solid #c5a56a;
+            background: #2a2620;
+            color: #e0d3b6;
+            font-size: 1rem;
+            font-weight: 700;
+            box-shadow: inset 0 0 5px #c5a56a88;
+            font-family: inherit;
+        }
+        .modal-content input:focus,
+        .modal-content select:focus {
+            outline: none;
+            border-color: #e0d3b6;
+            box-shadow: 
+                inset 0 0 5px #c5a56a88,
+                0 0 10px #c5a56a55;
+        }
+        .modal-content button {
+            width: 100%;
+            background: #c5a56a;
+            color: #211e18;
+            font-weight: 700;
+            padding: 12px 0;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(197,165,106,0.5);
+            transition: background 0.3s ease;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        .modal-content button.secondary {
+            background: #6D2932;
+            color: #e0d3b6;
+        }
+        .modal-content button:hover {
+            background: #9d7b40;
+        }
+        .modal-content button.secondary:hover {
+            background: #58141f;
+        }
+        .close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2rem;
+            color: #c5a56a;
+            cursor: pointer;
+            line-height: 1;
+            font-weight: bold;
+        }
+        .close-modal-btn:hover {
+            color: #e0d3b6;
+        }
+
+        /* Avatar Gallery Styles */
+        .avatar-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #211e18;
+            border-radius: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .avatar-gallery::-webkit-scrollbar { width: 8px; }
+        .avatar-gallery::-webkit-scrollbar-track { background: #6d2932; border-radius: 10px; }
+        .avatar-gallery::-webkit-scrollbar-thumb { background: #c5a56a; border-radius: 10px; }
+        .avatar-item {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s;
+            background-color: #6d2932;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            text-align: center;
+            color: #c5a56a;
+        }
+        .avatar-item img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .avatar-item.selected {
+            border-color: #c5a56a;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px #c5a56a;
+        }
+        .avatar-item:hover {
+            border-color: #c5a56a;
+            transform: scale(1.05);
+        }
+        .avatar-preview-container {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #c5a56a;
+            object-fit: cover;
+        }
+
+        /* Crop Modal Styles */
+        #avatar-crop-modal .modal-content {
+            width: 380px;
+        }
+        #crop-container {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            margin: 20px auto;
+            background: #111;
+            border: 2px solid #c5a56a;
+            cursor: move;
+            user-select: none;
+        }
+        #crop-image-wrapper {
+            position: absolute;
+        }
+        #crop-image-preview {
+            display: block;
+            max-width: none;
+        }
+        .crop-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .crop-controls input[type="range"] {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        /* Forgot Password Modal Styles */
+        #forgot-password-modal .modal-content {
+            text-align: center;
+            line-height: 1.6;
+        }
+        #forgot-password-modal h4 {
+            color: #c5a56a;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        #forgot-password-modal a {
+            color: #c5a56a;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        #forgot-password-modal a:hover {
+            text-decoration: underline;
+        }
+
+        /* Media queries para modal de olvido de contraseña en móviles */
+        @media (max-width: 768px) {
+            #forgot-password-modal .modal-content {
+                width: 95vw;
+                max-width: 95vw;
+                max-height: 95vh;
+                padding: 20px 15px;
+            }
+            
+            #forgot-password-modal .modal-content h3 {
+                font-size: 1.4rem;
+                margin-bottom: 15px;
+            }
+            
+            #forgot-password-modal .modal-content p {
+                font-size: 0.9rem;
+                line-height: 1.5;
+            }
+            
+            #forgot-password-modal .modal-content h4 {
+                font-size: 1rem;
+                margin-top: 15px;
+                margin-bottom: 8px;
+            }
+            
+            #forgot-password-modal .modal-content a {
+                font-size: 1rem;
+                display: inline-block;
+                padding: 5px 0;
+            }
+            
+            #forgot-password-modal .modal-content small {
+                font-size: 0.75rem;
+            }
+            
+            #forgot-password-modal .modal-content button {
+                margin-top: 15px;
+                padding: 12px;
+            }
+        }
+
+        /* Media queries para modo horizontal en móviles - Basado en altura */
+        @media (orientation: landscape) and (max-height: 500px) {
+            body, html {
+                overflow-y: auto;
+                padding: 3px;
+            }
+            
+            #login-form {
+                width: auto;
+                max-width: 450px;
+                padding: 10px;
+                max-height: 98vh;
+                overflow-y: auto;
+                margin: 0 auto;
+            }
+            
+            /* Scrollbar personalizado para el formulario de login */
+            #login-form::-webkit-scrollbar {
+                width: 4px;
+            }
+            #login-form::-webkit-scrollbar-track {
+                background: #6d2932;
+                border-radius: 10px;
+            }
+            #login-form::-webkit-scrollbar-thumb {
+                background: #c5a56a;
+                border-radius: 10px;
+            }
+            
+            #login-form h2 {
+                font-size: 1rem;
+                margin-bottom: 6px;
+            }
+            
+            #login-form label {
+                font-size: 0.75rem;
+                margin-bottom: 2px;
+            }
+            
+            #login-form input {
+                padding: 6px 8px;
+                margin-bottom: 6px;
+                font-size: 0.8rem;
+                min-height: 36px;
+            }
+            
+            #login-form button {
+                padding: 6px 0;
+                font-size: 0.85rem;
+                margin-bottom: 4px;
+                min-height: 36px;
+            }
+            
+            #login-form a {
+                font-size: 0.7rem;
+                margin-top: 3px;
+                margin-bottom: 6px;
+            }
+            
+            .modal-content {
+                width: auto;
+                max-width: 480px;
+                max-height: 98vh;
+                padding: 10px 8px;
+                margin: 0 auto;
+            }
+            
+            .modal-content h3 {
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+            
+            .modal-content label {
+                font-size: 0.75rem;
+                margin-bottom: 2px;
+            }
+            
+            .modal-content input,
+            .modal-content select {
+                padding: 6px 8px;
+                margin-bottom: 6px;
+                font-size: 0.8rem;
+                min-height: 36px;
+            }
+            
+            .modal-content button {
+                padding: 6px 0;
+                font-size: 0.85rem;
+                margin-bottom: 4px;
+                min-height: 36px;
+            }
+        }
+
+        /* Media queries para modo horizontal - Altura media */
+        @media (orientation: landscape) and (min-height: 501px) and (max-height: 600px) {
+            body, html {
+                overflow-y: auto;
+                padding: 5px;
+            }
+            
+            #login-form {
+                width: auto;
+                max-width: 480px;
+                padding: 12px;
+                max-height: 95vh;
+                overflow-y: auto;
+                margin: 0 auto;
+            }
+            
+            #login-form::-webkit-scrollbar {
+                width: 5px;
+            }
+            #login-form::-webkit-scrollbar-track {
+                background: #6d2932;
+                border-radius: 10px;
+            }
+            #login-form::-webkit-scrollbar-thumb {
+                background: #c5a56a;
+                border-radius: 10px;
+            }
+            
+            #login-form h2 {
+                font-size: 1.2rem;
+                margin-bottom: 8px;
+            }
+            
+            #login-form label {
+                font-size: 0.8rem;
+                margin-bottom: 3px;
+            }
+            
+            #login-form input {
+                padding: 7px 9px;
+                margin-bottom: 8px;
+                font-size: 0.85rem;
+            }
+            
+            #login-form button {
+                padding: 7px 0;
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+            
+            #login-form a {
+                font-size: 0.75rem;
+                margin-top: 4px;
+                margin-bottom: 8px;
+            }
+            
+            .modal-content {
+                width: auto;
+                max-width: 520px;
+                max-height: 95vh;
+                padding: 12px 10px;
+                margin: 0 auto;
+            }
+            
+            .modal-content h3 {
+                font-size: 1.1rem;
+                margin-bottom: 10px;
+            }
+            
+            .modal-content label {
+                font-size: 0.8rem;
+                margin-bottom: 3px;
+            }
+            
+            .modal-content input,
+            .modal-content select {
+                padding: 7px 9px;
+                margin-bottom: 8px;
+                font-size: 0.85rem;
+            }
+            
+            .modal-content button {
+                padding: 7px 0;
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+        }
+
+        /* Media queries para modo horizontal - Altura grande */
+        @media (orientation: landscape) and (min-height: 601px) and (max-width: 768px) {
+            body, html {
+                overflow-y: auto;
+                padding: 8px;
+            }
+            
+            #login-form {
+                width: auto;
+                max-width: 500px;
+                padding: 18px;
+                max-height: 90vh;
+                overflow-y: auto;
+                margin: 0 auto;
+            }
+            
+            #login-form h2 {
+                font-size: 1.4rem;
+                margin-bottom: 12px;
+            }
+            
+            #login-form label {
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+            
+            #login-form input {
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                font-size: 0.95rem;
+            }
+            
+            #login-form button {
+                padding: 10px 0;
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+            
+            #login-form a {
+                font-size: 0.85rem;
+                margin-top: 6px;
+                margin-bottom: 12px;
+            }
+            
+            .modal-content {
+                width: auto;
+                max-width: 550px;
+                max-height: 90vh;
+                padding: 18px 15px;
+                margin: 0 auto;
+            }
+            
+            .modal-content h3 {
+                font-size: 1.3rem;
+                margin-bottom: 15px;
+            }
+            
+            .modal-content label {
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+            
+            .modal-content input,
+            .modal-content select {
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                font-size: 0.95rem;
+            }
+            
+            .modal-content button {
+                padding: 10px 0;
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="login-form">
+        <h2><i>Angelohh Casino</i></h2>
+        <label for="login-username">Nombre:</label>
+        <input type="text" id="login-username" placeholder="Nombre" autocomplete="username">
+        <label for="login-password">Contraseña:</label>
+        <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password">
+        <a href="#" id="btn-forgot-password">¿Olvidaste tu contraseña?</a>
+        <button id="btn-login">Iniciar Sesión</button>
+        <button id="btn-register" class="secondary">Registrarse</button>
+        <div id="login-error" style="display: none;"></div>
+    </div>
+
+    <!-- Modal de Registro -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <h3 id="register-modal-title">Registro de Usuario</h3>
+            <label for="register-name">Nombre:</label>
+            <input type="text" id="register-name" aria-required="true" />
+
+            <label for="register-country">País:</label>
+            <select id="register-country" aria-required="true">
+                <option value="">Selecciona un país</option>
+            </select>
+
+            <label for="register-whatsapp">WhatsApp:</label>
+            <input type="text" id="register-whatsapp" aria-required="true" />
+
+            <label for="register-currency">Moneda de tus créditos:</label>
+            <select id="register-currency" aria-required="true">
+                <option value="">Selecciona tu moneda</option>
+                <option value="EUR">Euro (€)</option>
+                <option value="USD">Dólar Estadounidense ($)</option>
+                <option value="COP">Peso Colombiano ($)</option>
+            </select>
+
+            <label for="register-password">Contraseña:</label>
+            <input type="password" id="register-password" aria-required="true" />
+
+            <label for="register-confirm-password">Confirmar Contraseña:</label>
+            <input type="password" id="register-confirm-password" aria-required="true" />
+
+            <label>Selecciona un Avatar:</label>
+            <div class="avatar-gallery" id="avatar-gallery"></div>
+            <input type="file" id="register-avatar-upload" accept="image/*" style="display: none;" />
+
+            <div class="avatar-preview-container" id="avatar-preview-container" style="display: none;">
+                <img id="avatar-preview" class="avatar-preview" src="" alt="Vista previa del avatar">
+            </div>
+
+            <div style="margin-top: 20px; margin-bottom: 25px;">
+                <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
+                    <input type="checkbox" id="accept-terms" required style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px; flex-shrink: 0;" aria-required="true">
+                    <label for="accept-terms" style="display: inline; margin-top: 0; font-size: 0.9em; line-height: 1.4; color: #e0d3b6;">
+                        He leído y acepto los 
+                        <a href="/terminos" target="_blank" style="color: #c5a56a; text-decoration: underline; font-weight: bold;">Términos y Condiciones de Uso</a>.
+                    </label>
+                </div>
+                <div style="display: flex; align-items: flex-start;">
+                    <input type="checkbox" id="accept-privacy" required style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px; flex-shrink: 0;" aria-required="true">
+                    <label for="accept-privacy" style="display: inline; margin-top: 0; font-size: 0.9em; line-height: 1.4; color: #e0d3b6;">
+                        Acepto la 
+                        <a href="/privacidad" target="_blank" style="color: #c5a56a; text-decoration: underline; font-weight: bold;">Política de Privacidad</a> y el tratamiento de mis datos personales.
+                    </label>
+                </div>
+            </div>
+            <div id="register-error" style="display: none;"></div>
+            <div id="register-success" style="display: none;"></div>
+
+            <button id="btn-register-submit">Registrarse</button>
+            <button id="btn-register-back" class="secondary">Volver al Login</button>
+        </div>
+    </div>
+
+    <!-- Modal de Recorte de Avatar -->
+    <div id="avatar-crop-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <h3 id="crop-modal-title">Ajusta tu Avatar</h3>
+            <div id="crop-container">
+                <div id="crop-image-wrapper">
+                    <img id="crop-image-preview" src="" alt="Previsualización para recortar">
+                </div>
+            </div>
+            <div class="crop-controls">
+                <label for="zoom-slider">Zoom:</label>
+                <input type="range" id="zoom-slider" min="50" max="200" value="100">
+            </div>
+            <button id="btn-save-crop">Guardar Avatar</button>
+            <button id="btn-cancel-crop" class="secondary">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Olvido de Contraseña -->
+    <div id="forgot-password-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <h3 id="forgot-password-title">Recuperar Contraseña</h3>
+            <p style="text-align: center; line-height: 1.6;">
+                Para restablecer tu contraseña, por favor, ponte en contacto con uno de nuestros administradores a través de WhatsApp.
+            </p>
+
+            <div style="text-align: left; line-height: 1.5; border-top: 1px solid #555; padding-top: 15px; margin-top: 15px;">
+                <h4 style="color: #c5a56a; margin-bottom: 5px; text-align: center; font-size: 1.1em;">ADMINISTRADOR PRINCIPAL</h4>
+                <p style="text-align: center; margin-bottom: 15px;">
+                    <strong><a id="whatsapp-forgot-primary" href="https://wa.me/34665530984" target="_blank" rel="noopener noreferrer">+34 665 530 984</a></strong>
+                    <br>
+                    <small style="font-size: 0.8em; color: #aaa;">
+                        Horario: 8:00 a 22:00 Madrid (GMT+2) <br>
+                        o de 8:00 a 16:00 Bogotá (GMT-5).
+                    </small>
+                </p>
+            </div>
+
+            <div style="text-align: left; line-height: 1.5; border-top: 1px solid #555; padding-top: 15px; margin-top: 15px;">
+                <h4 style="color: #c5a56a; margin-bottom: 5px; text-align: center; font-size: 1.1em;">ADMIN SECUNDARIO</h4>
+                <p style="text-align: center; margin-bottom: 0;">
+                    <strong><a id="whatsapp-forgot-secondary" href="https://wa.me/573004280833" target="_blank" rel="noopener noreferrer">+57 300 428 0833</a></strong>
+                </p>
+            </div>
+            <button id="btn-close-forgot-modal" class="secondary">Volver</button>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        const countries = [
+            { name: "España", code: "ES", phone: "+34" }, { name: "México", code: "MX", phone: "+52" },
+            { name: "Argentina", code: "AR", phone: "+54" }, { name: "Colombia", code: "CO", phone: "+57" },
+            { name: "Chile", code: "CL", phone: "+56" }, { name: "Perú", code: "PE", phone: "+51" },
+            { name: "Venezuela", code: "VE", phone: "+58" }, { name: "Ecuador", code: "EC", phone: "+593" },
+            { name: "Bolivia", code: "BO", phone: "+591" }, { name: "Paraguay", code: "PY", phone: "+595" },
+            { name: "Uruguay", code: "UY", phone: "+598" }, { name: "Costa Rica", code: "CR", phone: "+506" },
+            { name: "Panamá", code: "PA", phone: "+507" }, { name: "República Dominicana", code: "DO", phone: "+1" },
+            { name: "Honduras", code: "HN", phone: "+504" }, { name: "El Salvador", code: "SV", phone: "+503" },
+            { name: "Nicaragua", code: "NI", phone: "+505" }, { name: "Guatemala", code: "GT", phone: "+502" },
+            { name: "Cuba", code: "CU", phone: "+53" }, { name: "Puerto Rico", code: "PR", phone: "+1" },
+            { name: "Estados Unidos", code: "US", phone: "+1" }
+        ];
+        const defaultAvatars = [
+            'https://i.pravatar.cc/150?img=1', 'https://i.pravatar.cc/150?img=2', 'https://i.pravatar.cc/150?img=3',
+            'https://i.pravatar.cc/150?img=4', 'https://i.pravatar.cc/150?img=5', 'https://i.pravatar.cc/150?img=6',
+            'https://i.pravatar.cc/150?img=7', 'https://i.pravatar.cc/150?img=8', 'https://i.pravatar.cc/150?img=9',
+            'https://i.pravatar.cc/150?img=10'
+        ];
+        let selectedAvatar = null;
+        let currentPhonePrefix = '';
+        let onCropCompleteCallback = null;
+        let cropperState = { isDragging: false, startX: 0, startY: 0, wrapperX: 0, wrapperY: 0, scale: 1 };
+
+        // Elementos DOM
+        const loginForm = document.getElementById('login-form');
+        const loginUsernameInput = document.getElementById('login-username');
+        const loginPasswordInput = document.getElementById('login-password');
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegister = document.getElementById('btn-register');
+        const btnForgotPassword = document.getElementById('btn-forgot-password');
+        const loginError = document.getElementById('login-error');
+
+        const registerModal = document.getElementById('register-modal');
+        const registerNameInput = document.getElementById('register-name');
+        const registerCountrySelect = document.getElementById('register-country');
+        const registerWhatsAppInput = document.getElementById('register-whatsapp');
+        const registerCurrencySelect = document.getElementById('register-currency');
+        const registerPasswordInput = document.getElementById('register-password');
+        const registerConfirmPasswordInput = document.getElementById('register-confirm-password');
+        const avatarGallery = document.getElementById('avatar-gallery');
+        const registerAvatarUpload = document.getElementById('register-avatar-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const avatarPreviewContainer = document.getElementById('avatar-preview-container');
+        const registerError = document.getElementById('register-error');
+        const registerSuccess = document.getElementById('register-success');
+        const btnRegisterSubmit = document.getElementById('btn-register-submit');
+        const btnRegisterBack = document.getElementById('btn-register-back');
+
+        const avatarCropModal = document.getElementById('avatar-crop-modal');
+        const cropContainer = document.getElementById('crop-container');
+        const cropImageWrapper = document.getElementById('crop-image-wrapper');
+        const cropImagePreview = document.getElementById('crop-image-preview');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const btnSaveCrop = document.getElementById('btn-save-crop');
+        const btnCancelCrop = document.getElementById('btn-cancel-crop');
+
+        const forgotPasswordModal = document.getElementById('forgot-password-modal');
+        const btnCloseForgotModal = document.getElementById('btn-close-forgot-modal');
+
+        // Funciones auxiliares
+        function showRegisterModal() {
+            registerError.style.display = 'none';
+            registerSuccess.style.display = 'none';
+            registerNameInput.value = '';
+            registerCountrySelect.value = '';
+            registerWhatsAppInput.value = '';
+            registerPasswordInput.value = '';
+            registerConfirmPasswordInput.value = '';
+            selectedAvatar = null;
+            avatarPreviewContainer.style.display = 'none';
+            populateAvatarGallery();
+            registerModal.style.display = 'flex';
+        }
+
+        function populateAvatarGallery() {
+            avatarGallery.innerHTML = '';
+            const uploadOpt = document.createElement('div');
+            uploadOpt.className = 'avatar-item';
+            uploadOpt.textContent = 'Subir Foto';
+            uploadOpt.onclick = () => registerAvatarUpload.click();
+            avatarGallery.appendChild(uploadOpt);
+            defaultAvatars.forEach(url => {
+                const item = document.createElement('div');
+                item.className = 'avatar-item';
+                const img = document.createElement('img');
+                img.src = url;
+                item.appendChild(img);
+                item.addEventListener('click', () => {
+                    const current = avatarGallery.querySelector('.selected');
+                    if (current) current.classList.remove('selected');
+                    item.classList.add('selected');
+                    selectedAvatar = url;
+                    avatarPreview.src = url;
+                    avatarPreviewContainer.style.display = 'block';
+                });
+                avatarGallery.appendChild(item);
+            });
+        }
+
+        function openCropModal(imageDataUrl, callback) {
+            onCropCompleteCallback = callback;
+            cropImagePreview.onload = () => {
+                avatarCropModal.style.display = 'flex';
+                cropperState = { isDragging: false, startX: 0, startY: 0, wrapperX: 0, wrapperY: 0, scale: 1 };
+                zoomSlider.value = 100;
+                const img = cropImagePreview;
+                const wrapper = cropImageWrapper;
+                const container = cropContainer;
+                const containerSize = container.offsetWidth;
+                let initialWidth, initialHeight;
+                if (img.naturalWidth > img.naturalHeight) {
+                    initialHeight = containerSize;
+                    initialWidth = (img.naturalWidth / img.naturalHeight) * containerSize;
+                    cropperState.wrapperY = 0;
+                    cropperState.wrapperX = -(initialWidth - containerSize) / 2;
+                } else {
+                    initialWidth = containerSize;
+                    initialHeight = (img.naturalHeight / img.naturalWidth) * containerSize;
+                    cropperState.wrapperX = 0;
+                    cropperState.wrapperY = -(initialHeight - containerSize) / 2;
+                }
+                wrapper.style.width = `${initialWidth}px`;
+                wrapper.style.height = `${initialHeight}px`;
+                wrapper.style.left = `${cropperState.wrapperX}px`;
+                wrapper.style.top = `${cropperState.wrapperY}px`;
+                img.style.transform = `scale(1)`;
+            };
+            cropImagePreview.src = imageDataUrl;
+        }
+
+        function closeCropModal() {
+            avatarCropModal.style.display = 'none';
+            cropImagePreview.src = '';
+            registerAvatarUpload.value = '';
+        }
+
+        function saveCrop() {
+            const img = cropImagePreview;
+            const wrapper = cropImageWrapper;
+            const container = cropContainer;
+            const scale = cropperState.scale;
+            const containerSize = container.offsetWidth;
+            const canvas = document.createElement('canvas');
+            canvas.width = containerSize;
+            canvas.height = containerSize;
+            const ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.arc(containerSize / 2, containerSize / 2, containerSize / 2, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.clip();
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, containerSize, containerSize);
+            const wrapperWidth = wrapper.offsetWidth;
+            const wrapperHeight = wrapper.offsetHeight;
+            const scaledImgXInWrapper = (wrapperWidth - wrapperWidth * scale) / 2;
+            const scaledImgYInWrapper = (wrapperHeight - wrapperHeight * scale) / 2;
+            const finalImgX = cropperState.wrapperX + scaledImgXInWrapper;
+            const finalImgY = cropperState.wrapperY + scaledImgYInWrapper;
+            const finalImgWidth = wrapperWidth * scale;
+            const finalImgHeight = wrapperHeight * scale;
+            ctx.drawImage(img, finalImgX, finalImgY, finalImgWidth, finalImgHeight);
+            const dataUrl = canvas.toDataURL('image/png');
+
+            if (typeof onCropCompleteCallback === 'function') {
+                onCropCompleteCallback(dataUrl);
+            }
+            onCropCompleteCallback = null;
+            closeCropModal();
+        }
+
+        function initCountries() {
+            countries.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.code;
+                option.textContent = `${c.name} (${c.phone})`;
+                registerCountrySelect.appendChild(option);
+            });
+            registerCountrySelect.addEventListener('change', () => {
+                const selected = countries.find(c => c.code === registerCountrySelect.value);
+                currentPhonePrefix = selected ? selected.phone : "";
+                registerWhatsAppInput.value = currentPhonePrefix ? currentPhonePrefix + " " : "";
+            });
+            registerWhatsAppInput.addEventListener('input', () => {
+                if (!registerWhatsAppInput.value.startsWith(currentPhonePrefix)) {
+                    registerWhatsAppInput.value = currentPhonePrefix + " ";
+                }
+            });
+            registerWhatsAppInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && registerWhatsAppInput.selectionStart <= currentPhonePrefix.length + 1) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function doLogin() {
+            const username = loginUsernameInput.value.trim();
+            const password = loginPasswordInput.value;
+            loginError.style.display = 'none';
+            
+            if (!username || !password) {
+                loginError.textContent = 'Por favor, completa todos los campos.';
+                loginError.style.display = 'block';
+                return;
+            }
+            
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    sessionStorage.setItem('username', data.user.name);
+                    sessionStorage.setItem('userAvatar', data.user.avatar);
+                    sessionStorage.setItem('userId', 'user_' + data.user.name.toLowerCase());
+                    sessionStorage.setItem('userCurrency', data.user.currency);
+                    window.location.href = '/select';
+                } else {
+                    loginError.textContent = data.message || 'Error al iniciar sesión.';
+                    loginError.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                loginError.textContent = 'Error de conexión con el servidor.';
+                loginError.style.display = 'block';
+            });
+        }
+
+        function doRegister() {
+            registerError.style.display = 'none';
+            registerSuccess.style.display = 'none';
+
+            const name = registerNameInput.value.trim();
+            const country = registerCountrySelect.value;
+            const whatsapp = registerWhatsAppInput.value.trim();
+            const password = registerPasswordInput.value;
+            const confirmPassword = registerConfirmPasswordInput.value;
+            const currency = registerCurrencySelect.value;
+            
+            // >> NUEVAS VARIABLES DE CONSENTIMIENTO <<
+            const acceptTerms = document.getElementById('accept-terms').checked;
+            const acceptPrivacy = document.getElementById('accept-privacy').checked;
+            // ----------------------------------------
+
+            if (!name || !country || !whatsapp || !password || !currency) {
+                registerError.textContent = 'Por favor, completa todos los campos.';
+                registerError.style.display = 'block';
+                return;
+            }
+            if (password !== confirmPassword) {
+                registerError.textContent = 'Las contraseñas no coinciden.';
+                registerError.style.display = 'block';
+                return;
+            }
+            if (!selectedAvatar) {
+                registerError.textContent = 'Por favor, selecciona un avatar.';
+                registerError.style.display = 'block';
+                return;
+            }
+            
+            // >> NUEVA VALIDACIÓN: REQUERIR CONSENTIMIENTO EXPLICITO <<
+            if (!acceptTerms || !acceptPrivacy) {
+                registerError.textContent = 'Debes aceptar los Términos de Uso y la Política de Privacidad.';
+                registerError.style.display = 'block';
+                return;
+            }
+            // --------------------------------------------------------
+
+            fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name, 
+                    country, 
+                    whatsapp, 
+                    password, 
+                    avatar: selectedAvatar, 
+                    currency,
+                    // >> ENVIAR EVIDENCIA DE CONSENTIMIENTO AL SERVIDOR <<
+                    acceptedTerms: new Date().toISOString(), 
+                    acceptedPrivacy: new Date().toISOString()
+                    // --------------------------------------------------
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    registerSuccess.textContent = data.message + ' Serás redirigido al login.';
+                    registerSuccess.style.display = 'block';
+                    setTimeout(() => {
+                        registerModal.style.display = 'none';
+                        registerNameInput.value = '';
+                        registerPasswordInput.value = '';
+                        loginUsernameInput.value = name;
+                    }, 2500);
+                } else {
+                    registerError.textContent = data.message;
+                    registerError.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                registerError.textContent = 'Error de conexión. Inténtalo de nuevo.';
+                registerError.style.display = 'block';
+            });
+        }
+
+        // Event Listeners
+        btnLogin.addEventListener('click', doLogin);
+        btnRegister.addEventListener('click', showRegisterModal);
+        btnForgotPassword.addEventListener('click', (e) => {
+            e.preventDefault();
+            forgotPasswordModal.style.display = 'flex';
+        });
+
+        btnRegisterSubmit.addEventListener('click', doRegister);
+        btnRegisterBack.addEventListener('click', () => {
+            registerModal.style.display = 'none';
+        });
+
+        btnCloseForgotModal.addEventListener('click', () => {
+            forgotPasswordModal.style.display = 'none';
+        });
+
+        // Cerrar modales con X
+        document.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = e.target.closest('.modal');
+                if (modal) modal.style.display = 'none';
+            });
+        });
+
+        // Cerrar modales al hacer clic fuera
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+
+        // Crop Modal Event Listeners
+        cropContainer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            cropperState.isDragging = true;
+            cropperState.startX = e.clientX - cropperState.wrapperX;
+            cropperState.startY = e.clientY - cropperState.wrapperY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!cropperState.isDragging || avatarCropModal.style.display !== 'flex') return;
+            e.preventDefault();
+            cropperState.wrapperX = e.clientX - cropperState.startX;
+            cropperState.wrapperY = e.clientY - cropperState.startY;
+            cropImageWrapper.style.left = `${cropperState.wrapperX}px`;
+            cropImageWrapper.style.top = `${cropperState.wrapperY}px`;
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (!cropperState.isDragging) return;
+            cropperState.isDragging = false;
+        });
+        cropContainer.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            cropperState.isDragging = true;
+            cropperState.startX = touch.clientX - cropperState.wrapperX;
+            cropperState.startY = touch.clientY - cropperState.wrapperY;
+        }, { passive: true });
+        window.addEventListener('touchmove', (e) => {
+            if (!cropperState.isDragging || avatarCropModal.style.display !== 'flex') return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            cropperState.wrapperX = touch.clientX - cropperState.startX;
+            cropperState.wrapperY = touch.clientY - cropperState.startY;
+            cropImageWrapper.style.left = `${cropperState.wrapperX}px`;
+            cropImageWrapper.style.top = `${cropperState.wrapperY}px`;
+        }, { passive: false });
+        window.addEventListener('touchend', (e) => {
+            if (!cropperState.isDragging) return;
+            cropperState.isDragging = false;
+        });
+        zoomSlider.addEventListener('input', (e) => {
+            cropperState.scale = e.target.value / 100;
+            cropImagePreview.style.transform = `scale(${cropperState.scale})`;
+        });
+        btnSaveCrop.addEventListener('click', saveCrop);
+        btnCancelCrop.addEventListener('click', closeCropModal);
+
+        // Avatar upload handler
+        registerAvatarUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    openCropModal(evt.target.result, (croppedDataUrl) => {
+                        selectedAvatar = croppedDataUrl;
+                        avatarPreview.src = croppedDataUrl;
+                        avatarPreviewContainer.style.display = 'block';
+                        const current = avatarGallery.querySelector('.selected');
+                        if (current) current.classList.remove('selected');
+                        if (avatarGallery.firstChild) {
+                            avatarGallery.firstChild.classList.add('selected');
+                        }
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Login con Enter
+        loginPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                doLogin();
+            }
+        });
+
+        // Inicialización
+        initCountries();
+        populateAvatarGallery();
+    </script>
+</body>
+</html>
