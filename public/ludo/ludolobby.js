@@ -508,10 +508,16 @@ function showPwaInstallModal() {
         if (window.innerWidth <= 992) {
             const overlayContent = document.querySelector('.overlay-content');
             if (overlayContent) { // Añadimos una comprobación por si acaso
+                // Limpiar todos los estilos inline que puedan interferir con el CSS
                 overlayContent.style.transform = '';
                 overlayContent.style.left = '';
                 overlayContent.style.top = '';
+                overlayContent.style.width = '';
+                overlayContent.style.height = '';
+                overlayContent.style.maxWidth = '';
+                overlayContent.style.maxHeight = '';
                 overlayContent.style.position = 'relative';
+                overlayContent.style.margin = '';
             }
             return; // <-- ESTA LÍNEA ES LA MÁS IMPORTANTE
         }
