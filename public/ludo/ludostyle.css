@@ -318,10 +318,16 @@ html {
     color: #e0d3b6;
     font-size: 0.9rem;
     min-height: 185px;
+    box-sizing: border-box;
+    overflow: visible;
+    height: auto;
 }
 .table-item .info {
     margin-bottom: 12px;
     line-height: 1.5;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 .table-item .info strong {
     color: #c5a56a;
@@ -340,6 +346,9 @@ html {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 .table-item .play-button {
     background: #c5a56a; /* Cambiado de gradiente a sólido */
@@ -1444,6 +1453,21 @@ html {
     .user-panel .panel-title .char {
         font-size: 1.3rem;
     }
+    .table-item {
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
 }
 
 @media (orientation: portrait) and (max-width: 992px) {
@@ -1541,6 +1565,21 @@ html {
         font-size: 0.8rem;
         border-radius: 12px;
     }
+    .table-item {
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
 }
 
 /* Tablets medianas */
@@ -1612,6 +1651,21 @@ html {
         margin-bottom: 5px;
         font-size: 0.7rem;
         border-radius: 10px;
+    }
+    .table-item {
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 }
 
@@ -1702,6 +1756,19 @@ html {
     .table-item {
         padding: 8px !important;
         min-height: 120px !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
     .tables-panel {
         grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
@@ -1779,6 +1846,19 @@ html {
     .table-item {
         padding: 8px !important;
         min-height: 140px !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
     .tables-panel {
         grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
