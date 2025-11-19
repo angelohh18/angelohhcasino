@@ -354,12 +354,17 @@ html {
     max-width: 100% !important; /* Evitar desbordamiento */
     box-sizing: border-box !important;
     flex-shrink: 0; /* No permitir que se encoja */
+    padding: 0 !important; /* Eliminar cualquier padding que pueda causar desbordamiento */
+    margin-left: 0 !important; /* Eliminar márgenes horizontales */
+    margin-right: 0 !important;
 }
 .table-item .play-button {
     background: #c5a56a; /* Cambiado de gradiente a sólido */
     border-radius: 10px;
     padding: 8px;
-    width: 100%;
+    width: 100% !important; /* Forzar ancho completo */
+    max-width: 100% !important; /* Evitar desbordamiento */
+    box-sizing: border-box !important; /* Incluir padding y border en el ancho */
     color: #211e18;
     font-weight: 700;
     cursor: pointer;
@@ -368,6 +373,8 @@ html {
     border: none;
     font-size: 0.8rem;
     transition: background 0.3s ease;
+    margin: 0 !important; /* Eliminar cualquier margen */
+    position: relative !important; /* Asegurar posicionamiento relativo */
 }
 .table-item .play-button:hover {
     background: #9d7b40; /* Cambiado de gradiente a sólido */
