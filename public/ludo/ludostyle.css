@@ -317,7 +317,7 @@ html {
     justify-content: space-between;
     color: #e0d3b6;
     font-size: 0.9rem;
-    min-height: 185px; /* Solo un mínimo, puede crecer automáticamente */
+    min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
     box-sizing: border-box;
     overflow: visible; /* Cambiado a visible para que el contenido se vea completo */
     height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -387,7 +387,7 @@ html {
     display: block !important; /* Forzar display block */
     visibility: visible !important; /* Asegurar visibilidad */
     opacity: 1 !important; /* Asegurar opacidad completa */
-    min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
+    /* Sin min-height - tamaño normal del botón */
 }
 .table-item .play-button:hover {
     background: #9d7b40; /* Cambiado de gradiente a sólido */
@@ -1522,7 +1522,7 @@ html {
         display: block !important; /* Forzar display block */
         visibility: visible !important; /* Asegurar visibilidad */
         opacity: 1 !important; /* Asegurar opacidad completa */
-        min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
+        /* Sin min-height - tamaño normal del botón */
     }
 }
 
@@ -1665,7 +1665,7 @@ html {
         display: block !important; /* Forzar display block */
         visibility: visible !important; /* Asegurar visibilidad */
         opacity: 1 !important; /* Asegurar opacidad completa */
-        min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
+        /* Sin min-height - tamaño normal del botón */
     }
 }
 
@@ -1783,7 +1783,7 @@ html {
         display: block !important; /* Forzar display block */
         visibility: visible !important; /* Asegurar visibilidad */
         opacity: 1 !important; /* Asegurar opacidad completa */
-        min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
+        /* Sin min-height - tamaño normal del botón */
     }
 }
 
