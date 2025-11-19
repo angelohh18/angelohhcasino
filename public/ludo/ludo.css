@@ -621,10 +621,10 @@ body.game-active {
     #victory-overlay,
     #ready-overlay,
     #foul-modal,
-    #confirm-leave-modal,
-    #rules-modal {
+    #confirm-leave-modal {
         display: none !important; /* Oculta todo el contenido del juego */
     }
+    /* No ocultar #rules-modal aquí - se maneja dinámicamente en JavaScript */
 
     /* 2. Mostrar el mensaje de orientación */
     #orientation-message {

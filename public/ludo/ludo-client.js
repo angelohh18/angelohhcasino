@@ -2396,22 +2396,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnGameRules = document.getElementById('game-rules-btn');
     const rulesModal = document.getElementById('rules-modal');
     const btnCloseRules = document.getElementById('btn-close-rules-modal');
+    const closeModalBtn = rulesModal ? rulesModal.querySelector('.close-modal-btn') : null;
 
-    if (btnGameRules && rulesModal && btnCloseRules) {
+    if (btnGameRules && rulesModal) {
         // Abrir modal de reglas - usar 'block' igual que el lobby
         btnGameRules.addEventListener('click', () => {
             rulesModal.style.display = 'block';
+            rulesModal.style.setProperty('display', 'block', 'important');
         });
 
-        // Cerrar modal de reglas
-        btnCloseRules.addEventListener('click', () => {
-            rulesModal.style.display = 'none';
-        });
+        // Cerrar modal de reglas con botón "Entendido"
+        if (btnCloseRules) {
+            btnCloseRules.addEventListener('click', () => {
+                rulesModal.style.display = 'none';
+                rulesModal.style.setProperty('display', 'none', 'important');
+            });
+        }
+
+        // Cerrar modal con botón X
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', () => {
+                rulesModal.style.display = 'none';
+                rulesModal.style.setProperty('display', 'none', 'important');
+            });
+        }
         
-        // (Opcional) Cerrar si se hace clic fuera del contenido (en el overlay)
+        // Cerrar si se hace clic fuera del contenido (en el overlay)
         rulesModal.addEventListener('click', (e) => {
             if (e.target === rulesModal) {
                 rulesModal.style.display = 'none';
+                rulesModal.style.setProperty('display', 'none', 'important');
             }
         });
     }
