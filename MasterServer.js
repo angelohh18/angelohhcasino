@@ -395,19 +395,26 @@ async function getFullUsersFromDB() {
 // Función para guardar comisión
 async function saveCommission(amount, currency = 'COP') {
   try {
+    const newEntry = {
+      id: commissionLog.length + 1,
+      amount,
+      currency,
+      timestamp: Date.now()
+    };
+    
     if (DISABLE_DB) {
-      commissionLog.push({
-        id: commissionLog.length + 1,
-        amount,
-        currency,
-        timestamp: Date.now()
-      });
+      commissionLog.push(newEntry);
       return;
     }
+    
     await pool.query(
       'INSERT INTO commission_log (amount, currency) VALUES ($1, $2)',
       [amount, currency]
     );
+    
+    // Actualizar el array en memoria incluso cuando se usa BD
+    commissionLog.push(newEntry);
+    
     console.log(`✅ Comisión guardada: ${amount} ${currency}`);
   } catch (error) {
     console.error('Error guardando comisión:', error);
@@ -1069,10 +1076,14 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             const commission = totalPot * 0.10;
             const finalWinnings = totalPot - commission;
 
+            // Guardar comisión en el log de administración
+            const roomCurrency = room.settings.betCurrency || 'USD';
+            const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
+            await saveCommission(commissionInCOP, 'COP');
+
             const winners = [opponentSeat1, opponentSeat2].filter(Boolean);
             const winningsPerPlayer = winners.length > 0 ? finalWinnings / winners.length : 0;
             const winningPlayersPayload = [];
-            const roomCurrency = room.settings.betCurrency || 'USD';
 
             for (const seatInfo of winners) {
                 if (!seatInfo) continue;
@@ -1194,9 +1205,13 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             const commission = totalPot * 0.10;
             const finalWinnings = totalPot - commission;
 
+            // Guardar comisión en el log de administración
+            const roomCurrency = room.settings.betCurrency || 'USD';
+            const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
+            await saveCommission(commissionInCOP, 'COP');
+
             // --- INICIO: PAGO DE PREMIOS (Añadido) ---
             // ▼▼▼ CORRECCIÓN CRÍTICA: Obtener userInfo desde users, BD o inMemoryUsers ▼▼▼
-            const roomCurrency = room.settings.betCurrency || 'USD';
             const winnerUsername = winnerSeat.userId.replace('user_', '');
             let winnerInfo = users[winnerSeat.userId];
             
@@ -4048,6 +4063,21 @@ io.on('connection', (socket) => {
     socket.on('admin:requestUserList', async () => { // <-- Se añade 'async'
         socket.join('admin-room');
         console.log(`Socket ${socket.id} se ha unido a la sala de administradores.`);
+
+        // Cargar comisiones de la base de datos si está habilitada
+        if (!DISABLE_DB) {
+            try {
+                const result = await pool.query('SELECT id, amount, currency, timestamp FROM commission_log ORDER BY timestamp ASC');
+                commissionLog = result.rows.map(row => ({
+                    id: row.id,
+                    amount: parseFloat(row.amount),
+                    currency: row.currency,
+                    timestamp: row.timestamp ? new Date(row.timestamp).getTime() : Date.now()
+                }));
+            } catch (error) {
+                console.error('Error cargando comisiones de BD:', error);
+            }
+        }
 
         socket.emit('admin:commissionData', commissionLog);
 
@@ -7262,6 +7292,10 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                       const totalPot = room.gameState.pot;
                       const commission = totalPot * 0.10; // 10% de comisión
                       const finalWinnings = totalPot - commission;
+
+                      // Guardar comisión en el log de administración
+                      const commissionInCOP = convertCurrency(commission, room.settings.betCurrency || 'USD', 'COP', exchangeRates);
+                      await saveCommission(commissionInCOP, 'COP');
 
                       const roomCurrency = room.settings.betCurrency || 'USD';
                       const gameType = room.settings.gameType || 'ludo';
