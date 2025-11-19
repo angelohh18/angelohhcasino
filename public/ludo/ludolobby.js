@@ -621,19 +621,26 @@ function showPwaInstallModal() {
     function createRoom() {
         createRoomError.style.display = 'none';
         betInput.value = 10;
-        // Asegurar que el modal esté oculto inicialmente
-        if (createRoomModal) {
-            createRoomModal.style.display = 'none';
-        }
         // Solo mostrar cuando se llame explícitamente
         if (createRoomModal) {
-            createRoomModal.style.display = 'block';
+            createRoomModal.style.display = 'flex';
         }
     }
     
-    // Asegurar que el modal esté oculto al cargar la página
+    // Asegurar que el modal esté oculto al cargar la página y cuando se muestra el lobby
     if (createRoomModal) {
         createRoomModal.style.display = 'none';
+    }
+    
+    // Asegurar que el modal esté oculto cuando se muestra el lobby
+    const originalShowLobby = showLobbyView;
+    if (typeof originalShowLobby === 'function') {
+        window.showLobbyView = function() {
+            originalShowLobby();
+            if (createRoomModal) {
+                createRoomModal.style.display = 'none';
+            }
+        };
     }
 
     function confirmCreateRoom() {
@@ -1163,6 +1170,11 @@ function showRoomsOverview() {
         loginModal.style.display = 'none';
         body.classList.add('is-logged-in');
         lobbyOverlay.style.display = 'flex';
+        
+        // Asegurar que el modal de creación de mesa esté oculto
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+        }
 
         showPwaInstallModal();
         setTimeout(scaleAndCenterLobby, 0);
@@ -1205,6 +1217,11 @@ function showRoomsOverview() {
 
         body.classList.add('is-logged-in');
         lobbyOverlay.style.display = 'flex';
+        
+        // Asegurar que el modal de creación de mesa esté oculto
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+        }
 
         showPwaInstallModal(); 
         setTimeout(scaleAndCenterLobby, 0);
