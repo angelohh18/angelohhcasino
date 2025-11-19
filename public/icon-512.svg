@@ -1,24 +1,44 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#211e18;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#3a3a2a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2a2620;stop-opacity:1" />
     </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.5"/>
+    </filter>
   </defs>
   
-  <!-- Fondo -->
-  <rect width="512" height="512" rx="50" ry="50" fill="url(#bg)"/>
+  <!-- Fondo con gradiente -->
+  <rect width="512" height="512" rx="76" fill="url(#bgGradient)"/>
   
   <!-- Borde dorado -->
-  <rect x="10" y="10" width="492" height="492" rx="40" ry="40" fill="none" stroke="#c5a56a" stroke-width="10"/>
+  <rect x="4" y="4" width="504" height="504" rx="72" 
+        fill="none" stroke="#c5a56a" stroke-width="8"/>
   
-  <!-- Texto "51" -->
-  <text x="256" y="300" font-family="Arial, sans-serif" font-size="120" font-weight="bold" text-anchor="middle" fill="#c5a56a">51</text>
+  <!-- Texto principal -->
+  <text x="256" y="230" 
+        font-family="Georgia, serif" 
+        font-size="64" 
+        font-weight="bold" 
+        fill="#c5a56a" 
+        text-anchor="middle" 
+        filter="url(#shadow)">
+    Angelohh
+  </text>
   
-  <!-- Decoración de cartas -->
-  <rect x="80" y="80" width="50" height="80" rx="8" ry="8" fill="#e0d3b6"/>
-  <rect x="145" y="90" width="50" height="80" rx="8" ry="8" fill="#e0d3b6"/>
-  <rect x="317" y="80" width="50" height="80" rx="8" ry="8" fill="#e0d3b6"/>
-  <rect x="382" y="90" width="50" height="80" rx="8" ry="8" fill="#e0d3b6"/>
+  <!-- Texto secundario -->
+  <text x="256" y="310" 
+        font-family="Georgia, serif" 
+        font-size="48" 
+        font-weight="bold" 
+        fill="#e0d3b6" 
+        text-anchor="middle" 
+        filter="url(#shadow)">
+    Casino
+  </text>
+  
+  <!-- Efecto de brillo -->
+  <ellipse cx="256" cy="154" rx="128" ry="51" 
+           fill="#c5a56a" opacity="0.2"/>
 </svg>
-
