@@ -319,7 +319,7 @@ html {
     font-size: 0.9rem;
     min-height: 185px;
     box-sizing: border-box;
-    overflow: visible; /* Cambiado a visible para que el contenedor pueda crecer */
+    overflow: hidden; /* Cambiado a hidden para contener el contenido que se sale */
     height: auto; /* Permitir que crezca automáticamente */
     max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
     position: relative; /* Asegurar contexto de posicionamiento */
@@ -344,6 +344,10 @@ html {
     overflow: hidden;
     text-overflow: ellipsis;
     min-height: 1.2em;
+    width: 100% !important; /* Forzar ancho completo */
+    max-width: 100% !important; /* Evitar desbordamiento */
+    box-sizing: border-box !important; /* Incluir padding y border en el ancho */
+    position: relative !important; /* Asegurar posicionamiento relativo */
 }
 .table-item .actions {
     margin-top: auto;
@@ -1469,7 +1473,7 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: visible !important; /* Cambiado a visible para que el contenedor pueda crecer */
+        overflow: hidden !important; /* Cambiado a hidden para contener el contenido que se sale */
         height: auto !important;
         max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
@@ -1480,6 +1484,12 @@ html {
         max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
         flex-shrink: 0 !important; /* No permitir que se encoja */
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
     }
     .table-item .actions {
         position: relative !important;
@@ -1598,7 +1608,7 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: visible !important; /* Cambiado a visible para que el contenedor pueda crecer */
+        overflow: hidden !important; /* Cambiado a hidden para contener el contenido que se sale */
         height: auto !important;
         max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
@@ -1609,6 +1619,12 @@ html {
         max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
         flex-shrink: 0 !important; /* No permitir que se encoja */
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
     }
     .table-item .actions {
         position: relative !important;
@@ -1702,7 +1718,7 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: visible !important; /* Cambiado a visible para que el contenedor pueda crecer */
+        overflow: hidden !important; /* Cambiado a hidden para contener el contenido que se sale */
         height: auto !important;
         max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
@@ -1713,6 +1729,12 @@ html {
         max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
         flex-shrink: 0 !important; /* No permitir que se encoja */
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
     }
     .table-item .actions {
         position: relative !important;
