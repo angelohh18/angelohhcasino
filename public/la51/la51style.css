@@ -40,19 +40,20 @@ html {
     box-shadow:
     0 0 10px #c5a56a88,
     inset 0 0 15px #c5a56a55;
-    /* CORRECCIÓN PRINCIPAL PARA EL AJUSTE DINÁMICO */
-    width: 98%;           /* Ocupa casi todo el ancho disponible */
-    max-width: 1100px;    /* Mantiene el máximo original para pantallas grandes */
-    height: 98%;          /* Ocupa casi todo el alto disponible */
-    max-height: 98vh;     /* Asegura que no se salga del alto del viewport */
+    /* CORRECCIÓN PRINCIPAL: Ocupa el total de la pantalla disponible con márgenes */
+    width: calc(100vw - 40px);     /* Margen de 20px en cada lado */
+    max-width: calc(100vw - 40px); /* No exceder el ancho con márgenes */
+    height: calc(100vh - 40px);    /* Margen de 20px arriba y abajo */
+    max-height: calc(100vh - 40px); /* No exceder el alto con márgenes */
     display: flex;
     flex-direction: column;
     padding: clamp(10px, 2vw, 20px) clamp(15px, 2.5vw, 30px); /* Padding fluido */
     color: #e0d3b6;
-    /* Para el centrado en la vista de escritorio */
+    /* Para el centrado en todos los tamaños */
     position: relative;
     box-sizing: border-box;
-    margin: 0 auto; /* Centrado horizontal */
+    margin: 20px auto; /* Margen automático para centrado horizontal y vertical */
+    overflow: hidden;
 }
 
 .overlay-content h2 {
@@ -71,8 +72,9 @@ html {
     overflow: hidden;
     min-height: 0; /* Permite que se reduzca correctamente */
     min-width: 0; /* Permite que se reduzca correctamente */
-    margin: 0 auto; /* Centrado horizontal */
+    margin: 0 auto; /* Centrado horizontal y vertical */
     max-width: 100%; /* No exceder el ancho del contenedor */
+    width: 100%; /* Ocupa todo el ancho disponible dentro del contenedor */
     box-sizing: border-box;
 }
 
@@ -935,6 +937,20 @@ html {
 
 /* Media query para pantallas grandes (desktop) */
 @media (min-width: 1201px) {
+    .overlay-content {
+        width: calc(100vw - 40px) !important;     /* Margen de 20px en cada lado */
+        max-width: calc(100vw - 40px) !important;
+        height: calc(100vh - 40px) !important;    /* Margen de 20px arriba y abajo */
+        max-height: calc(100vh - 40px) !important;
+        margin: 20px auto !important; /* Centrado con márgenes */
+        overflow: hidden !important;
+    }
+    .lobby-main {
+        margin: 0 auto !important; /* Centrado horizontal */
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
     .user-panel {
         min-width: 260px;
     }
@@ -967,6 +983,7 @@ html {
         padding: 10px; /* Margen general reducido */
         box-sizing: border-box;
         overflow: hidden;
+        margin: 30px auto !important; /* Centrado con márgenes */
     }
     .lobby-main {
         overflow: hidden !important;
@@ -974,6 +991,7 @@ html {
         min-width: 0 !important;
         margin: 0 auto !important; /* Centrado horizontal */
         max-width: 100% !important; /* No exceder el ancho */
+        width: 100% !important; /* Ocupa todo el ancho disponible */
         box-sizing: border-box !important;
     }
     .user-panel {
@@ -1043,6 +1061,7 @@ html {
         padding: 5px !important;  /* Margen de seguridad reducido */
         box-sizing: border-box;
         overflow: hidden;
+        margin: 27.5px auto !important; /* Centrado con márgenes */
     }
 
     /* Asegurar que los paneles principales ocupen el espacio */
@@ -1053,6 +1072,7 @@ html {
         min-width: 0 !important;
         margin: 0 auto !important; /* Centrado horizontal */
         max-width: 100% !important; /* No exceder el ancho */
+        width: 100% !important; /* Ocupa todo el ancho disponible */
         box-sizing: border-box !important;
     }
     .user-panel {
@@ -1117,12 +1137,6 @@ html {
     #lobby-overlay {
         padding: 0; /* Sin padding en el overlay */
     }
-    .lobby-main {
-        gap: 4px !important; /* Reducir espacio entre paneles */
-        margin: 0 auto !important; /* Centrado horizontal */
-        max-width: 100% !important; /* No exceder el ancho */
-        box-sizing: border-box !important;
-    }
     .overlay-content {
         /* Descontar espacio de barra de navegación (altura y ancho) del navegador móvil */
         height: calc(100vh - 50px) !important;
@@ -1133,13 +1147,16 @@ html {
         padding: 2px !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
+        margin: 25px auto !important; /* Centrado con márgenes */
     }
     .lobby-main {
+        gap: 4px !important; /* Reducir espacio entre paneles */
         overflow: hidden !important;
         min-height: 0 !important;
         min-width: 0 !important;
         margin: 0 auto !important; /* Centrado horizontal */
         max-width: 100% !important; /* No exceder el ancho */
+        width: 100% !important; /* Ocupa todo el ancho disponible */
         box-sizing: border-box !important;
     }
     .user-panel, .tables-panel, .chat-header, .chat-messages, .chat-input {
@@ -1228,12 +1245,6 @@ html {
     #lobby-overlay {
         padding: 0;
     }
-    .lobby-main {
-        gap: 3px !important;
-        margin: 0 auto !important; /* Centrado horizontal */
-        max-width: 100% !important; /* No exceder el ancho */
-        box-sizing: border-box !important;
-    }
     .overlay-content {
         height: calc(100vh - 45px) !important;
         max-height: calc(100vh - 45px) !important;
@@ -1242,13 +1253,16 @@ html {
         padding: 2px !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
+        margin: 22.5px auto !important; /* Centrado con márgenes */
     }
     .lobby-main {
+        gap: 3px !important;
         overflow: hidden !important;
         min-height: 0 !important;
         min-width: 0 !important;
         margin: 0 auto !important; /* Centrado horizontal */
         max-width: 100% !important; /* No exceder el ancho */
+        width: 100% !important; /* Ocupa todo el ancho disponible */
         box-sizing: border-box !important;
     }
     .user-panel, .tables-panel, .chat-header, .chat-messages, .chat-input {

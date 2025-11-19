@@ -488,23 +488,27 @@ function showPwaInstallModal() {
 
     function scaleAndCenterLobby() {
         // ▼▼▼ PEGA ESTE BLOQUE COMPLETO AQUÍ DENTRO ▼▼▼
-        // Este código desactiva el escalado en móviles y deja que el CSS funcione
+        // Este código desactiva el escalado y deja que el CSS funcione en todos los tamaños
+        const overlayContent = document.querySelector('.overlay-content');
+        if (overlayContent) {
+            // Limpiar todos los estilos inline que puedan interferir con el CSS
+            overlayContent.style.transform = '';
+            overlayContent.style.left = '';
+            overlayContent.style.top = '';
+            overlayContent.style.width = '';
+            overlayContent.style.height = '';
+            overlayContent.style.maxWidth = '';
+            overlayContent.style.maxHeight = '';
+            overlayContent.style.position = 'relative';
+            overlayContent.style.margin = '';
+        }
+        
+        // En móviles, retornar para que el CSS maneje todo
         if (window.innerWidth <= 992) {
-            const overlayContent = document.querySelector('.overlay-content');
-            if (overlayContent) { // Añadimos una comprobación por si acaso
-                // Limpiar todos los estilos inline que puedan interferir con el CSS
-                overlayContent.style.transform = '';
-                overlayContent.style.left = '';
-                overlayContent.style.top = '';
-                overlayContent.style.width = '';
-                overlayContent.style.height = '';
-                overlayContent.style.maxWidth = '';
-                overlayContent.style.maxHeight = '';
-                overlayContent.style.position = 'relative';
-                overlayContent.style.margin = '';
-            }
             return; // <-- ESTA LÍNEA ES LA MÁS IMPORTANTE
         }
+        // En desktop, también dejamos que el CSS maneje todo ahora
+        return;
         // ▲▲▲ FIN DEL BLOQUE A PEGAR ▲▲▲
 
         if (window.getComputedStyle(lobbyOverlay).display === 'none' || !body.classList.contains('is-logged-in')) {
