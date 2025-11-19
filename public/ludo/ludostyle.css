@@ -504,7 +504,9 @@ html {
     margin: auto !important; /* <-- CORRECCIÓN CLAVE: Asegura el centrado en el flujo */
     width: 400px !important; /* Tamaño fijo pequeño */
     max-width: 90vw; /* Máximo en móviles */
-    max-height: 85vh; /* Altura máxima */
+    height: auto; /* Ajustarse dinámicamente al contenido */
+    min-height: auto; /* Sin altura mínima fija */
+    max-height: 85vh; /* Altura máxima - límite superior */
     overflow-y: auto;
 }
 
@@ -858,7 +860,9 @@ html {
     #create-room-modal .modal-content {
         width: 90% !important;
         max-width: 400px !important; /* Tamaño máximo pequeño */
-        max-height: 85vh !important; /* No ocupar toda la altura */
+        height: auto !important; /* Ajustarse dinámicamente al contenido */
+        min-height: auto !important; /* Sin altura mínima fija */
+        max-height: 85vh !important; /* No ocupar toda la altura - límite superior */
         padding: 20px 15px !important;
         border-radius: 15px;
         position: relative !important; /* <-- CORRECCIÓN CLAVE: Debe ser relativo a su contenedor */
@@ -981,6 +985,8 @@ html {
         overflow-x: hidden !important;
         /* Permitir que los dropdowns se muestren correctamente */
         position: relative !important;
+        height: auto !important; /* Ajustarse dinámicamente al contenido */
+        min-height: auto !important; /* Sin altura mínima fija */
     }
     
     /* Cuando un select está activo, permitir overflow visible temporalmente */
@@ -1037,6 +1043,8 @@ html {
         position: relative !important;
         width: 100% !important;
         max-width: 100% !important;
+        height: auto !important; /* Ajustarse dinámicamente al contenido */
+        min-height: auto !important; /* Sin altura mínima fija */
     }
     
     /* En móviles, usar completamente el comportamiento nativo del select */
@@ -1100,6 +1108,8 @@ html {
         /* Permitir que el modal tenga overflow visible cuando el select está abierto */
         #create-room-modal .modal-content {
             overflow: visible !important;
+            height: auto !important; /* Ajustarse dinámicamente al contenido */
+            min-height: auto !important; /* Sin altura mínima fija */
         }
     }
     
