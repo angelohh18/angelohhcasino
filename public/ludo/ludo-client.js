@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const gamePotDisplay = document.getElementById('game-pot');
     const myDiceContainer = document.getElementById('player-dice-container-yellow'); // Ya existe
     // ▲▲▲ FIN DE LOS SELECTORES ▲▲▲
+    
+    // Inicializar pool de audio para tag (para iOS)
+    initTagAudioPool();
 
     // Constantes de los slots físicos del HTML
     // (El orden es el sentido horario desde la base del jugador local)
@@ -49,11 +52,54 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem('la51_sound_muted') === 'true';
     }
     
+    // Pool de audio para 'tag' (solo para iOS - permite reproducciones simultáneas)
+    let tagAudioPool = [];
+    let tagAudioPoolIndex = 0;
+    const TAG_POOL_SIZE = 10;
+    
+    // Inicializar pool de audio para tag
+    function initTagAudioPool() {
+        const soundContainer = document.getElementById('game-sounds');
+        if (!soundContainer) return;
+        
+        const originalTag = document.getElementById('sound-tag');
+        if (!originalTag) return;
+        
+        for (let i = 0; i < TAG_POOL_SIZE; i++) {
+            const audioClone = originalTag.cloneNode(true);
+            audioClone.id = `sound-tag-pool-${i}`;
+            soundContainer.appendChild(audioClone);
+            tagAudioPool.push(audioClone);
+        }
+    }
+    
     // Función para reproducir sonidos
     function playSound(soundId) {
         if (getIsMuted()) return;
         
         try {
+            // Para 'tag', usar pool (para iOS)
+            if (soundId === 'tag') {
+                if (tagAudioPool.length === 0) {
+                    initTagAudioPool();
+                }
+                
+                if (tagAudioPool.length > 0) {
+                    const audioElement = tagAudioPool[tagAudioPoolIndex];
+                    tagAudioPoolIndex = (tagAudioPoolIndex + 1) % tagAudioPool.length;
+                    audioElement.pause();
+                    audioElement.currentTime = 0;
+                    const playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.warn(`[Audio] No se pudo reproducir 'tag' (pool):`, error.name);
+                        });
+                    }
+                    return;
+                }
+            }
+            
+            // Para otros sonidos, método normal
             const soundElement = document.getElementById(`sound-${soundId}`);
             if (soundElement) {
                 soundElement.pause();

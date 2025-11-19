@@ -111,16 +111,33 @@
 }
 
 /* Ajustes generales para la página del juego */
+html {
+    height: 100%;
+    height: 100dvh; /* Dynamic viewport height para iOS Safari */
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+}
+
 body.game-active {
     background: radial-gradient(circle, #4a4a3a, var(--casino-dark-panel)); /* Fondo oscuro */
     color: var(--casino-tan);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom); /* Ajuste para barra de navegación iOS */
     overflow: hidden; /* Evitar scroll */
     display: flex; /* Usar flex para centrar */
     justify-content: center;
     align-items: center;
+    height: 100%;
+    height: 100dvh; /* Dynamic viewport height para iOS Safari */
     min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 
 /* Contenedor principal del juego Ludo (añadido para layout) */
@@ -130,9 +147,14 @@ body.game-active {
     justify-content: space-around; /* Distribuir espacio uniformemente */
     align-items: center;
     width: 100%;
-    height: 100vh; /* Ocupa toda la altura */
+    height: 100vh; /* Fallback para navegadores antiguos */
+    height: 100dvh; /* Dynamic viewport height para iOS Safari */
+    min-height: 100vh;
+    min-height: 100dvh;
     padding: 10px 0; /* Pequeño padding vertical */
+    padding-bottom: calc(10px + env(safe-area-inset-bottom)); /* Ajuste para barra de navegación iOS */
     box-sizing: border-box;
+    overflow-y: auto;
 }
 
 /* Contenedor del tablero */
@@ -441,13 +463,17 @@ body.game-active {
 
 /* Chat Container (reutilizado) */
 #chat-container {
-    position: absolute;
+    position: fixed;
     top: 5px;
+    top: calc(5px + env(safe-area-inset-top)); /* Ajuste para notch iOS */
     right: 10px;
+    right: calc(10px + env(safe-area-inset-right)); /* Ajuste para safe area iOS */
     z-index: 900;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    max-height: calc(100dvh - 10px);
+    max-height: calc(100dvh - 10px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 .top-controls-wrapper {
     display: flex;
@@ -638,6 +664,13 @@ body.game-active {
     :root {
         --board-size: min(80vh, 500px);
     }
+    
+    #ludo-game-container {
+        height: 100dvh;
+        min-height: 100dvh;
+        padding-bottom: calc(5px + env(safe-area-inset-bottom));
+    }
+    
      .player-area.bottom {
         max-width: calc(var(--board-size) + 50px);
     }
@@ -680,6 +713,9 @@ body.game-active {
     }
      #ludo-game-container {
         justify-content: center;
+        height: 100dvh;
+        min-height: 100dvh;
+        padding-bottom: calc(5px + env(safe-area-inset-bottom));
     }
 }
 
@@ -692,6 +728,9 @@ body.game-active {
     #ludo-game-container {
         justify-content: space-evenly; /* Mejor distribución vertical */
         padding: 5px 0;
+        padding-bottom: calc(5px + env(safe-area-inset-bottom)); /* Ajuste para barra de navegación iOS */
+        height: 100dvh;
+        min-height: 100dvh;
     }
     
     .player-area.top {
@@ -734,7 +773,10 @@ body.game-active {
     
     #chat-container {
         top: 5px;
+        top: calc(5px + env(safe-area-inset-top));
         right: 5px;
+        right: calc(5px + env(safe-area-inset-right));
+        max-height: calc(100dvh - 10px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
     
     #chat-window {
@@ -747,6 +789,12 @@ body.game-active {
 @media (max-width: 400px) and (orientation: portrait) {
     :root {
         --board-size: min(95vw, 380px);
+    }
+    
+    #ludo-game-container {
+        height: 100dvh;
+        min-height: 100dvh;
+        padding-bottom: calc(5px + env(safe-area-inset-bottom));
     }
     
     .info-bot {
