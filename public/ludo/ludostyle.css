@@ -1455,18 +1455,23 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: visible !important;
+        overflow: hidden !important; /* Cambiado de visible a hidden */
         height: auto !important;
+        position: relative !important; /* Asegurar contexto de posicionamiento */
     }
     .table-item .info {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
     .table-item .actions {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
 }
 
@@ -1567,18 +1572,23 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: visible !important;
+        overflow: hidden !important; /* Cambiado de visible a hidden */
         height: auto !important;
+        position: relative !important; /* Asegurar contexto de posicionamiento */
     }
     .table-item .info {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
     .table-item .actions {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
 }
 
@@ -1654,18 +1664,23 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: visible !important;
+        overflow: hidden !important; /* Cambiado de visible a hidden */
         height: auto !important;
+        position: relative !important; /* Asegurar contexto de posicionamiento */
     }
     .table-item .info {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
     .table-item .actions {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
 }
 
