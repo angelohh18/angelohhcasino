@@ -317,12 +317,13 @@ html {
     justify-content: space-between;
     color: #e0d3b6;
     font-size: 0.9rem;
-    min-height: 185px;
+    min-height: 185px; /* Solo un mínimo, puede crecer automáticamente */
     box-sizing: border-box;
-    overflow: hidden; /* Cambiado a hidden para contener el contenido que se sale */
-    height: auto; /* Permitir que crezca automáticamente */
+    overflow: visible; /* Cambiado a visible para que el contenido se vea completo */
+    height: auto !important; /* Permitir que crezca automáticamente según el contenido */
     max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
     position: relative; /* Asegurar contexto de posicionamiento */
+    flex-shrink: 0; /* No permitir que se encoja */
 }
 .table-item .info {
     margin-bottom: 12px;
@@ -1473,10 +1474,11 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: hidden !important; /* Cambiado a hidden para contener el contenido que se sale */
-        height: auto !important;
+        overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
+        height: auto !important; /* Permitir que crezca automáticamente según el contenido */
         max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
     .table-item .info {
         position: relative !important;
@@ -1608,10 +1610,11 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: hidden !important; /* Cambiado a hidden para contener el contenido que se sale */
-        height: auto !important;
+        overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
+        height: auto !important; /* Permitir que crezca automáticamente según el contenido */
         max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
     .table-item .info {
         position: relative !important;
@@ -1718,10 +1721,11 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: hidden !important; /* Cambiado a hidden para contener el contenido que se sale */
-        height: auto !important;
+        overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
+        height: auto !important; /* Permitir que crezca automáticamente según el contenido */
         max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
+        flex-shrink: 0 !important; /* No permitir que se encoja */
     }
     .table-item .info {
         position: relative !important;
