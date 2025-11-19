@@ -1951,7 +1951,7 @@ html {
         padding: 8px !important;
         min-height: 140px !important;
         box-sizing: border-box !important;
-        overflow: visible !important;
+        overflow: hidden !important;
         height: auto !important;
         max-height: none !important;
         position: relative !important;
@@ -1983,6 +1983,326 @@ html {
     }
     .tables-panel {
         grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
+    }
+}
+
+/* Tablets grandes en landscape (1024px - 1200px) */
+@media (min-width: 1024px) and (max-width: 1200px) and (orientation: landscape) {
+    .table-item {
+        padding: 12px !important;
+        min-height: 160px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+    }
+}
+
+/* Tablets medianas en landscape (768px - 992px) */
+@media (min-width: 768px) and (max-width: 992px) and (orientation: landscape) {
+    .table-item {
+        padding: 10px !important;
+        min-height: 150px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+    }
+}
+
+/* Tablets pequeñas en landscape (600px - 767px) */
+@media (min-width: 600px) and (max-width: 767px) and (orientation: landscape) {
+    .table-item {
+        padding: 8px !important;
+        min-height: 130px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+    }
+}
+
+/* Móviles grandes en landscape (480px - 600px) */
+@media (min-width: 480px) and (max-width: 600px) and (orientation: landscape) {
+    .table-item {
+        padding: 8px !important;
+        min-height: 125px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+    }
+}
+
+/* Móviles medianos en landscape (375px - 480px) */
+@media (min-width: 375px) and (max-width: 480px) and (orientation: landscape) {
+    .table-item {
+        padding: 6px !important;
+        min-height: 115px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        font-size: 0.8rem !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        font-size: 0.7rem !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+        padding: 6px !important;
+        font-size: 0.7rem !important;
+    }
+}
+
+/* Móviles pequeños en landscape (320px - 375px) */
+@media (min-width: 320px) and (max-width: 375px) and (orientation: landscape) {
+    .table-item {
+        padding: 5px !important;
+        min-height: 110px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        font-size: 0.75rem !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        font-size: 0.65rem !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+        padding: 5px !important;
+        font-size: 0.65rem !important;
+    }
+}
+
+/* Móviles muy pequeños en landscape (< 320px) */
+@media (max-width: 320px) and (orientation: landscape) {
+    .table-item {
+        padding: 4px !important;
+        min-height: 100px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        height: auto !important;
+        max-height: none !important;
+        position: relative !important;
+    }
+    .table-item .info {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        font-size: 0.7rem !important;
+    }
+    .table-item .player-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        font-size: 0.6rem !important;
+    }
+    .table-item .actions {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
+        padding: 4px !important;
+        font-size: 0.6rem !important;
     }
 }
 
