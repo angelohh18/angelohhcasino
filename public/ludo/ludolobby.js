@@ -661,6 +661,22 @@ function showPwaInstallModal() {
         }
         createRoomError.style.display = 'none';
         betInput.value = 10;
+        
+        // Inicializar correctamente los contenedores de opciones según el tipo de juego
+        const gameTypeSelect = document.getElementById('game-type-select');
+        const ludoOptions = document.getElementById('ludo-options-container');
+        const parchisOptions = document.getElementById('parchis-options-container');
+        
+        if (gameTypeSelect && ludoOptions && parchisOptions) {
+            const isParchis = gameTypeSelect.value === 'parchis';
+            // Forzar el display usando estilo inline para que tenga prioridad sobre CSS
+            ludoOptions.style.display = isParchis ? 'none' : 'block';
+            parchisOptions.style.display = isParchis ? 'block' : 'none';
+            // Asegurar que se respete usando setProperty con important flag
+            ludoOptions.style.setProperty('display', isParchis ? 'none' : 'block', 'important');
+            parchisOptions.style.setProperty('display', isParchis ? 'block' : 'none', 'important');
+        }
+        
         // Solo mostrar cuando se llame explícitamente
         if (createRoomModal) {
             createRoomModal.style.display = 'flex';
@@ -1660,8 +1676,9 @@ function showRoomsOverview() {
             // Evento cambio de juego (Ludo/Parchis)
             gameTypeSelect.addEventListener('change', () => {
                 const isParchis = gameTypeSelect.value === 'parchis';
-                ludoOptions.style.display = isParchis ? 'none' : 'block';
-                parchisOptions.style.display = isParchis ? 'block' : 'none';
+                // Forzar el display usando setProperty con important flag para que tenga prioridad sobre CSS
+                ludoOptions.style.setProperty('display', isParchis ? 'none' : 'block', 'important');
+                parchisOptions.style.setProperty('display', isParchis ? 'block' : 'none', 'important');
                 updateColorSelectTexts(); // Actualizar textos
             });
 

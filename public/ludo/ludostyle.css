@@ -292,7 +292,7 @@ html {
     font-weight: 700;
     font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Columnas de mesa más flexibles */
+    grid-template-columns: 1fr; /* Las mesas ocupan el ancho total */
     gap: 18px;
 }
 .tables-panel::-webkit-scrollbar {
@@ -1069,9 +1069,11 @@ html {
     /* Asegurar que los contenedores de opciones también se muestren en bloque */
     #create-room-modal .modal-content #ludo-options-container,
     #create-room-modal .modal-content #parchis-options-container {
-        display: block !important;
         width: 100% !important;
     }
+    
+    /* El display debe ser controlado por JavaScript - no forzar display: block aquí */
+    /* Solo respetar el display inline establecido por JavaScript */
     
     /* Estilos específicos para iOS - usar comportamiento nativo del dropdown */
     @supports (-webkit-touch-callout: none) {
@@ -1686,7 +1688,7 @@ html {
         min-height: 120px !important;
     }
     .tables-panel {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+        grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
     }
     .chat-input textarea {
         padding: 8px;
@@ -1763,7 +1765,7 @@ html {
         min-height: 140px !important;
     }
     .tables-panel {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
     }
 }
 
