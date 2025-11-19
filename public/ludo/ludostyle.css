@@ -319,8 +319,9 @@ html {
     font-size: 0.9rem;
     min-height: 185px;
     box-sizing: border-box;
-    overflow: hidden; /* Cambiado de visible a hidden para contener el contenido */
-    height: auto;
+    overflow: visible; /* Cambiado a visible para que el contenedor pueda crecer */
+    height: auto; /* Permitir que crezca automáticamente */
+    max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
     position: relative; /* Asegurar contexto de posicionamiento */
 }
 .table-item .info {
@@ -357,6 +358,7 @@ html {
     padding: 0 !important; /* Eliminar cualquier padding que pueda causar desbordamiento */
     margin-left: 0 !important; /* Eliminar márgenes horizontales */
     margin-right: 0 !important;
+    min-height: fit-content; /* Permitir que crezca según el contenido */
 }
 .table-item .play-button {
     background: #c5a56a; /* Cambiado de gradiente a sólido */
@@ -1467,8 +1469,9 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: hidden !important; /* Cambiado de visible a hidden */
+        overflow: visible !important; /* Cambiado a visible para que el contenedor pueda crecer */
         height: auto !important;
+        max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
     }
     .table-item .info {
@@ -1584,8 +1587,9 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: hidden !important; /* Cambiado de visible a hidden */
+        overflow: visible !important; /* Cambiado a visible para que el contenedor pueda crecer */
         height: auto !important;
+        max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
     }
     .table-item .info {
@@ -1676,8 +1680,9 @@ html {
     }
     .table-item {
         box-sizing: border-box !important;
-        overflow: hidden !important; /* Cambiado de visible a hidden */
+        overflow: visible !important; /* Cambiado a visible para que el contenedor pueda crecer */
         height: auto !important;
+        max-height: none !important; /* Eliminar cualquier restricción de altura máxima */
         position: relative !important; /* Asegurar contexto de posicionamiento */
     }
     .table-item .info {
