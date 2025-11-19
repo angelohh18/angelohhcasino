@@ -1487,6 +1487,17 @@ html {
         max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
         flex-shrink: 0 !important; /* No permitir que se encoja */
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
     }
 }
 
@@ -1605,6 +1616,17 @@ html {
         max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
         flex-shrink: 0 !important; /* No permitir que se encoja */
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
     }
 }
 
@@ -1698,6 +1720,17 @@ html {
         max-width: 100% !important; /* Evitar desbordamiento */
         box-sizing: border-box !important;
         flex-shrink: 0 !important; /* No permitir que se encoja */
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
     }
 }
 
@@ -1791,16 +1824,33 @@ html {
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important;
+        max-height: none !important;
+        position: relative !important;
     }
     .table-item .info {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
+        flex-shrink: 0 !important;
     }
     .table-item .actions {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
     }
     .tables-panel {
         grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
@@ -1881,16 +1931,33 @@ html {
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important;
+        max-height: none !important;
+        position: relative !important;
     }
     .table-item .info {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
+        flex-shrink: 0 !important;
     }
     .table-item .actions {
         position: relative !important;
         width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: fit-content !important;
+    }
+    .table-item .play-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        position: relative !important;
     }
     .tables-panel {
         grid-template-columns: 1fr !important; /* Las mesas ocupan el ancho total */
