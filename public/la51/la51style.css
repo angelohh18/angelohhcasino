@@ -946,8 +946,8 @@ html {
         overflow: hidden !important;
     }
     #table {
-        width: calc(100vw - 40px) !important;     /* Margen de 20px en cada lado */
-        max-width: calc(100vw - 40px) !important;
+        width: calc(100vw - 20px) !important;     /* Margen reducido de 10px en cada lado */
+        max-width: calc(100vw - 20px) !important;
         height: calc(100vh - 40px) !important;    /* Margen de 20px arriba y abajo */
         max-height: calc(100vh - 40px) !important;
         margin: 5px auto 20px auto !important; /* Margen superior muy reducido */
@@ -972,11 +972,6 @@ html {
         gap: 10px !important;
         transform: scale(0.95) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 10px !important;
-        margin-right: 10px !important;
-        width: calc(100% - 20px) !important;
     }
     .lobby-main {
         margin: 0 auto !important; /* Centrado horizontal */
@@ -1021,8 +1016,8 @@ html {
     #table {
         height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
         max-height: calc(100vh - 60px) !important;
-        width: calc(100vw - 50px) !important; /* Descontar ancho de barra de navegación */
-        max-width: calc(100vw - 50px) !important;
+        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
+        max-width: calc(100vw - 30px) !important;
         margin: 5px auto 30px auto !important; /* Margen superior muy reducido */
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -1046,11 +1041,6 @@ html {
         gap: 1.5vw !important;
         transform: scale(0.9) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 8px !important;
-        margin-right: 8px !important;
-        width: calc(100% - 16px) !important;
     }
     .lobby-main {
         overflow: hidden !important;
@@ -1133,8 +1123,8 @@ html {
     #table {
         height: calc(100vh - 55px) !important; /* Descontar espacio de barra de navegación */
         max-height: calc(100vh - 55px) !important;
-        width: calc(100vw - 60px) !important; /* Descontar ancho de barra de navegación */
-        max-width: calc(100vw - 60px) !important;
+        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
+        max-width: calc(100vw - 30px) !important;
         margin: 5px auto 27.5px auto !important; /* Margen superior muy reducido */
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -1158,11 +1148,6 @@ html {
         gap: 1.2vw !important;
         transform: scale(0.85) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 6px !important;
-        margin-right: 6px !important;
-        width: calc(100% - 12px) !important;
     }
 
     /* Asegurar que los paneles principales ocupen el espacio */
@@ -1253,8 +1238,8 @@ html {
     #table {
         height: calc(100vh - 50px) !important;
         max-height: calc(100vh - 50px) !important;
-        width: calc(100vw - 70px) !important; /* Descontar ancho de barra de navegación */
-        max-width: calc(100vw - 70px) !important;
+        width: calc(100vw - 20px) !important; /* Margen reducido de 10px en cada lado */
+        max-width: calc(100vw - 20px) !important;
         margin: 3px auto 25px auto !important; /* Margen superior muy reducido */
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -1278,11 +1263,6 @@ html {
         gap: 1vw !important;
         transform: scale(0.8) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 5px !important;
-        margin-right: 5px !important;
-        width: calc(100% - 10px) !important;
     }
     .lobby-main {
         gap: 4px !important; /* Reducir espacio entre paneles */
@@ -1393,8 +1373,8 @@ html {
     #table {
         height: calc(100vh - 45px) !important;
         max-height: calc(100vh - 45px) !important;
-        width: calc(100vw - 80px) !important; /* Descontar más ancho para móviles muy pequeños */
-        max-width: calc(100vw - 80px) !important;
+        width: calc(100vw - 20px) !important; /* Margen reducido de 10px en cada lado */
+        max-width: calc(100vw - 20px) !important;
         margin: 2px auto 22.5px auto !important; /* Margen superior muy reducido */
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -1418,11 +1398,6 @@ html {
         gap: 0.8vw !important;
         transform: scale(0.75) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 4px !important;
-        margin-right: 4px !important;
-        width: calc(100% - 8px) !important;
     }
     .lobby-main {
         gap: 3px !important;
@@ -1721,9 +1696,7 @@ body.game-active {
 .center-area {
     /* position: relative; */ /* <-- LÍNEA ELIMINADA O COMENTADA */
     position:absolute; top:45%; left:50%; transform:translate(-50%,-50%);
-    width:calc(98% - 20px); height:60%; 
-    margin-left: 10px;
-    margin-right: 10px;
+    width:98%; height:60%; 
     border: 3px solid #000; /* Borde oscuro para acentuar el interior */
     outline: 2px solid var(--casino-gold); /* Borde dorado exterior */
     border-radius:12px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; align-items:center;
@@ -2158,8 +2131,8 @@ body.game-active {
     #table {
         height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
         max-height: calc(100vh - 60px) !important;
-        width: calc(100vw - 50px) !important; /* Descontar ancho de barra de navegación */
-        max-width: calc(100vw - 50px) !important;
+        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
+        max-width: calc(100vw - 30px) !important;
         margin: 5px auto 30px auto !important; /* Margen superior muy reducido */
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -2183,11 +2156,6 @@ body.game-active {
         gap: 1.5vw !important;
         transform: scale(0.9) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 8px !important;
-        margin-right: 8px !important;
-        width: calc(100% - 16px) !important;
     }
     
     .player-area.top { 
@@ -2272,9 +2240,7 @@ body.game-active {
     
     .center-area {
         top: 45%;
-        width: calc(98% - 16px);
-        margin-left: 8px;
-        margin-right: 8px;
+        width: 98%;
         height: 60%;
         border-width: 0.2vw;
         outline-width: 0.15vw;
@@ -2437,6 +2403,8 @@ body.game-active {
     #table {
         padding-top: 0 !important;
         margin-top: 5px !important;
+        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
+        max-width: calc(100vw - 30px) !important;
     }
     #chat-container {
         top: 2px !important;
@@ -2456,11 +2424,6 @@ body.game-active {
         gap: 1.2vw !important;
         transform: scale(0.85) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 6px !important;
-        margin-right: 6px !important;
-        width: calc(100% - 12px) !important;
     }
     
     .player-area.top {
@@ -2487,8 +2450,8 @@ body.game-active {
         padding-top: 0;
         height: calc(100vh - 50px) !important;
         max-height: calc(100vh - 50px) !important;
-        width: calc(100vw - 70px) !important; /* Descontar ancho de barra de navegación */
-        max-width: calc(100vw - 70px) !important;
+        width: calc(100vw - 20px) !important; /* Margen reducido de 10px en cada lado */
+        max-width: calc(100vw - 20px) !important;
         margin: 3px auto 25px auto !important; /* Margen superior muy reducido */
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -2511,11 +2474,6 @@ body.game-active {
         gap: 1vw !important;
         transform: scale(0.8) !important;
         transform-origin: bottom center !important;
-    }
-    .center-area {
-        margin-left: 5px !important;
-        margin-right: 5px !important;
-        width: calc(100% - 10px) !important;
     }
 
     /* Ajusta el área de jugadores superior */
