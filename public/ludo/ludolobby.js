@@ -500,6 +500,9 @@ function showPwaInstallModal() {
     let onCropCompleteCallback = null; // <-- AÑADE ESTA LÍNEA
 
     function scaleAndCenterLobby() {
+        // Asegurar que el modal esté oculto cuando se centra el lobby
+        forceHideCreateRoomModal();
+        
         // ▼▼▼ PEGA ESTE BLOQUE COMPLETO AQUÍ DENTRO ▼▼▼
         // Este código desactiva el escalado en móviles y deja que el CSS funcione
         if (window.innerWidth <= 992) {
@@ -631,17 +634,54 @@ function showPwaInstallModal() {
         }
     }
     
-    // Asegurar que el modal esté oculto al cargar la página y cuando se muestra el lobby
-    if (createRoomModal) {
-        createRoomModal.style.display = 'none';
-        createRoomModal.setAttribute('data-forced-hidden', 'true');
-    }
-    
     // Función para forzar ocultar el modal
     function forceHideCreateRoomModal() {
         if (createRoomModal) {
             createRoomModal.style.display = 'none';
             createRoomModal.setAttribute('data-forced-hidden', 'true');
+        }
+    }
+    
+    // Asegurar que el modal esté oculto al cargar la página y cuando se muestra el lobby
+    if (createRoomModal) {
+        forceHideCreateRoomModal();
+    }
+    
+    // Interceptar cualquier cambio de display del modal
+    const modalElement = createRoomModal;
+    if (modalElement) {
+        // Observar cambios en el estilo display de forma más agresiva
+        const observer = new MutationObserver(() => {
+            if (modalElement.hasAttribute('data-forced-hidden')) {
+                // Si el modal tiene el atributo y se está mostrando, forzar ocultamiento inmediatamente
+                if (modalElement.style.display === 'flex' || modalElement.style.display === 'block') {
+                    forceHideCreateRoomModal();
+                }
+            }
+        });
+        
+        observer.observe(modalElement, {
+            attributes: true,
+            attributeFilter: ['style'],
+            attributeOldValue: false
+        });
+        
+        // Interceptar directamente el setter de style.display
+        let styleDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'style');
+        if (!styleDescriptor) {
+            styleDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'style');
+        }
+        
+        if (styleDescriptor && styleDescriptor.set) {
+            const originalStyleSetter = styleDescriptor.set;
+            styleDescriptor.set = function(value) {
+                originalStyleSetter.call(this, value);
+                if (this === modalElement && this.hasAttribute('data-forced-hidden')) {
+                    if (this.style.display === 'flex' || this.style.display === 'block') {
+                        setTimeout(() => forceHideCreateRoomModal(), 0);
+                    }
+                }
+            };
         }
     }
     
@@ -737,11 +777,19 @@ function showPwaInstallModal() {
             parchisMode: parchisMode
         };
         socket.emit('createLudoRoom', roomSettings);
-        createRoomModal.style.display = 'none';
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+            forceHideCreateRoomModal();
+        }
     }
 
     btnCreateRoomConfirm.addEventListener('click', confirmCreateRoom);
-    btnCreateRoomCancel.addEventListener('click', () => { createRoomModal.style.display = 'none'; });
+    btnCreateRoomCancel.addEventListener('click', () => { 
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+            forceHideCreateRoomModal();
+        }
+    });
     
     btnSendChat.addEventListener('click', () => {
         const txt = chatInput.value.trim();
@@ -1194,13 +1242,25 @@ function showRoomsOverview() {
         }
         loginModal.style.display = 'none';
         body.classList.add('is-logged-in');
+        
+        // Asegurar que el modal de creación de mesa esté oculto ANTES de mostrar el lobby
+        forceHideCreateRoomModal();
+        
         lobbyOverlay.style.display = 'flex';
         
-        // Asegurar que el modal de creación de mesa esté oculto
-        forceHideCreateRoomModal();
+        // Asegurar que el modal de creación de mesa esté oculto DESPUÉS de mostrar el lobby
+        setTimeout(() => {
+            forceHideCreateRoomModal();
+        }, 0);
+        setTimeout(() => {
+            forceHideCreateRoomModal();
+        }, 100);
 
         showPwaInstallModal();
-        setTimeout(scaleAndCenterLobby, 0);
+        setTimeout(() => {
+            scaleAndCenterLobby();
+            forceHideCreateRoomModal();
+        }, 0);
         window.addEventListener('resize', scaleAndCenterLobby);
 
         sessionStorage.setItem('userId', currentUser.userId);
@@ -1239,14 +1299,29 @@ function showRoomsOverview() {
         userAvatarEl.src = userAvatar;
 
         body.classList.add('is-logged-in');
+        
+        // Asegurar que el modal de creación de mesa esté oculto ANTES de mostrar el lobby
+        forceHideCreateRoomModal();
+        
         lobbyOverlay.style.display = 'flex';
         
-        // Asegurar que el modal de creación de mesa esté oculto
-        forceHideCreateRoomModal();
+        // Asegurar que el modal de creación de mesa esté oculto DESPUÉS de mostrar el lobby
+        setTimeout(() => {
+            forceHideCreateRoomModal();
+        }, 0);
+        setTimeout(() => {
+            forceHideCreateRoomModal();
+        }, 100);
 
         showPwaInstallModal(); 
-        setTimeout(scaleAndCenterLobby, 0);
-        window.addEventListener('resize', scaleAndCenterLobby);
+        setTimeout(() => {
+            scaleAndCenterLobby();
+            forceHideCreateRoomModal();
+        }, 0);
+        window.addEventListener('resize', () => {
+            scaleAndCenterLobby();
+            forceHideCreateRoomModal();
+        });
     }
 
     function doRegister() {
@@ -1686,6 +1761,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // Comportamiento por defecto para todos los demás modales
                     modal.style.display = 'none';
+                    // Si es el modal de creación de mesa, forzar ocultamiento
+                    if (modal.id === 'create-room-modal') {
+                        forceHideCreateRoomModal();
+                    }
                 }
             }
         };
