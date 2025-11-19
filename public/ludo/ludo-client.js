@@ -2398,9 +2398,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnCloseRules = document.getElementById('btn-close-rules-modal');
 
     if (btnGameRules && rulesModal && btnCloseRules) {
-        // Abrir modal de reglas
+        // Abrir modal de reglas - usar 'block' igual que el lobby
         btnGameRules.addEventListener('click', () => {
-            rulesModal.style.display = 'flex';
+            rulesModal.style.display = 'block';
         });
 
         // Cerrar modal de reglas
