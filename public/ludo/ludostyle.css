@@ -738,7 +738,7 @@ html {
     right: 0;
     bottom: 0;
     overflow-y: auto; /* Permitir scroll si es necesario */
-    display: flex; /* <-- CORRECCIÓN: Usar flex para centrar */
+    display: none; /* Oculto por defecto - el JavaScript controla cuándo mostrarlo */
     align-items: center; /* <-- CORRECCIÓN: Centrado Vertical */
     justify-content: center; /* <-- CORRECCIÓN: Centrado Horizontal */
     padding: 10px; /* Añadir un pequeño padding de seguridad */
@@ -844,9 +844,15 @@ html {
         overflow-y: auto !important;
         overflow-x: hidden !important;
         margin: 0 !important;
-        display: flex !important; /* <-- CORRECCIÓN: Usar flex para centrar */
+        /* NO forzar display: flex aquí - dejar que el JavaScript controle cuándo mostrar el modal */
         align-items: center !important; /* <-- CORRECCIÓN: Centrado Vertical */
         justify-content: center !important; /* <-- CORRECCIÓN: Centrado Horizontal */
+    }
+    
+    /* Solo aplicar display: flex cuando el modal está visible (no tiene display: none) */
+    #create-room-modal[style*="display: flex"],
+    #create-room-modal[style*="display:block"] {
+        display: flex !important; /* Usar flex para centrar cuando está visible */
     }
     
     #create-room-modal .modal-content {
