@@ -989,11 +989,8 @@ html {
         min-height: auto !important; /* Sin altura mínima fija */
     }
     
-    /* Cuando un select está activo, permitir overflow visible temporalmente */
-    #create-room-modal .modal-content:has(select:focus),
-    #create-room-modal .modal-content:has(select:active) {
-        overflow: visible !important;
-    }
+    /* NO cambiar overflow del modal cuando un select está activo - mantener siempre controlado */
+    /* Los dropdowns nativos se mostrarán sobre el modal sin afectar su posición */
     
     #create-room-modal .modal-content label + select,
     #create-room-modal .modal-content label + input {
@@ -1036,6 +1033,7 @@ html {
     }
     
     /* Prevenir que el modal se mueva cuando se abre un select */
+    /* Mantener overflow siempre controlado y posición fija */
     #create-room-modal .modal-content {
         overflow-y: auto !important;
         overflow-x: hidden !important;
@@ -1045,6 +1043,12 @@ html {
         max-width: 100% !important;
         height: auto !important; /* Ajustarse dinámicamente al contenido */
         min-height: auto !important; /* Sin altura mínima fija */
+        /* Asegurar que el modal no se mueva cuando se abren los selects */
+        transform: none !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
     }
     
     /* En móviles, usar completamente el comportamiento nativo del select */
@@ -1061,9 +1065,10 @@ html {
     }
     
     /* Cuando el select está enfocado/activo, asegurar que el dropdown se muestre sobre el elemento */
+    /* El z-index alto asegura que el dropdown se muestre sobre el modal sin afectar su posición */
     #create-room-modal .modal-content select:focus,
     #create-room-modal .modal-content select:active {
-        z-index: 1000 !important;
+        z-index: 10000 !important; /* Z-index muy alto para que se muestre sobre todo */
         position: relative !important;
     }
     
@@ -1096,7 +1101,7 @@ html {
         
         #create-room-modal .modal-content select:focus,
         #create-room-modal .modal-content select:active {
-            z-index: 1000 !important;
+            z-index: 10000 !important; /* Z-index muy alto para que se muestre sobre todo */
             position: relative !important;
         }
         
@@ -1105,9 +1110,10 @@ html {
             transform: translateZ(0);
         }
         
-        /* Permitir que el modal tenga overflow visible cuando el select está abierto */
+        /* NO cambiar overflow del modal - mantener siempre controlado para que no se desencuadre */
         #create-room-modal .modal-content {
-            overflow: visible !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
             height: auto !important; /* Ajustarse dinámicamente al contenido */
             min-height: auto !important; /* Sin altura mínima fija */
         }
