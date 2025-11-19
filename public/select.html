@@ -513,20 +513,17 @@
                             }
                         });
                         
-                        // Verificar actualizaciones periódicamente
+                        // Verificar actualizaciones periódicamente (cada 5 minutos, no cada minuto)
                         setInterval(() => {
                             registration.update();
-                        }, 60000); // Cada minuto
+                        }, 300000); // Cada 5 minutos (reducir frecuencia para evitar loops)
                     })
                     .catch(error => {
                         console.log('Error al registrar Service Worker:', error);
                     });
                 
-                // Recargar cuando el nuevo service worker tome control
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    console.log('Nuevo Service Worker activado. Recargando página...');
-                    window.location.reload();
-                });
+                // NO recargar automáticamente - solo cuando el usuario haga clic en "Actualizar"
+                // El controllerchange se manejará en showUpdateNotification cuando el usuario acepte
             });
         }
         
@@ -550,11 +547,20 @@
             // Botón de actualizar
             const reloadButton = document.getElementById('btn-reload-update');
             if (reloadButton) {
-                reloadButton.addEventListener('click', () => {
+                // Remover listeners anteriores para evitar duplicados
+                const newReloadButton = reloadButton.cloneNode(true);
+                reloadButton.parentNode.replaceChild(newReloadButton, reloadButton);
+                
+                newReloadButton.addEventListener('click', () => {
                     if (newWorker) {
                         newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        // Esperar a que el service worker se active antes de recargar
+                        navigator.serviceWorker.addEventListener('controllerchange', () => {
+                            window.location.reload();
+                        }, { once: true });
+                    } else {
+                        window.location.reload();
                     }
-                    window.location.reload();
                 });
             }
         }
