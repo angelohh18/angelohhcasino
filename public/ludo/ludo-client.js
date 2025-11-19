@@ -38,9 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const gamePotDisplay = document.getElementById('game-pot');
     const myDiceContainer = document.getElementById('player-dice-container-yellow'); // Ya existe
     // ▲▲▲ FIN DE LOS SELECTORES ▲▲▲
-    
-    // Inicializar los pools de audio para todos los sonidos (para iOS)
-    initAudioPools();
 
     // Constantes de los slots físicos del HTML
     // (El orden es el sentido horario desde la base del jugador local)
@@ -52,100 +49,25 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem('la51_sound_muted') === 'true';
     }
     
-    // Sistema de pools de audio para todos los sonidos (para iOS - permite reproducciones simultáneas)
-    const audioPools = {}; // Objeto que almacena pools por soundId
-    const audioPoolIndices = {}; // Índices actuales para cada pool (round-robin)
-    const POOL_SIZE = 10; // Número de instancias de audio por sonido
-    
-    // Lista de todos los sonidos disponibles
-    const SOUND_IDS = [
-        'draw', 'discard', 'meld', 'add', 'turn', 'shuffle', 
-        'notify', 'victory', 'fault', 'deal', 'gunshot', 
-        'dados', 'tag', 'bloqueo'
-    ];
-    
-    // Inicializar pools de audio para todos los sonidos
-    function initAudioPools() {
-        const soundContainer = document.getElementById('game-sounds');
-        if (!soundContainer) {
-            console.warn('[Audio] No se encontró el contenedor de sonidos');
-            return;
-        }
-        
-        SOUND_IDS.forEach(soundId => {
-            const originalAudio = document.getElementById(`sound-${soundId}`);
-            if (!originalAudio) {
-                console.warn(`[Audio] No se encontró el elemento de audio: sound-${soundId}`);
-                return;
-            }
-            
-            // Crear pool para este sonido
-            const pool = [];
-            for (let i = 0; i < POOL_SIZE; i++) {
-                const audioClone = originalAudio.cloneNode(true);
-                audioClone.id = `sound-${soundId}-pool-${i}`;
-                soundContainer.appendChild(audioClone);
-                pool.push(audioClone);
-            }
-            
-            audioPools[soundId] = pool;
-            audioPoolIndices[soundId] = 0;
-        });
-        
-        console.log(`[Audio] Pools inicializados para ${Object.keys(audioPools).length} sonidos`);
-    }
-    
-    // Función para reproducir sonidos usando pools (compatible con iOS)
+    // Función para reproducir sonidos
     function playSound(soundId) {
         if (getIsMuted()) return;
         
         try {
-            // Si los pools no están inicializados, inicializarlos
-            if (Object.keys(audioPools).length === 0) {
-                initAudioPools();
-            }
-            
-            // Obtener el pool para este sonido
-            const pool = audioPools[soundId];
-            
-            if (!pool || pool.length === 0) {
-                // Fallback al método tradicional si no hay pool
-                const soundElement = document.getElementById(`sound-${soundId}`);
-                if (soundElement) {
-                    soundElement.pause();
-                    soundElement.currentTime = 0;
-                    const playPromise = soundElement.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                            console.warn(`[Audio] No se pudo reproducir '${soundId}':`, error.name);
-                        });
-                    }
+            const soundElement = document.getElementById(`sound-${soundId}`);
+            if (soundElement) {
+                soundElement.pause();
+                soundElement.currentTime = 0;
+                const playPromise = soundElement.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.warn(`[Audio] No se pudo reproducir '${soundId}':`, error.name);
+                    });
                 }
-                return;
-            }
-            
-            // Usar el siguiente elemento del pool (round-robin)
-            const currentIndex = audioPoolIndices[soundId] || 0;
-            const audioElement = pool[currentIndex];
-            audioPoolIndices[soundId] = (currentIndex + 1) % pool.length;
-            
-            // Reiniciar y reproducir
-            audioElement.pause();
-            audioElement.currentTime = 0;
-            const playPromise = audioElement.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.warn(`[Audio] No se pudo reproducir '${soundId}' (pool):`, error.name);
-                });
             }
         } catch (error) {
             console.warn(`No se pudo reproducir el sonido: ${soundId}`, error);
         }
-    }
-    
-    // Función especial para reproducir tag (alias para compatibilidad)
-    function playTagSound() {
-        playSound('tag');
     }
     
     /**
@@ -1304,8 +1226,8 @@ document.addEventListener('DOMContentLoaded', function() {
             pieceToAnimate.style.left = `${targetLeft}px`;
             pieceToAnimate.style.top = `${targetTop}px`;
             
-            // Reproducir sonido al saltar a cada casilla (usa pool para iOS)
-            playTagSound();
+            // Reproducir sonido al saltar a cada casilla
+            playSound('tag');
 
             // ESPERAR para el efecto de salto
             await new Promise(resolve => setTimeout(resolve, durationPerStep));
@@ -1765,12 +1687,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateClickablePieces(); 
         
         // 5. Actualizar brillo de turno visualmente
-        updateTurnGlow(data.nextPlayerIndex);
-        
-        // 6. Reproducir sonido si es mi turno
-        if (data.nextPlayerIndex === gameState.mySeatIndex) {
-            playSound('turn');
-        }
+        updateTurnGlow(data.nextPlayerIndex); 
     });
     // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
     
@@ -1781,14 +1698,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     socket.on('gameChatUpdate', (data) => {
-        const chatWindow = document.getElementById('chat-window');
-        const chatNotificationBadge = document.getElementById('chat-notification-badge');
-        
-        // Si el chat no está visible, reproducir sonido de notificación
-        if (chatWindow && !chatWindow.classList.contains('visible')) {
-            playSound('notify');
-        }
-        
         addChatMessage(data.sender, data.text);
     });
     
