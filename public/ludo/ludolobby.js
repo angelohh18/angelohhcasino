@@ -619,6 +619,10 @@ function showPwaInstallModal() {
     btnCloseRulesModal.addEventListener('click', () => { rulesModal.style.display = 'none'; });
 
     function createRoom() {
+        // Verificar si el modal está forzado a estar oculto
+        if (createRoomModal && createRoomModal.getAttribute('data-forced-hidden') === 'true') {
+            return; // No abrir si está forzado a estar oculto
+        }
         createRoomError.style.display = 'none';
         betInput.value = 10;
         // Solo mostrar cuando se llame explícitamente
@@ -630,6 +634,15 @@ function showPwaInstallModal() {
     // Asegurar que el modal esté oculto al cargar la página y cuando se muestra el lobby
     if (createRoomModal) {
         createRoomModal.style.display = 'none';
+        createRoomModal.setAttribute('data-forced-hidden', 'true');
+    }
+    
+    // Función para forzar ocultar el modal
+    function forceHideCreateRoomModal() {
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+            createRoomModal.setAttribute('data-forced-hidden', 'true');
+        }
     }
     
     // Asegurar que el modal esté oculto cuando se muestra el lobby
@@ -637,11 +650,18 @@ function showPwaInstallModal() {
     if (typeof originalShowLobby === 'function') {
         window.showLobbyView = function() {
             originalShowLobby();
-            if (createRoomModal) {
-                createRoomModal.style.display = 'none';
-            }
+            forceHideCreateRoomModal();
         };
     }
+    
+    // Interceptar cualquier intento de mostrar el modal automáticamente
+    const originalCreateRoom = createRoom;
+    window.createRoom = function() {
+        if (createRoomModal) {
+            createRoomModal.removeAttribute('data-forced-hidden');
+        }
+        originalCreateRoom();
+    };
 
     function confirmCreateRoom() {
         const bet = parseInt(betInput.value);
@@ -809,7 +829,12 @@ function renderRoomsOverview(rooms = []) {
         <div class="actions">
             <button class="play-button">Crear Mesa</button>
         </div>`;
-    createTableItem.querySelector('button').onclick = createRoom;
+    createTableItem.querySelector('button').onclick = function() {
+        if (createRoomModal) {
+            createRoomModal.removeAttribute('data-forced-hidden');
+        }
+        createRoom();
+    };
     roomsOverviewEl.appendChild(createTableItem);
 
     if (!Array.isArray(rooms)) {
@@ -1172,9 +1197,7 @@ function showRoomsOverview() {
         lobbyOverlay.style.display = 'flex';
         
         // Asegurar que el modal de creación de mesa esté oculto
-        if (createRoomModal) {
-            createRoomModal.style.display = 'none';
-        }
+        forceHideCreateRoomModal();
 
         showPwaInstallModal();
         setTimeout(scaleAndCenterLobby, 0);
@@ -1219,9 +1242,7 @@ function showRoomsOverview() {
         lobbyOverlay.style.display = 'flex';
         
         // Asegurar que el modal de creación de mesa esté oculto
-        if (createRoomModal) {
-            createRoomModal.style.display = 'none';
-        }
+        forceHideCreateRoomModal();
 
         showPwaInstallModal(); 
         setTimeout(scaleAndCenterLobby, 0);
