@@ -2787,32 +2787,46 @@ app.post('/update-avatar', async (req, res) => {
   try {
     const { username, avatar } = req.body;
     
+    console.log('[UPDATE-AVATAR] Recibida petición:', { username: username ? 'presente' : 'ausente', avatarLength: avatar ? avatar.length : 0 });
+    
     if (!username || !avatar) {
+      console.error('[UPDATE-AVATAR] Error: Datos incompletos', { username: !!username, avatar: !!avatar });
       return res.status(400).json({ success: false, message: 'Datos incompletos.' });
     }
 
     const userId = 'user_' + username.toLowerCase();
+    console.log('[UPDATE-AVATAR] Actualizando avatar para:', userId);
     
     // Actualizar en la base de datos
     await updateUserAvatar(userId, avatar);
+    console.log('[UPDATE-AVATAR] Avatar actualizado en BD para:', userId);
     
     // Actualizar en memoria si existe
     if (users[userId]) {
       users[userId].avatar_url = avatar;
+      console.log('[UPDATE-AVATAR] Avatar actualizado en memoria para:', userId);
+    } else {
+      console.log('[UPDATE-AVATAR] Usuario no encontrado en memoria:', userId);
     }
     
     // Si el usuario está conectado, notificarle
+    let notified = false;
     for (const [id, socketInstance] of io.of("/").sockets) {
       if (socketInstance.userId === userId) {
         socketInstance.emit('avatarUpdated', { avatar });
+        notified = true;
+        console.log('[UPDATE-AVATAR] Notificación enviada por socket a:', userId);
         break;
       }
+    }
+    if (!notified) {
+      console.log('[UPDATE-AVATAR] Usuario no conectado por socket:', userId);
     }
     
     res.status(200).json({ success: true, message: 'Avatar actualizado correctamente.' });
   } catch (error) {
-    console.error('Error en /update-avatar:', error);
-    res.status(500).json({ success: false, message: 'Error al actualizar el avatar.' });
+    console.error('[UPDATE-AVATAR] Error:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar el avatar: ' + error.message });
   }
 });
 // ▲▲▲ FIN DEL ENDPOINT update-avatar ▲▲▲

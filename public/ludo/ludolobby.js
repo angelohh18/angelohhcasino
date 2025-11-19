@@ -599,34 +599,76 @@ function showPwaInstallModal() {
                 // Llamamos al modal de recorte y le decimos qué hacer cuando se guarde
                 openCropModal(evt.target.result, (croppedDataUrl) => {
                     // Enviar la foto recortada al servidor para guardarla en la base de datos
-                    const username = currentUser.username;
+                    // Intentar obtener el username de múltiples fuentes
+                    let username = currentUser?.username;
+                    if (!username) {
+                        username = sessionStorage.getItem('username');
+                    }
+                    if (!username) {
+                        username = localStorage.getItem('username');
+                    }
+                    
+                    console.log('[AVATAR-UPDATE] Intentando actualizar avatar:', { 
+                        username: username, 
+                        currentUser: currentUser,
+                        hasCroppedData: !!croppedDataUrl,
+                        croppedDataLength: croppedDataUrl ? croppedDataUrl.length : 0
+                    });
+                    
                     if (username) {
+                        // Mostrar mensaje de carga
+                        showToast('Guardando avatar...', 2000);
+                        
                         fetch('/update-avatar', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ username: username, avatar: croppedDataUrl })
                         })
-                        .then(res => res.json())
+                        .then(res => {
+                            console.log('[AVATAR-UPDATE] Respuesta del servidor:', res.status, res.statusText);
+                            if (!res.ok) {
+                                throw new Error(`HTTP error! status: ${res.status}`);
+                            }
+                            return res.json();
+                        })
                         .then(data => {
+                            console.log('[AVATAR-UPDATE] Datos recibidos:', data);
                             if (data.success) {
                                 userAvatarEl.src = croppedDataUrl; // Actualiza el avatar del lobby
-                                currentUser.userAvatar = croppedDataUrl; // Actualiza la variable global
+                                if (currentUser) {
+                                    currentUser.userAvatar = croppedDataUrl; // Actualiza la variable global
+                                }
                                 sessionStorage.setItem('userAvatar', croppedDataUrl); // Guarda en sessionStorage
                                 localStorage.setItem('userAvatar', croppedDataUrl); // Guarda en localStorage
                                 showToast('Avatar actualizado con éxito.', 2500);
                             } else {
-                                showToast('Error al actualizar el avatar.', 2500);
+                                console.error('[AVATAR-UPDATE] Error del servidor:', data.message);
+                                showToast('Error: ' + (data.message || 'Error al actualizar el avatar.'), 3000);
                             }
                         })
                         .catch(error => {
-                            console.error('Error al actualizar avatar:', error);
-                            showToast('Error al actualizar el avatar.', 2500);
+                            console.error('[AVATAR-UPDATE] Error al actualizar avatar:', error);
+                            showToast('Error al actualizar el avatar. Ver consola para más detalles.', 3000);
                         });
+                    } else {
+                        console.error('[AVATAR-UPDATE] No se encontró el nombre de usuario en ningún lugar');
+                        console.error('[AVATAR-UPDATE] currentUser:', currentUser);
+                        console.error('[AVATAR-UPDATE] sessionStorage username:', sessionStorage.getItem('username'));
+                        console.error('[AVATAR-UPDATE] localStorage username:', localStorage.getItem('username'));
+                        showToast('Error: No se encontró el nombre de usuario. Por favor, recarga la página.', 3000);
                     }
                 });
             };
+            reader.onerror = function(error) {
+                console.error('Error al leer el archivo:', error);
+                showToast('Error al leer el archivo de imagen.', 3000);
+            };
             reader.readAsDataURL(file);
+        } else {
+            showToast('Por favor, selecciona un archivo de imagen válido.', 3000);
         }
+        // Limpiar el input para permitir seleccionar el mismo archivo nuevamente
+        e.target.value = '';
     });
     // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
 
