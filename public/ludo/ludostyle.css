@@ -317,7 +317,6 @@ html {
     justify-content: space-between;
     color: #e0d3b6;
     font-size: 0.9rem;
-    min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
     box-sizing: border-box;
     overflow: visible; /* Cambiado a visible para que el contenido se vea completo */
     height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -1479,7 +1478,6 @@ html {
         font-size: 1.3rem;
     }
     .table-item {
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
         height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -1623,7 +1621,6 @@ html {
         border-radius: 12px;
     }
     .table-item {
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
         height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -1742,7 +1739,6 @@ html {
         border-radius: 10px;
     }
     .table-item {
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
         height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -1876,7 +1872,6 @@ html {
     }
     .table-item {
         padding: 8px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -1984,7 +1979,6 @@ html {
     }
     .table-item {
         padding: 8px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2026,7 +2020,6 @@ html {
 @media (min-width: 1024px) and (max-width: 1200px) and (orientation: landscape) {
     .table-item {
         padding: 12px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2071,7 +2064,6 @@ html {
 @media (min-width: 768px) and (max-width: 992px) and (orientation: landscape) {
     .table-item {
         padding: 10px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2116,7 +2108,6 @@ html {
 @media (min-width: 600px) and (max-width: 767px) and (orientation: landscape) {
     .table-item {
         padding: 8px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2161,7 +2152,6 @@ html {
 @media (min-width: 480px) and (max-width: 600px) and (orientation: landscape) {
     .table-item {
         padding: 8px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2206,7 +2196,6 @@ html {
 @media (min-width: 375px) and (max-width: 480px) and (orientation: landscape) {
     .table-item {
         padding: 6px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2255,7 +2244,6 @@ html {
 @media (min-width: 320px) and (max-width: 375px) and (orientation: landscape) {
     .table-item {
         padding: 5px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
@@ -2304,7 +2292,6 @@ html {
 @media (max-width: 320px) and (orientation: landscape) {
     .table-item {
         padding: 4px !important;
-        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important;
         height: auto !important; /* Crecer automáticamente cuando sea necesario */
