@@ -945,6 +945,14 @@ html {
         margin: 20px auto !important; /* Centrado con márgenes */
         overflow: hidden !important;
     }
+    #table {
+        width: calc(100vw - 40px) !important;     /* Margen de 20px en cada lado */
+        max-width: calc(100vw - 40px) !important;
+        height: calc(100vh - 40px) !important;    /* Margen de 20px arriba y abajo */
+        max-height: calc(100vh - 40px) !important;
+        margin: 20px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+    }
     .lobby-main {
         margin: 0 auto !important; /* Centrado horizontal */
         max-width: 100% !important;
@@ -984,6 +992,15 @@ html {
         box-sizing: border-box;
         overflow: hidden;
         margin: 30px auto !important; /* Centrado con márgenes */
+    }
+    #table {
+        height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
+        max-height: calc(100vh - 60px) !important;
+        width: calc(100vw - 50px) !important; /* Descontar ancho de barra de navegación */
+        max-width: calc(100vw - 50px) !important;
+        margin: 30px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
     .lobby-main {
         overflow: hidden !important;
@@ -1062,6 +1079,15 @@ html {
         box-sizing: border-box;
         overflow: hidden;
         margin: 27.5px auto !important; /* Centrado con márgenes */
+    }
+    #table {
+        height: calc(100vh - 55px) !important; /* Descontar espacio de barra de navegación */
+        max-height: calc(100vh - 55px) !important;
+        width: calc(100vw - 60px) !important; /* Descontar ancho de barra de navegación */
+        max-width: calc(100vw - 60px) !important;
+        margin: 27.5px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
 
     /* Asegurar que los paneles principales ocupen el espacio */
@@ -1148,6 +1174,15 @@ html {
         box-sizing: border-box !important;
         overflow: hidden !important;
         margin: 25px auto !important; /* Centrado con márgenes */
+    }
+    #table {
+        height: calc(100vh - 50px) !important;
+        max-height: calc(100vh - 50px) !important;
+        width: calc(100vw - 70px) !important; /* Descontar ancho de barra de navegación */
+        max-width: calc(100vw - 70px) !important;
+        margin: 25px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
     .lobby-main {
         gap: 4px !important; /* Reducir espacio entre paneles */
@@ -1254,6 +1289,15 @@ html {
         box-sizing: border-box !important;
         overflow: hidden !important;
         margin: 22.5px auto !important; /* Centrado con márgenes */
+    }
+    #table {
+        height: calc(100vh - 45px) !important;
+        max-height: calc(100vh - 45px) !important;
+        width: calc(100vw - 80px) !important; /* Descontar más ancho para móviles muy pequeños */
+        max-width: calc(100vw - 80px) !important;
+        margin: 22.5px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
     .lobby-main {
         gap: 3px !important;
@@ -1420,9 +1464,11 @@ body.game-active {
 }
 #game-container header h1 { color: var(--casino-gold); font-size:2.2rem; margin:0; text-shadow: 1px 1px 3px #000; }
 #table {
-    width: 100vw;
-    height: calc(100svh - var(--game-size-adjustment)); /* Usa svh para descontar barras del navegador móvil */
-    margin: 0;
+    width: calc(100vw - 40px); /* Margen de 20px en cada lado */
+    max-width: calc(100vw - 40px); /* No exceder el ancho con márgenes */
+    height: calc(100vh - 40px); /* Margen de 20px arriba y abajo */
+    max-height: calc(100vh - 40px); /* No exceder el alto con márgenes */
+    margin: 20px auto; /* Centrado con márgenes */
     border: none;
     outline: none;
     border-radius: 0;
@@ -1430,6 +1476,7 @@ body.game-active {
     box-shadow: 0 0 30px rgba(0,0,0,0.6);
     position: relative;
     overflow: hidden;
+    box-sizing: border-box;
 }
 .player-area { position:absolute; text-align:center; }
 .player-area.top {
@@ -1982,13 +2029,13 @@ body.game-active {
     #game-container header h1 { font-size: 2.2vw; }
     
     #table {
-        width: 100vw;
-        height: calc(100svh - 5px); /* <-- LÍNEA MODIFICADA */
-        max-width: none;
-        margin: 0;
-        border-width: 0;      /* Cambiado de 0.6vw a 0 */
-        outline-width: 0;     /* Cambiado de 0.3vw a 0 */
-        border-radius: 0;
+        height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
+        max-height: calc(100vh - 60px) !important;
+        width: calc(100vw - 50px) !important; /* Descontar ancho de barra de navegación */
+        max-width: calc(100vw - 50px) !important;
+        margin: 30px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
         padding-top: 5.5vw;
     }
     
@@ -2260,8 +2307,13 @@ body.game-active {
     }
     #table {
         padding-top: 0;
-        width: 100vw;
-        height: 100vh;
+        height: calc(100vh - 50px) !important;
+        max-height: calc(100vh - 50px) !important;
+        width: calc(100vw - 70px) !important; /* Descontar ancho de barra de navegación */
+        max-width: calc(100vw - 70px) !important;
+        margin: 25px auto !important; /* Centrado con márgenes */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }
 
     /* Ajusta el área de jugadores superior */
