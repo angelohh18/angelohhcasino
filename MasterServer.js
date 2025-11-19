@@ -1076,10 +1076,13 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             const commission = totalPot * 0.10;
             const finalWinnings = totalPot - commission;
 
-            // Guardar comisión en el log de administración
+            // Guardar comisión en el log de administración (solo una vez por partida)
             const roomCurrency = room.settings.betCurrency || 'USD';
-            const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
-            await saveCommission(commissionInCOP, 'COP');
+            if (!room.commissionSaved) {
+                const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
+                await saveCommission(commissionInCOP, 'COP');
+                room.commissionSaved = true; // Marcar que ya se guardó la comisión
+            }
 
             const winners = [opponentSeat1, opponentSeat2].filter(Boolean);
             const winningsPerPlayer = winners.length > 0 ? finalWinnings / winners.length : 0;
@@ -1205,10 +1208,13 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             const commission = totalPot * 0.10;
             const finalWinnings = totalPot - commission;
 
-            // Guardar comisión en el log de administración
+            // Guardar comisión en el log de administración (solo una vez por partida)
             const roomCurrency = room.settings.betCurrency || 'USD';
-            const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
-            await saveCommission(commissionInCOP, 'COP');
+            if (!room.commissionSaved) {
+                const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
+                await saveCommission(commissionInCOP, 'COP');
+                room.commissionSaved = true; // Marcar que ya se guardó la comisión
+            }
 
             // --- INICIO: PAGO DE PREMIOS (Añadido) ---
             // ▼▼▼ CORRECCIÓN CRÍTICA: Obtener userInfo desde users, BD o inMemoryUsers ▼▼▼
@@ -3260,8 +3266,13 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
     const totalPot = room.pot || 0;
     const commissionInRoomCurrency = totalPot * 0.10;
     const netWinnings = totalPot - commissionInRoomCurrency;
-    const commissionInCOP = convertCurrency(commissionInRoomCurrency, room.settings.betCurrency, 'COP', exchangeRates);
-    await saveCommission(commissionInCOP, 'COP');
+    
+    // Guardar comisión en el log de administración (solo una vez por partida)
+    if (!room.commissionSaved) {
+        const commissionInCOP = convertCurrency(commissionInRoomCurrency, room.settings.betCurrency, 'COP', exchangeRates);
+        await saveCommission(commissionInCOP, 'COP');
+        room.commissionSaved = true; // Marcar que ya se guardó la comisión
+    }
 
     const winnerInfo = users[winnerSeat.userId];
     if (winnerInfo) {
@@ -7293,9 +7304,12 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                       const commission = totalPot * 0.10; // 10% de comisión
                       const finalWinnings = totalPot - commission;
 
-                      // Guardar comisión en el log de administración
-                      const commissionInCOP = convertCurrency(commission, room.settings.betCurrency || 'USD', 'COP', exchangeRates);
-                      await saveCommission(commissionInCOP, 'COP');
+                      // Guardar comisión en el log de administración (solo una vez por partida)
+                      if (!room.commissionSaved) {
+                          const commissionInCOP = convertCurrency(commission, room.settings.betCurrency || 'USD', 'COP', exchangeRates);
+                          await saveCommission(commissionInCOP, 'COP');
+                          room.commissionSaved = true; // Marcar que ya se guardó la comisión
+                      }
 
                       const roomCurrency = room.settings.betCurrency || 'USD';
                       const gameType = room.settings.gameType || 'ludo';
