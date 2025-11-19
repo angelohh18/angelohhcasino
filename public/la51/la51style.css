@@ -2171,9 +2171,8 @@ body.game-active {
         flex-direction: row; /* Changed from column */
         gap: 2vw;
         width: 98%;
-        margin: 0 auto;
-        left: auto;
-        transform: none;
+        left: 50%;
+        transform: translateX(-50%);
     }
     .hand.human { 
         padding: 0.85vw;
