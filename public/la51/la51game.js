@@ -1284,7 +1284,17 @@ function showRoomsOverview() {
         const finalImgX = cropperState.wrapperX + scaledImgXInWrapper, finalImgY = cropperState.wrapperY + scaledImgYInWrapper;
         const finalImgWidth = wrapperWidth * scale, finalImgHeight = wrapperHeight * scale;
         ctx.drawImage(img, finalImgX, finalImgY, finalImgWidth, finalImgHeight);
-        const dataUrl = canvas.toDataURL('image/png');
+        
+        // Optimizar imagen: reducir tamaño y comprimir
+        const optimizedSize = 300; // Tamaño máximo del avatar (300x300 píxeles)
+        const optimizedCanvas = document.createElement('canvas');
+        optimizedCanvas.width = optimizedSize;
+        optimizedCanvas.height = optimizedSize;
+        const optimizedCtx = optimizedCanvas.getContext('2d');
+        optimizedCtx.drawImage(canvas, 0, 0, containerSize, containerSize, 0, 0, optimizedSize, optimizedSize);
+        
+        // Usar JPEG con calidad 0.85 para reducir tamaño (más pequeño que PNG)
+        const dataUrl = optimizedCanvas.toDataURL('image/jpeg', 0.85);
 
         // ▼▼▼ REEMPLAZA LAS LÍNEAS FINALES CON ESTE BLOQUE ▼▼▼
         if (typeof onCropCompleteCallback === 'function') {

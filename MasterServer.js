@@ -10,7 +10,8 @@ const { Pool } = require('pg');
 const { initLudoEngine } = require('./server/ludoEngine');
 
 const app = express();
-app.use(express.json()); // <-- AÑADE ESTA LÍNEA (después de const app = express())
+app.use(express.json({ limit: '10mb' })); // Aumentar límite para avatares
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Para formularios también
 
 // Middleware de logging para debug
 app.use((req, res, next) => {
@@ -2783,7 +2784,7 @@ app.post('/logout', (req, res) => {
 });
 
 // ▼▼▼ ENDPOINT PARA ACTUALIZAR EL AVATAR DEL USUARIO ▼▼▼
-app.post('/update-avatar', async (req, res) => {
+app.post('/update-avatar', express.json({ limit: '10mb' }), async (req, res) => {
   try {
     const { username, avatar } = req.body;
     
