@@ -78,25 +78,50 @@ function invalidateSession(token) {
 }
 
 // Configuración de la base de datos PostgreSQL (solo si está habilitada)
-const pool = DISABLE_DB ? null : new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-
-// Probar la conexión a la base de datos
+let pool = null;
 if (!DISABLE_DB) {
-  pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-      console.error('❌ Error conectando a la base de datos:', err.stack);
-    } else {
-      console.log('✅ Conexión exitosa a la base de datos:', res.rows[0]);
-      // Inicializar tablas después de conectar
-      initializeDatabase();
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ ADVERTENCIA: DATABASE_URL no está definida. El servidor puede fallar en rutas que requieren base de datos.');
+  } else {
+    try {
+      // Configuración para Render PostgreSQL (requiere SSL)
+      const poolConfig = {
+        connectionString: process.env.DATABASE_URL
+      };
+      
+      // Si la URL contiene 'render.com', habilitar SSL (requerido por Render)
+      if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')) {
+        poolConfig.ssl = {
+          rejectUnauthorized: false
+        };
+      }
+      
+      pool = new Pool(poolConfig);
+
+      // Probar la conexión a la base de datos
+      pool.query('SELECT NOW()', (err, res) => {
+        if (err) {
+          console.error('❌ Error conectando a la base de datos:', err.stack);
+        } else {
+          console.log('✅ Conexión exitosa a la base de datos:', res.rows[0]);
+          // Inicializar tablas después de conectar
+          initializeDatabase();
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error creando el pool de conexiones:', error);
+      pool = null;
     }
-  });
+  }
 }
 
 // Función para inicializar las tablas de la base de datos
 async function initializeDatabase() {
+  if (!pool) {
+    console.error('❌ Error: No se puede inicializar la base de datos. Pool no disponible.');
+    return;
+  }
+  
   try {
     // Tabla de usuarios
     await pool.query(`
@@ -185,6 +210,12 @@ async function getUserByUsername(username) {
         avatar_url: userLocal.avatar_url || ''
       };
     }
+    
+    if (!pool) {
+      console.error('❌ Error: Pool de base de datos no está disponible en getUserByUsername');
+      return null;
+    }
+    
     // La consulta ahora busca por 'username', que sí existe en tu tabla.
     const result = await pool.query(
       'SELECT * FROM users WHERE username = $1',
@@ -2542,6 +2573,14 @@ app.post('/register', async (req, res) => {
       return res.status(201).json({ success: true, message: 'Usuario registrado exitosamente.' });
     }
 
+    if (!pool) {
+      console.error('❌ Error: Pool de base de datos no está disponible');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error de configuración del servidor. La base de datos no está disponible.' 
+      });
+    }
+
     const existingUser = await pool.query('SELECT * FROM users WHERE username = $1', [name.toLowerCase()]);
     if (existingUser.rows.length > 0) {
       return res.status(409).json({ success: false, message: 'Este nombre de usuario ya está en uso.' });
@@ -2616,6 +2655,14 @@ app.post('/login', async (req, res) => {
                 }
             });
         } else {
+            if (!pool) {
+                console.error('❌ Error: Pool de base de datos no está disponible');
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Error de configuración del servidor. La base de datos no está disponible.' 
+                });
+            }
+
             const result = await pool.query('SELECT * FROM users WHERE username = $1', [username.toLowerCase()]);
             
             if (result.rows.length === 0) {
@@ -2644,7 +2691,12 @@ app.post('/login', async (req, res) => {
         }
     } catch (error) {
         console.error('Error en el login:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+        console.error('Stack trace:', error.stack);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
@@ -2664,6 +2716,12 @@ app.post('/session-login', async (req, res) => {
     if (DISABLE_DB) {
       userRecord = inMemoryUsers.get(normalizedUsername);
     } else {
+      if (!pool) {
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error de configuración del servidor. La base de datos no está disponible.' 
+        });
+      }
       const result = await pool.query('SELECT * FROM users WHERE username = $1', [normalizedUsername]);
       userRecord = result.rows[0];
     }
