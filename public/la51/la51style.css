@@ -970,7 +970,8 @@ html {
     .player-area.bottom {
         bottom: 2px !important;
         gap: 10px !important;
-        transform: scale(0.95) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.95) !important;
         transform-origin: bottom center !important;
     }
     .lobby-main {
@@ -1039,7 +1040,8 @@ html {
     .player-area.bottom {
         bottom: 2px !important;
         gap: 1.5vw !important;
-        transform: scale(0.9) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.9) !important;
         transform-origin: bottom center !important;
     }
     .lobby-main {
@@ -1146,7 +1148,8 @@ html {
     .player-area.bottom {
         bottom: 1px !important;
         gap: 1.2vw !important;
-        transform: scale(0.85) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.85) !important;
         transform-origin: bottom center !important;
     }
 
@@ -1261,7 +1264,8 @@ html {
     .player-area.bottom {
         bottom: 0px !important;
         gap: 1vw !important;
-        transform: scale(0.8) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.8) !important;
         transform-origin: bottom center !important;
     }
     .lobby-main {
@@ -1396,7 +1400,8 @@ html {
     .player-area.bottom {
         bottom: 0px !important;
         gap: 0.8vw !important;
-        transform: scale(0.75) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.75) !important;
         transform-origin: bottom center !important;
     }
     .lobby-main {
@@ -2154,7 +2159,8 @@ body.game-active {
     .player-area.bottom {
         bottom: 2px !important;
         gap: 1.5vw !important;
-        transform: scale(0.9) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.9) !important;
         transform-origin: bottom center !important;
     }
     
@@ -2421,7 +2427,8 @@ body.game-active {
     .player-area.bottom {
         bottom: 1px !important;
         gap: 1.2vw !important;
-        transform: scale(0.85) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.85) !important;
         transform-origin: bottom center !important;
     }
     
@@ -2471,7 +2478,8 @@ body.game-active {
     .player-area.bottom {
         bottom: 0px !important;
         gap: 1vw !important;
-        transform: scale(0.8) !important;
+        left: 50% !important;
+        transform: translateX(-50%) scale(0.8) !important;
         transform-origin: bottom center !important;
     }
 
