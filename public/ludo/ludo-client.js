@@ -38,9 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const gamePotDisplay = document.getElementById('game-pot');
     const myDiceContainer = document.getElementById('player-dice-container-yellow'); // Ya existe
     // ▲▲▲ FIN DE LOS SELECTORES ▲▲▲
-    
-    // Inicializar pool de audio para tag (para iOS)
-    initTagAudioPool();
 
     // Constantes de los slots físicos del HTML
     // (El orden es el sentido horario desde la base del jugador local)
@@ -53,9 +50,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Pool de audio para 'tag' (solo para iOS - permite reproducciones simultáneas)
+    const TAG_POOL_SIZE = 10;
     let tagAudioPool = [];
     let tagAudioPoolIndex = 0;
-    const TAG_POOL_SIZE = 10;
     
     // Inicializar pool de audio para tag
     function initTagAudioPool() {
@@ -65,7 +62,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalTag = document.getElementById('sound-tag');
         if (!originalTag) return;
         
-        for (let i = 0; i < TAG_POOL_SIZE; i++) {
+        const poolSize = TAG_POOL_SIZE; // Usar variable local para evitar problemas de scope
+        for (let i = 0; i < poolSize; i++) {
             const audioClone = originalTag.cloneNode(true);
             audioClone.id = `sound-tag-pool-${i}`;
             soundContainer.appendChild(audioClone);
