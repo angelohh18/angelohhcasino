@@ -15,9 +15,7 @@ const urlsToCache = [
   '/ludo/ludo-client.js',
   '/ludo/ludo.css',
   '/admin/la51admin.html',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon-144.png'
+  '/Angelohh.png'
 ];
 
 // Instalar Service Worker

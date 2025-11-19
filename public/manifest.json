@@ -12,19 +12,25 @@
   "categories": ["games", "entertainment"],
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/Angelohh.png",
       "type": "image/png",
-      "sizes": "192x192",
+      "sizes": "1024x1024",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/Angelohh.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-144.png",
+      "src": "/Angelohh.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Angelohh.png",
       "type": "image/png",
       "sizes": "144x144",
       "purpose": "any maskable"
