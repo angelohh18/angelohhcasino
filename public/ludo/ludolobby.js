@@ -107,12 +107,35 @@ function showLobbyView() {
     document.getElementById('lobby-overlay').style.display = 'flex';
     document.getElementById('game-container').style.display = 'none';
     hideOverlay('ready-overlay'); // Asegurarse que el overlay se oculte al volver
+    
+    // Asegurar que el modal de creación de mesa esté oculto
+    if (typeof forceHideCreateRoomModal === 'function') {
+        forceHideCreateRoomModal();
+    } else if (typeof window.forceHideCreateRoomModal === 'function') {
+        window.forceHideCreateRoomModal();
+    } else {
+        const createRoomModal = document.getElementById('create-room-modal');
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+            createRoomModal.setAttribute('data-forced-hidden', 'true');
+        }
+    }
+    
     if (typeof scaleAndCenterLobby === 'function') {
         scaleAndCenterLobby();
     }
     if (typeof updateLobbyCreditsDisplay === 'function') {
         updateLobbyCreditsDisplay();
     }
+    
+    // Doble verificación después de un pequeño delay
+    setTimeout(() => {
+        if (typeof forceHideCreateRoomModal === 'function') {
+            forceHideCreateRoomModal();
+        } else if (typeof window.forceHideCreateRoomModal === 'function') {
+            window.forceHideCreateRoomModal();
+        }
+    }, 100);
 }
 
 function showGameView(settings) {
@@ -632,9 +655,9 @@ function showPwaInstallModal() {
     btnCloseRulesModal.addEventListener('click', () => { rulesModal.style.display = 'none'; });
 
     function createRoom() {
-        // Verificar si el modal está forzado a estar oculto
-        if (createRoomModal && createRoomModal.getAttribute('data-forced-hidden') === 'true') {
-            return; // No abrir si está forzado a estar oculto
+        // Remover el atributo forzado ANTES de mostrar el modal
+        if (createRoomModal) {
+            createRoomModal.removeAttribute('data-forced-hidden');
         }
         createRoomError.style.display = 'none';
         betInput.value = 10;
@@ -644,7 +667,15 @@ function showPwaInstallModal() {
         }
     }
     
-    // Función para forzar ocultar el modal
+    // Función para forzar ocultar el modal - Disponible globalmente
+    window.forceHideCreateRoomModal = function() {
+        if (createRoomModal) {
+            createRoomModal.style.display = 'none';
+            createRoomModal.setAttribute('data-forced-hidden', 'true');
+        }
+    };
+    
+    // Función local también para compatibilidad
     function forceHideCreateRoomModal() {
         if (createRoomModal) {
             createRoomModal.style.display = 'none';
@@ -657,17 +688,22 @@ function showPwaInstallModal() {
         forceHideCreateRoomModal();
     }
     
-    // Interceptar cualquier cambio de display del modal
+    // Interceptar cualquier cambio de display del modal - Versión mejorada
     const modalElement = createRoomModal;
     if (modalElement) {
         // Observar cambios en el estilo display de forma más agresiva
-        const observer = new MutationObserver(() => {
-            if (modalElement.hasAttribute('data-forced-hidden')) {
-                // Si el modal tiene el atributo y se está mostrando, forzar ocultamiento inmediatamente
-                if (modalElement.style.display === 'flex' || modalElement.style.display === 'block') {
-                    forceHideCreateRoomModal();
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    if (modalElement.hasAttribute('data-forced-hidden')) {
+                        // Si el modal tiene el atributo y se está mostrando, forzar ocultamiento inmediatamente
+                        const computedDisplay = window.getComputedStyle(modalElement).display;
+                        if (computedDisplay === 'flex' || computedDisplay === 'block' || modalElement.style.display === 'flex' || modalElement.style.display === 'block') {
+                            forceHideCreateRoomModal();
+                        }
+                    }
                 }
-            }
+            });
         });
         
         observer.observe(modalElement, {
@@ -676,23 +712,49 @@ function showPwaInstallModal() {
             attributeOldValue: false
         });
         
-        // Interceptar directamente el setter de style.display
-        let styleDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'style');
-        if (!styleDescriptor) {
-            styleDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'style');
+        // Usar un enfoque simple y robusto: verificar periódicamente cuando el modal está forzado a estar oculto
+        let checkInterval = null;
+        
+        const startCheckInterval = () => {
+            if (checkInterval) return; // Ya está activo
+            checkInterval = setInterval(() => {
+                if (modalElement.hasAttribute('data-forced-hidden')) {
+                    const computedDisplay = window.getComputedStyle(modalElement).display;
+                    if (computedDisplay === 'flex' || computedDisplay === 'block' || modalElement.style.display === 'flex' || modalElement.style.display === 'block') {
+                        forceHideCreateRoomModal();
+                    }
+                } else {
+                    // Si ya no tiene el atributo, limpiar el intervalo
+                    clearInterval(checkInterval);
+                    checkInterval = null;
+                }
+            }, 50);
+        };
+        
+        const stopCheckInterval = () => {
+            if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+            }
+        };
+        
+        // Iniciar el intervalo si el modal tiene el atributo inicialmente
+        if (modalElement.hasAttribute('data-forced-hidden')) {
+            startCheckInterval();
         }
         
-        if (styleDescriptor && styleDescriptor.set) {
-            const originalStyleSetter = styleDescriptor.set;
-            styleDescriptor.set = function(value) {
-                originalStyleSetter.call(this, value);
-                if (this === modalElement && this.hasAttribute('data-forced-hidden')) {
-                    if (this.style.display === 'flex' || this.style.display === 'block') {
-                        setTimeout(() => forceHideCreateRoomModal(), 0);
-                    }
-                }
-            };
-        }
+        // Observar cambios en el atributo para iniciar/detener el intervalo
+        const cleanupObserver = new MutationObserver(() => {
+            if (modalElement.hasAttribute('data-forced-hidden')) {
+                startCheckInterval();
+            } else {
+                stopCheckInterval();
+            }
+        });
+        cleanupObserver.observe(modalElement, {
+            attributes: true,
+            attributeFilter: ['data-forced-hidden']
+        });
     }
     
     // Asegurar que el modal esté oculto cuando se muestra el lobby
@@ -789,7 +851,8 @@ function showPwaInstallModal() {
         socket.emit('createLudoRoom', roomSettings);
         if (createRoomModal) {
             createRoomModal.style.display = 'none';
-            forceHideCreateRoomModal();
+            // Al cerrar manualmente después de crear, remover el atributo
+            createRoomModal.removeAttribute('data-forced-hidden');
         }
     }
 
@@ -797,7 +860,8 @@ function showPwaInstallModal() {
     btnCreateRoomCancel.addEventListener('click', () => { 
         if (createRoomModal) {
             createRoomModal.style.display = 'none';
-            forceHideCreateRoomModal();
+            // Al cerrar manualmente, remover el atributo para que pueda abrirse de nuevo
+            createRoomModal.removeAttribute('data-forced-hidden');
         }
     });
     
@@ -1771,9 +1835,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // Comportamiento por defecto para todos los demás modales
                     modal.style.display = 'none';
-                    // Si es el modal de creación de mesa, forzar ocultamiento
+                    // Si es el modal de creación de mesa, remover el atributo para que pueda abrirse de nuevo
                     if (modal.id === 'create-room-modal') {
-                        forceHideCreateRoomModal();
+                        if (typeof forceHideCreateRoomModal === 'function') {
+                            forceHideCreateRoomModal();
+                        } else if (typeof window.forceHideCreateRoomModal === 'function') {
+                            window.forceHideCreateRoomModal();
+                        }
+                        // Al cerrar con la X, remover el atributo para que pueda abrirse de nuevo
+                        modal.removeAttribute('data-forced-hidden');
                     }
                 }
             }
