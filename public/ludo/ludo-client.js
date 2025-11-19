@@ -1687,7 +1687,12 @@ document.addEventListener('DOMContentLoaded', function() {
         updateClickablePieces(); 
         
         // 5. Actualizar brillo de turno visualmente
-        updateTurnGlow(data.nextPlayerIndex); 
+        updateTurnGlow(data.nextPlayerIndex);
+        
+        // 6. Reproducir sonido si es mi turno
+        if (data.nextPlayerIndex === gameState.mySeatIndex) {
+            playSound('turn');
+        }
     });
     // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
     
@@ -1698,6 +1703,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     socket.on('gameChatUpdate', (data) => {
+        const chatWindow = document.getElementById('chat-window');
+        const chatNotificationBadge = document.getElementById('chat-notification-badge');
+        
+        // Si el chat no está visible, reproducir sonido de notificación
+        if (chatWindow && !chatWindow.classList.contains('visible')) {
+            playSound('notify');
+        }
+        
         addChatMessage(data.sender, data.text);
     });
     
