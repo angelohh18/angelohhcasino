@@ -189,9 +189,59 @@ async function initializeDatabase() {
       )
     `);
 
+    // Tabla de tasas de cambio
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exchange_rates (
+        id SERIAL PRIMARY KEY,
+        eur_cop DECIMAL(10,4) DEFAULT 4500,
+        usd_cop DECIMAL(10,4) DEFAULT 4500,
+        eur_usd DECIMAL(10,4) DEFAULT 1.05,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Inicializar tasas de cambio si la tabla está vacía
+    const ratesCheck = await pool.query('SELECT COUNT(*) FROM exchange_rates');
+    if (parseInt(ratesCheck.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO exchange_rates (eur_cop, usd_cop, eur_usd) 
+        VALUES (4500, 4500, 1.05)
+      `);
+    }
+
     console.log('✅ Tablas de la base de datos REGENERADAS correctamente');
+    
+    // Cargar tasas de cambio desde la base de datos
+    await loadExchangeRatesFromDB();
   } catch (error) {
     console.error('❌ Error inicializando la base de datos:', error);
+  }
+}
+
+// Función para cargar tasas de cambio desde la base de datos
+async function loadExchangeRatesFromDB() {
+  try {
+    if (DISABLE_DB) {
+      return; // Si la BD está deshabilitada, usar valores por defecto
+    }
+    
+    const result = await pool.query('SELECT eur_cop, usd_cop, eur_usd FROM exchange_rates ORDER BY updated_at DESC LIMIT 1');
+    
+    if (result.rows.length > 0) {
+      const rates = result.rows[0];
+      exchangeRates.EUR.COP = parseFloat(rates.eur_cop);
+      exchangeRates.USD.COP = parseFloat(rates.usd_cop);
+      exchangeRates.EUR.USD = parseFloat(rates.eur_usd);
+      
+      // Recalculamos las inversas
+      exchangeRates.COP.EUR = 1 / exchangeRates.EUR.COP;
+      exchangeRates.COP.USD = 1 / exchangeRates.USD.COP;
+      exchangeRates.USD.EUR = 1 / exchangeRates.EUR.USD;
+      
+      console.log('✅ Tasas de cambio cargadas desde la base de datos:', exchangeRates);
+    }
+  } catch (error) {
+    console.error('Error cargando tasas de cambio desde BD:', error);
   }
 }
 
@@ -4315,9 +4365,19 @@ io.on('connection', (socket) => {
     });
 
     // server.js -> Añade este bloque dentro de io.on('connection', ...)
-    socket.on('admin:resetCommissions', () => {
+    socket.on('admin:resetCommissions', async () => {
         console.log(`[Admin] Se han reiniciado las ganancias acumuladas.`);
         commissionLog = []; // Vaciamos el array del historial
+        
+        // También limpiar la base de datos si está habilitada
+        if (!DISABLE_DB) {
+            try {
+                await pool.query('DELETE FROM commission_log');
+                console.log(`[Admin] Comisiones eliminadas de la base de datos.`);
+            } catch (error) {
+                console.error('Error eliminando comisiones de la BD:', error);
+            }
+        }
         
         // Notificamos a todos los paneles de admin que los datos han sido reseteados
         io.to('admin-room').emit('admin:commissionData', commissionLog);
@@ -4328,17 +4388,30 @@ io.on('connection', (socket) => {
         socket.emit('admin:exchangeRates', exchangeRates);
     });
 
-    socket.on('admin:updateRates', (newRates) => {
+    socket.on('admin:updateRates', async (newRates) => {
         console.log('[Admin] Actualizando tasas de cambio:', newRates);
         // Actualizamos nuestro objeto en memoria
         exchangeRates.EUR.COP = newRates.EUR_COP || 4500;
         exchangeRates.USD.COP = newRates.USD_COP || 4500;
-        exchangeRates.EUR.USD = newRates.EUR_USD || 1.05; // <-- NUEVA LÍNEA
+        exchangeRates.EUR.USD = newRates.EUR_USD || 1.05;
 
         // Recalculamos las inversas
         exchangeRates.COP.EUR = 1 / exchangeRates.EUR.COP;
         exchangeRates.COP.USD = 1 / exchangeRates.USD.COP;
-        exchangeRates.USD.EUR = 1 / exchangeRates.EUR.USD; // <-- NUEVA LÍNEA
+        exchangeRates.USD.EUR = 1 / exchangeRates.EUR.USD;
+
+        // Guardar en la base de datos
+        if (!DISABLE_DB) {
+            try {
+                await pool.query(`
+                    INSERT INTO exchange_rates (eur_cop, usd_cop, eur_usd) 
+                    VALUES ($1, $2, $3)
+                `, [exchangeRates.EUR.COP, exchangeRates.USD.COP, exchangeRates.EUR.USD]);
+                console.log('✅ Tasas de cambio guardadas en la base de datos');
+            } catch (error) {
+                console.error('Error guardando tasas de cambio en BD:', error);
+            }
+        }
 
         // Notificamos a TODOS los clientes (jugadores y admins) de las nuevas tasas
         io.emit('exchangeRatesUpdate', exchangeRates);
