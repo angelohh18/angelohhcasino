@@ -319,15 +319,18 @@ html {
     font-size: 0.9rem;
     min-height: 185px;
     box-sizing: border-box;
-    overflow: visible;
+    overflow: hidden; /* Cambiado de visible a hidden para contener el contenido */
     height: auto;
+    position: relative; /* Asegurar contexto de posicionamiento */
 }
 .table-item .info {
     margin-bottom: 12px;
     line-height: 1.5;
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
+    position: relative !important; /* Forzar relative */
+    width: 100% !important; /* Forzar ancho completo */
+    max-width: 100% !important; /* Evitar desbordamiento */
+    box-sizing: border-box !important;
+    flex-shrink: 0; /* No permitir que se encoja */
 }
 .table-item .info strong {
     color: #c5a56a;
@@ -346,9 +349,11 @@ html {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
+    position: relative !important; /* Forzar relative */
+    width: 100% !important; /* Forzar ancho completo */
+    max-width: 100% !important; /* Evitar desbordamiento */
+    box-sizing: border-box !important;
+    flex-shrink: 0; /* No permitir que se encoja */
 }
 .table-item .play-button {
     background: #c5a56a; /* Cambiado de gradiente a sólido */
