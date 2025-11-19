@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.0.0';
+const CACHE_NAME = 'mutijuego-v1.1.0';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -20,7 +20,9 @@ const urlsToCache = [
 
 // Instalar Service Worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Instalando...');
+  console.log('Service Worker: Instalando nueva versión...');
+  // Forzar la activación inmediata del nuevo service worker
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {

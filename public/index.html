@@ -1184,17 +1184,72 @@
         initCountries();
         populateAvatarGallery();
 
-        // Registrar Service Worker para PWA
+        // Registrar Service Worker para PWA y detectar actualizaciones
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('Service Worker registrado:', registration.scope);
+                        
+                        // Detectar actualizaciones
+                        registration.addEventListener('updatefound', () => {
+                            console.log('Nueva versión del Service Worker encontrada.');
+                            const newWorker = registration.installing;
+                            
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // Nueva versión disponible
+                                        showUpdateNotification(newWorker);
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // Verificar actualizaciones periódicamente
+                        setInterval(() => {
+                            registration.update();
+                        }, 60000); // Cada minuto
                     })
                     .catch(error => {
                         console.log('Error al registrar Service Worker:', error);
                     });
+                
+                // Recargar cuando el nuevo service worker tome control
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('Nuevo Service Worker activado. Recargando página...');
+                    window.location.reload();
+                });
             });
+        }
+        
+        // Función para mostrar notificación de actualización
+        function showUpdateNotification(newWorker) {
+            // Crear o mostrar el elemento de notificación
+            let notification = document.getElementById('update-notification');
+            if (!notification) {
+                notification = document.createElement('div');
+                notification.id = 'update-notification';
+                notification.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #c5a56a; color: #211e18; padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 15px; font-weight: 700; font-size: 0.95rem;';
+                document.body.appendChild(notification);
+            }
+            
+            notification.innerHTML = `
+                <span>¡Nueva versión disponible!</span>
+                <button id="btn-reload-update" style="background: #211e18; color: #c5a56a; border: 2px solid #211e18; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem;">Actualizar</button>
+            `;
+            notification.style.display = 'flex';
+            
+            // Botón de actualizar
+            const reloadButton = document.getElementById('btn-reload-update');
+            if (reloadButton) {
+                reloadButton.addEventListener('click', () => {
+                    if (newWorker) {
+                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                    window.location.reload();
+                });
+            }
         }
     </script>
 </body>
