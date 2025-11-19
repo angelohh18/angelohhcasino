@@ -559,10 +559,31 @@ function showPwaInstallModal() {
             reader.onload = function(evt) {
                 // Llamamos al modal de recorte y le decimos qué hacer cuando se guarde
                 openCropModal(evt.target.result, (croppedDataUrl) => {
-                    userAvatarEl.src = croppedDataUrl; // Actualiza el avatar del lobby
-                    currentUser.userAvatar = croppedDataUrl; // Actualiza la variable global
-                    localStorage.setItem('userAvatar', croppedDataUrl); // Guarda en localStorage
-                    showToast('Avatar actualizado con éxito.', 2500);
+                    // Enviar la foto recortada al servidor para guardarla en la base de datos
+                    const username = currentUser.username;
+                    if (username) {
+                        fetch('/update-avatar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: username, avatar: croppedDataUrl })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                userAvatarEl.src = croppedDataUrl; // Actualiza el avatar del lobby
+                                currentUser.userAvatar = croppedDataUrl; // Actualiza la variable global
+                                sessionStorage.setItem('userAvatar', croppedDataUrl); // Guarda en sessionStorage
+                                localStorage.setItem('userAvatar', croppedDataUrl); // Guarda en localStorage
+                                showToast('Avatar actualizado con éxito.', 2500);
+                            } else {
+                                showToast('Error al actualizar el avatar.', 2500);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error al actualizar avatar:', error);
+                            showToast('Error al actualizar el avatar.', 2500);
+                        });
+                    }
                 });
             };
             reader.readAsDataURL(file);

@@ -307,6 +307,33 @@ async function deleteUserFromDB(username) {
   }
 }
 
+// ▼▼▼ FUNCIÓN PARA ACTUALIZAR EL AVATAR DE UN USUARIO ▼▼▼
+// Función para actualizar el avatar de un usuario
+async function updateUserAvatar(userId, avatarUrl) {
+  try {
+    if (DISABLE_DB) {
+      const username = userId.replace(/^user_/, '');
+      const user = inMemoryUsers.get(username);
+      if (user) {
+        user.avatar_url = avatarUrl;
+        inMemoryUsers.set(username, user);
+      }
+      return;
+    }
+    // Extraer el username del userId (formato: user_username), que ya viene en minúsculas.
+    const username = userId.replace(/^user_/, '');
+    // Usamos LOWER(username) para asegurar que encontramos al usuario correcto.
+    await pool.query(
+      'UPDATE users SET avatar_url = $1 WHERE LOWER(username) = $2',
+      [avatarUrl, username]
+    );
+    console.log(`✅ Avatar actualizado para usuario ${userId}`);
+  } catch (error) {
+    console.error('Error actualizando avatar:', error);
+  }
+}
+// ▲▲▲ FIN DE LA FUNCIÓN updateUserAvatar ▲▲▲
+
 // ▼▼▼ FUNCIÓN PARA ACTUALIZAR LA CONTRASEÑA DE UN USUARIO ▼▼▼
 // Función para actualizar la contraseña de un usuario
 async function updateUserPassword(username, newPassword) {
@@ -2754,6 +2781,41 @@ app.post('/logout', (req, res) => {
   }
   res.status(200).json({ success: true });
 });
+
+// ▼▼▼ ENDPOINT PARA ACTUALIZAR EL AVATAR DEL USUARIO ▼▼▼
+app.post('/update-avatar', async (req, res) => {
+  try {
+    const { username, avatar } = req.body;
+    
+    if (!username || !avatar) {
+      return res.status(400).json({ success: false, message: 'Datos incompletos.' });
+    }
+
+    const userId = 'user_' + username.toLowerCase();
+    
+    // Actualizar en la base de datos
+    await updateUserAvatar(userId, avatar);
+    
+    // Actualizar en memoria si existe
+    if (users[userId]) {
+      users[userId].avatar_url = avatar;
+    }
+    
+    // Si el usuario está conectado, notificarle
+    for (const [id, socketInstance] of io.of("/").sockets) {
+      if (socketInstance.userId === userId) {
+        socketInstance.emit('avatarUpdated', { avatar });
+        break;
+      }
+    }
+    
+    res.status(200).json({ success: true, message: 'Avatar actualizado correctamente.' });
+  } catch (error) {
+    console.error('Error en /update-avatar:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar el avatar.' });
+  }
+});
+// ▲▲▲ FIN DEL ENDPOINT update-avatar ▲▲▲
 
 // RUTA DE ADMIN GENERAL (panel único para todos los juegos)
 app.get('/admin', adminAuth, (req, res) => {
