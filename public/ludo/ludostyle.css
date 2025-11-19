@@ -1509,6 +1509,9 @@ html {
         margin-left: 0 !important;
         margin-right: 0 !important;
         min-height: fit-content !important;
+        display: flex !important; /* Forzar display flex */
+        visibility: visible !important; /* Asegurar visibilidad */
+        opacity: 1 !important; /* Asegurar opacidad completa */
     }
     .table-item .play-button {
         width: 100% !important;
@@ -1516,6 +1519,10 @@ html {
         box-sizing: border-box !important;
         margin: 0 !important;
         position: relative !important;
+        display: block !important; /* Forzar display block */
+        visibility: visible !important; /* Asegurar visibilidad */
+        opacity: 1 !important; /* Asegurar opacidad completa */
+        min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
     }
 }
 
@@ -1645,6 +1652,9 @@ html {
         margin-left: 0 !important;
         margin-right: 0 !important;
         min-height: fit-content !important;
+        display: flex !important; /* Forzar display flex */
+        visibility: visible !important; /* Asegurar visibilidad */
+        opacity: 1 !important; /* Asegurar opacidad completa */
     }
     .table-item .play-button {
         width: 100% !important;
@@ -1652,6 +1662,10 @@ html {
         box-sizing: border-box !important;
         margin: 0 !important;
         position: relative !important;
+        display: block !important; /* Forzar display block */
+        visibility: visible !important; /* Asegurar visibilidad */
+        opacity: 1 !important; /* Asegurar opacidad completa */
+        min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
     }
 }
 
@@ -1756,6 +1770,9 @@ html {
         margin-left: 0 !important;
         margin-right: 0 !important;
         min-height: fit-content !important;
+        display: flex !important; /* Forzar display flex */
+        visibility: visible !important; /* Asegurar visibilidad */
+        opacity: 1 !important; /* Asegurar opacidad completa */
     }
     .table-item .play-button {
         width: 100% !important;
@@ -1763,6 +1780,10 @@ html {
         box-sizing: border-box !important;
         margin: 0 !important;
         position: relative !important;
+        display: block !important; /* Forzar display block */
+        visibility: visible !important; /* Asegurar visibilidad */
+        opacity: 1 !important; /* Asegurar opacidad completa */
+        min-height: 36px !important; /* Altura mínima para asegurar visibilidad */
     }
 }
 
