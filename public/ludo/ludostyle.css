@@ -1479,6 +1479,7 @@ html {
         font-size: 1.3rem;
     }
     .table-item {
+        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
         height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -1622,6 +1623,7 @@ html {
         border-radius: 12px;
     }
     .table-item {
+        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
         height: auto !important; /* Permitir que crezca automáticamente según el contenido */
@@ -1740,6 +1742,7 @@ html {
         border-radius: 10px;
     }
     .table-item {
+        min-height: 405px !important; /* Altura mínima suficiente para mostrar todo el contenido y el botón */
         box-sizing: border-box !important;
         overflow: visible !important; /* Cambiado a visible para que el contenido se vea completo */
         height: auto !important; /* Permitir que crezca automáticamente según el contenido */
