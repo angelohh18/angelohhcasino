@@ -502,11 +502,11 @@ html {
 #create-room-modal .modal-content {
     position: relative !important; /* <-- CORRECCIÓN CLAVE: Debe ser relativo a su contenedor */
     margin: auto !important; /* <-- CORRECCIÓN CLAVE: Asegura el centrado en el flujo */
-    width: 400px !important; /* Tamaño fijo pequeño */
-    max-width: 90vw; /* Máximo en móviles */
+    width: 380px !important; /* Tamaño fijo pequeño */
+    max-width: 85vw; /* Máximo en móviles - más pequeño */
     height: auto; /* Ajustarse dinámicamente al contenido */
     min-height: auto; /* Sin altura mínima fija */
-    max-height: 85vh; /* Altura máxima - límite superior */
+    max-height: 80vh; /* Altura máxima - límite superior más restrictivo */
     overflow-y: auto;
 }
 
@@ -858,11 +858,11 @@ html {
     }
     
     #create-room-modal .modal-content {
-        width: 90% !important;
-        max-width: 400px !important; /* Tamaño máximo pequeño */
+        width: 85% !important;
+        max-width: 380px !important; /* Tamaño máximo más pequeño */
         height: auto !important; /* Ajustarse dinámicamente al contenido */
         min-height: auto !important; /* Sin altura mínima fija */
-        max-height: 85vh !important; /* No ocupar toda la altura - límite superior */
+        max-height: 80vh !important; /* No ocupar toda la altura - límite superior más restrictivo */
         padding: 20px 15px !important;
         border-radius: 15px;
         position: relative !important; /* <-- CORRECCIÓN CLAVE: Debe ser relativo a su contenedor */
