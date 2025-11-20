@@ -946,11 +946,11 @@ html {
         overflow: hidden !important;
     }
     #table {
-        width: calc(100vw - 20px) !important;     /* Margen reducido de 10px en cada lado */
-        max-width: calc(100vw - 20px) !important;
-        height: calc(100vh - 40px) !important;    /* Margen de 20px arriba y abajo */
-        max-height: calc(100vh - 40px) !important;
-        margin: 5px auto 20px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important;     /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important;    /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         box-sizing: border-box !important;
         padding-top: 0 !important;
     }
@@ -1015,11 +1015,11 @@ html {
         margin: 30px auto !important; /* Centrado con márgenes */
     }
     #table {
-        height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
-        max-height: calc(100vh - 60px) !important;
-        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
-        max-width: calc(100vw - 30px) !important;
-        margin: 5px auto 30px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         box-sizing: border-box !important;
         overflow: hidden !important;
         padding-top: 0 !important;
@@ -1123,11 +1123,11 @@ html {
         margin: 27.5px auto !important; /* Centrado con márgenes */
     }
     #table {
-        height: calc(100vh - 55px) !important; /* Descontar espacio de barra de navegación */
-        max-height: calc(100vh - 55px) !important;
-        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
-        max-width: calc(100vw - 30px) !important;
-        margin: 5px auto 27.5px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         box-sizing: border-box !important;
         overflow: hidden !important;
         padding-top: 0 !important;
@@ -1239,11 +1239,11 @@ html {
         margin: 25px auto !important; /* Centrado con márgenes */
     }
     #table {
-        height: calc(100vh - 50px) !important;
-        max-height: calc(100vh - 50px) !important;
-        width: calc(100vw - 20px) !important; /* Margen reducido de 10px en cada lado */
-        max-width: calc(100vw - 20px) !important;
-        margin: 3px auto 5px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         box-sizing: border-box !important;
         overflow: hidden !important;
         padding-top: 0 !important;
@@ -1375,11 +1375,11 @@ html {
         margin: 22.5px auto !important; /* Centrado con márgenes */
     }
     #table {
-        height: calc(100vh - 45px) !important;
-        max-height: calc(100vh - 45px) !important;
-        width: calc(100vw - 20px) !important; /* Margen reducido de 10px en cada lado */
-        max-width: calc(100vw - 20px) !important;
-        margin: 2px auto 22.5px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         box-sizing: border-box !important;
         overflow: hidden !important;
         padding-top: 0 !important;
@@ -1569,11 +1569,11 @@ body.game-active {
 }
 #game-container header h1 { color: var(--casino-gold); font-size:2.2rem; margin:0; text-shadow: 1px 1px 3px #000; }
 #table {
-    width: calc(100vw - 40px); /* Margen de 20px en cada lado */
-    max-width: calc(100vw - 40px); /* No exceder el ancho con márgenes */
-    height: calc(100vh - 40px); /* Margen de 20px arriba y abajo */
-    max-height: calc(100vh - 40px); /* No exceder el alto con márgenes */
-    margin: 20px auto; /* Centrado con márgenes */
+    width: calc(100% - 10px); /* Margen de 5px en cada lado */
+    max-width: calc(100% - 10px); /* No exceder el ancho con márgenes */
+    height: calc(100% - 10px); /* Margen de 5px arriba y abajo */
+    max-height: calc(100% - 10px); /* No exceder el alto con márgenes */
+    margin: 5px; /* Márgenes de 5px en todos los lados */
     border: none;
     outline: none;
     border-radius: 0;
@@ -2133,11 +2133,11 @@ body.game-active {
     #game-container header h1 { font-size: 2.2vw; }
     
     #table {
-        height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
-        max-height: calc(100vh - 60px) !important;
-        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
-        max-width: calc(100vw - 30px) !important;
-        margin: 5px auto 30px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         box-sizing: border-box !important;
         overflow: hidden !important;
         padding-top: 0 !important;
@@ -2404,10 +2404,13 @@ body.game-active {
         display: none;
     }
     #table {
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
         padding-top: 0 !important;
-        margin-top: 5px !important;
-        width: calc(100vw - 30px) !important; /* Margen reducido de 15px en cada lado */
-        max-width: calc(100vw - 30px) !important;
+        box-sizing: border-box !important;
     }
     #chat-container {
         top: 2px !important;
@@ -2451,12 +2454,12 @@ body.game-active {
         display: none;
     }
     #table {
-        padding-top: 0;
-        height: calc(100vh - 50px) !important;
-        max-height: calc(100vh - 50px) !important;
-        width: calc(100vw - 20px) !important; /* Margen reducido de 10px en cada lado */
-        max-width: calc(100vw - 20px) !important;
-        margin: 3px auto 5px auto !important; /* Margen superior muy reducido */
+        width: calc(100% - 10px) !important; /* Margen de 5px en cada lado */
+        max-width: calc(100% - 10px) !important;
+        height: calc(100% - 10px) !important; /* Margen de 5px arriba y abajo */
+        max-height: calc(100% - 10px) !important;
+        margin: 5px !important; /* Márgenes de 5px en todos los lados */
+        padding-top: 0 !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
     }
