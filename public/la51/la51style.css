@@ -1004,6 +1004,11 @@ html {
 
 /* Tablets grandes y laptops pequeñas */
 @media (max-width: 1200px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     #lobby-overlay .overlay-content {
         height: calc(100vh - 60px) !important; /* Descontar espacio de barra de navegación */
         max-height: calc(100vh - 60px) !important;
@@ -1112,6 +1117,11 @@ html {
 
 /* Tablets medianas */
 @media (max-width: 992px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     #lobby-overlay .overlay-content {
         height: calc(100vh - 55px) !important; /* Descontar espacio de barra de navegación */
         max-height: calc(100vh - 55px) !important;
@@ -1223,6 +1233,11 @@ html {
 
 /* Móviles pequeños en landscape */
 @media (max-width: 767px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     #lobby-overlay {
         padding: 0; /* Sin padding en el overlay */
     }
@@ -1361,6 +1376,11 @@ html {
 
 /* Móviles muy pequeños en landscape (iPhone SE, etc.) */
 @media (max-width: 568px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     #lobby-overlay {
         padding: 0;
     }
@@ -2122,7 +2142,12 @@ body.game-active {
 
 /* Regla adaptativa para dispositivos móviles */
 @media (max-width: 1400px) and (orientation: landscape) {
-    #game-container { -webkit-text-size-adjust: 100%; }
+    #game-container { 
+        -webkit-text-size-adjust: 100%;
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     #game-container header { 
         position: absolute;
         width: 100%;
@@ -2448,7 +2473,11 @@ body.game-active {
 
 @media (max-width: 767px) and (orientation: landscape) {
     /* -- INICIO: REGLAS COMPLETAS PARA MÓVILES PEQUEÑOS -- */
-
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     /* Oculta el header y ajusta la tabla principal a pantalla completa */
     #game-container header {
         display: none;
@@ -2539,6 +2568,11 @@ body.game-active {
 }
 
 @media (max-width: 900px) and (orientation: portrait) {
+  #game-container {
+    height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+    min-height: calc(100vh - 60px) !important;
+    max-height: calc(100vh - 60px) !important;
+  }
   #game-container #rotate-device-overlay {
     display: flex;
   }
@@ -2865,6 +2899,11 @@ body.game-active {
 
 /* Móviles grandes */
 @media (max-width: 900px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     .user-panel {
         padding: 8px;
         min-width: 130px;
@@ -2924,6 +2963,11 @@ body.game-active {
 
 /* Móviles pequeños */
 @media (max-width: 600px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     .user-panel {
         padding: 4px;
         min-width: 100px;
@@ -2984,6 +3028,11 @@ body.game-active {
 
 /* Móviles muy pequeños */
 @media (max-width: 480px) and (orientation: landscape) {
+    #game-container {
+        height: calc(100vh - 60px) !important; /* Restar barra de navegación */
+        min-height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px) !important;
+    }
     .user-panel {
         padding: 3px;
         min-width: 80px;
