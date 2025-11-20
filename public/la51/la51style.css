@@ -3152,3 +3152,88 @@ body.game-active {
 /* ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲ */
 
 /* ▲▲▲ FIN DEL BLOQUE CSS ▲▲▲ */
+
+/* ▼▼▼ MEDIA QUERIES PARA MODO PWA (STANDALONE) - SIN RESTAR BARRA DE NAVEGACIÓN ▼▼▼ */
+/* En modo PWA no hay barra de navegación, usar toda la pantalla con márgenes de 5px */
+
+/* Tablets grandes y laptops pequeñas en PWA */
+@media (max-width: 1200px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Tablets medianas en PWA */
+@media (max-width: 992px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Móviles pequeños en landscape en PWA */
+@media (max-width: 767px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Móviles muy pequeños en landscape en PWA */
+@media (max-width: 568px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Pantallas grandes en landscape en PWA */
+@media (max-width: 1400px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Móviles en portrait en PWA */
+@media (max-width: 900px) and (orientation: portrait) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Móviles medianos en landscape en PWA */
+@media (max-width: 900px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Móviles pequeños en landscape en PWA */
+@media (max-width: 600px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Móviles muy pequeños en landscape en PWA */
+@media (max-width: 480px) and (orientation: landscape) and (display-mode: standalone) {
+    #game-container {
+        height: 100vh !important; /* Sin restar barra de navegación en PWA */
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+/* ▲▲▲ FIN DE MEDIA QUERIES PARA MODO PWA (STANDALONE) ▲▲▲ */
