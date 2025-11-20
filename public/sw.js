@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.1.1'; // Actualizado para corregir problemas de bloqueo
+const CACHE_NAME = 'mutijuego-v1.2.0'; // Actualizado para actualización automática
 const urlsToCache = [
   '/',
   '/index.html',
@@ -21,8 +21,8 @@ const urlsToCache = [
 // Instalar Service Worker
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Instalando nueva versión...');
-  // NO usar skipWaiting() automáticamente - solo cuando el usuario lo solicite explícitamente
-  // Esto evita que se recargue la página automáticamente y bloquee el juego
+  // Usar skipWaiting() automáticamente para actualizar inmediatamente
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -41,7 +41,6 @@ self.addEventListener('install', (event) => {
         console.error('Service Worker: Error al abrir cache:', error);
       })
   );
-  // NO usar skipWaiting() aquí - solo cuando el usuario haga clic en "Actualizar"
 });
 
 // Activar Service Worker
@@ -58,8 +57,7 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
-      // NO usar clients.claim() automáticamente - puede causar problemas
-      // Solo tomar control cuando el usuario lo solicite explícitamente
+      // Tomar control inmediatamente para activar la nueva versión
       return self.clients.claim();
     })
   );

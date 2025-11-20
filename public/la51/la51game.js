@@ -2325,6 +2325,11 @@ socket.on('gameStarted', (initialState) => {
     document.getElementById('btn-start-rematch').style.display = 'none';
     hideOverlay('victory-overlay');
     hideOverlay('ready-overlay');
+    // ▼▼▼ OCULTAR MODALES DE PRÁCTICA AL REINICIAR ▼▼▼
+    hideOverlay('practice-victory-modal');
+    hideOverlay('practice-restart-modal');
+    practiceGameEndedByHumanFault = false; // Resetear bandera al reiniciar
+    // ▲▲▲ FIN DE OCULTAR MODALES DE PRÁCTICA ▲▲▲
     document.getElementById('start-game-btn').style.display = 'none';
     
     gameStarted = true;

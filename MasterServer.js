@@ -3285,6 +3285,22 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
         } else {
             io.to(humanPlayer.playerId).emit('practiceGameHumanWin');
         }
+        
+        // ▼▼▼ REINICIO AUTOMÁTICO DE PARTIDA DE PRÁCTICA ▼▼▼
+        // Esperar 3 segundos antes de reiniciar automáticamente
+        setTimeout(() => {
+            const humanSocket = io.sockets.sockets.get(humanPlayer.playerId);
+            if (humanSocket && room.roomId) {
+                // Eliminar la sala anterior
+                delete la51Rooms[room.roomId];
+                console.log(`[Práctica] Reiniciando automáticamente partida para ${humanPlayer.playerName}`);
+                
+                // Crear nueva partida de práctica
+                createAndStartPracticeGame(humanSocket, humanPlayer.playerName, humanPlayer.avatar, io);
+            }
+        }, 3000); // 3 segundos de delay
+        // ▲▲▲ FIN DEL REINICIO AUTOMÁTICO ▲▲▲
+        
         return;
     }
 
@@ -3439,6 +3455,21 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         
         // 2. Enviamos un evento SEPARADO para indicarle al cliente que debe mostrar el modal de reinicio.
         io.to(faultingPlayerId).emit('practiceGameHumanFaultEnd');
+        
+        // ▼▼▼ REINICIO AUTOMÁTICO DE PARTIDA DE PRÁCTICA DESPUÉS DE FALTA ▼▼▼
+        // Esperar 3 segundos antes de reiniciar automáticamente
+        setTimeout(() => {
+            const humanSocket = io.sockets.sockets.get(faultingPlayerId);
+            if (humanSocket && room.roomId) {
+                // Eliminar la sala anterior
+                delete la51Rooms[room.roomId];
+                console.log(`[Práctica] Reiniciando automáticamente partida después de falta para ${playerSeat.playerName}`);
+                
+                // Crear nueva partida de práctica
+                createAndStartPracticeGame(humanSocket, playerSeat.playerName, playerSeat.avatar, io);
+            }
+        }, 3000); // 3 segundos de delay
+        // ▲▲▲ FIN DEL REINICIO AUTOMÁTICO ▲▲▲
         
         // 3. Detenemos la ejecución aquí. La partida para este jugador ha terminado.
         return;

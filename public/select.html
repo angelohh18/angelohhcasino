@@ -498,71 +498,42 @@
                     .then(registration => {
                         console.log('Service Worker registrado:', registration.scope);
                         
-                        // Detectar actualizaciones
+                        // Detectar actualizaciones y recargar automáticamente
                         registration.addEventListener('updatefound', () => {
                             console.log('Nueva versión del Service Worker encontrada.');
                             const newWorker = registration.installing;
                             
                             if (newWorker) {
                                 newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        // Nueva versión disponible
-                                        showUpdateNotification(newWorker);
+                                    if (newWorker.state === 'installed') {
+                                        // Si hay un controlador activo, significa que hay una nueva versión
+                                        if (navigator.serviceWorker.controller) {
+                                            console.log('Nueva versión instalada. Recargando automáticamente...');
+                                            // Recargar automáticamente después de un breve delay
+                                            setTimeout(() => {
+                                                window.location.reload();
+                                            }, 1000);
+                                        }
                                     }
                                 });
                             }
                         });
                         
-                        // Verificar actualizaciones periódicamente (cada 5 minutos, no cada minuto)
+                        // Escuchar cambios de controlador para recargar automáticamente
+                        navigator.serviceWorker.addEventListener('controllerchange', () => {
+                            console.log('Nuevo Service Worker activado. Recargando página...');
+                            window.location.reload();
+                        });
+                        
+                        // Verificar actualizaciones periódicamente (cada 5 minutos)
                         setInterval(() => {
                             registration.update();
-                        }, 300000); // Cada 5 minutos (reducir frecuencia para evitar loops)
+                        }, 300000); // Cada 5 minutos
                     })
                     .catch(error => {
                         console.log('Error al registrar Service Worker:', error);
                     });
-                
-                // NO recargar automáticamente - solo cuando el usuario haga clic en "Actualizar"
-                // El controllerchange se manejará en showUpdateNotification cuando el usuario acepte
             });
-        }
-        
-        // Función para mostrar notificación de actualización
-        function showUpdateNotification(newWorker) {
-            // Crear o mostrar el elemento de notificación
-            let notification = document.getElementById('update-notification');
-            if (!notification) {
-                notification = document.createElement('div');
-                notification.id = 'update-notification';
-                notification.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #c5a56a; color: #211e18; padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 15px; font-weight: 700; font-size: 0.95rem;';
-                document.body.appendChild(notification);
-            }
-            
-            notification.innerHTML = `
-                <span>¡Nueva versión disponible!</span>
-                <button id="btn-reload-update" style="background: #211e18; color: #c5a56a; border: 2px solid #211e18; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem;">Actualizar</button>
-            `;
-            notification.style.display = 'flex';
-            
-            // Botón de actualizar
-            const reloadButton = document.getElementById('btn-reload-update');
-            if (reloadButton) {
-                // Remover listeners anteriores para evitar duplicados
-                const newReloadButton = reloadButton.cloneNode(true);
-                reloadButton.parentNode.replaceChild(newReloadButton, reloadButton);
-                
-                newReloadButton.addEventListener('click', () => {
-                    if (newWorker) {
-                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                        // Esperar a que el service worker se active antes de recargar
-                        navigator.serviceWorker.addEventListener('controllerchange', () => {
-                            window.location.reload();
-                        }, { once: true });
-                    } else {
-                        window.location.reload();
-                    }
-                });
-            }
         }
     </script>
 </body>
