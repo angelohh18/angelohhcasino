@@ -525,10 +525,22 @@
                             window.location.reload();
                         });
                         
-                        // Verificar actualizaciones periódicamente (cada 5 minutos)
+                        // Verificar actualizaciones periódicamente (cada 1 minuto)
                         setInterval(() => {
                             registration.update();
-                        }, 300000); // Cada 5 minutos
+                        }, 60000); // Cada 1 minuto para detectar cambios más rápido
+                        
+                        // Verificar actualizaciones cuando la página gana foco (usuario vuelve a la app)
+                        window.addEventListener('focus', () => {
+                            registration.update();
+                        });
+                        
+                        // Verificar actualizaciones cuando la página se hace visible
+                        document.addEventListener('visibilitychange', () => {
+                            if (!document.hidden) {
+                                registration.update();
+                            }
+                        });
                     })
                     .catch(error => {
                         console.log('Error al registrar Service Worker:', error);

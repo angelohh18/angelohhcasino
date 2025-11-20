@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.2.0'; // Actualizado para actualización automática
+const CACHE_NAME = 'mutijuego-v1.3.0'; // Actualizado para detección automática mejorada
 const urlsToCache = [
   '/',
   '/index.html',
@@ -75,9 +75,11 @@ self.addEventListener('fetch', (event) => {
   
   // NO interceptar NADA relacionado con /select, /la51, /ludo para evitar demoras en móviles
   // Esto incluye navegaciones Y recursos estáticos (scripts, CSS, etc.)
+  // Siempre obtener la versión más reciente del servidor (network-first)
   if (pathname === '/select' || 
       pathname.startsWith('/la51') || 
-      pathname.startsWith('/ludo')) {
+      pathname.startsWith('/ludo') ||
+      pathname === '/sw.js') { // También el service worker mismo
     return; // Dejar que todas estas solicitudes vayan directamente a la red
   }
 

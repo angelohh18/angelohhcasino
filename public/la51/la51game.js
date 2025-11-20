@@ -2215,6 +2215,74 @@ function showRoomsOverview() {
         if (btnRestart) {
             btnRestart.onclick = () => {
                 hideOverlay('practice-restart-modal');
+                hideOverlay('practice-victory-modal');
+                
+                // ▼▼▼ LIMPIAR COMPLETAMENTE EL ESTADO DEL JUEGO ANTES DE REINICIAR ▼▼▼
+                console.log('[Práctica] Limpiando estado del juego anterior antes de reiniciar...');
+                
+                // 1. Resetear estado del cliente
+                resetClientGameState();
+                
+                // 2. Limpiar variables de estado
+                gameStarted = false;
+                players = [];
+                orderedSeats = [];
+                allMelds = [];
+                turnMelds = [];
+                selectedCards = new Set();
+                currentPlayer = 0;
+                hasDrawn = false;
+                drewFromDiscard = false;
+                discardCardUsed = null;
+                mustDiscard = false;
+                drewFromDeckToWin = false;
+                isDrawing = false;
+                isWaitingForNextTurn = false;
+                practiceGameEndedByHumanFault = false;
+                
+                // 3. Limpiar elementos visuales
+                const humanHandEl = document.getElementById('human-hand');
+                if (humanHandEl) humanHandEl.innerHTML = '';
+                
+                const meldsDisplayEl = document.getElementById('melds-display');
+                if (meldsDisplayEl) meldsDisplayEl.innerHTML = '';
+                
+                const discardEl = document.getElementById('discard');
+                if (discardEl) discardEl.innerHTML = 'Descarte<br>Vacío';
+                
+                // 4. Limpiar bote
+                const potValueEl = document.querySelector('#game-pot-container .pot-value');
+                if (potValueEl) potValueEl.textContent = '0';
+                
+                // 5. Limpiar información de jugadores
+                for (let i = 0; i < 4; i++) {
+                    const playerInfoEl = document.getElementById(`info-player${i}`);
+                    if (playerInfoEl) {
+                        playerInfoEl.classList.remove('current-turn-glow');
+                        const playerNameEl = playerInfoEl.querySelector('.player-name');
+                        const playerAvatarEl = playerInfoEl.querySelector('.player-avatar');
+                        const playerCounterEl = playerInfoEl.querySelector('.card-counter');
+                        if (playerNameEl) playerNameEl.textContent = "Asiento Vacío";
+                        if (playerAvatarEl) playerAvatarEl.src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+                        if (playerCounterEl) playerCounterEl.textContent = '';
+                    }
+                }
+                
+                // 6. Ocultar botones y overlays
+                document.getElementById('btn-start-rematch').style.display = 'none';
+                document.getElementById('start-game-btn').style.display = 'none';
+                hideOverlay('victory-overlay');
+                hideOverlay('ready-overlay');
+                
+                // 7. Limpiar event listeners de cartas
+                const deckEl = document.getElementById('deck');
+                const discardEl2 = document.getElementById('discard');
+                if (deckEl) deckEl.onclick = null;
+                if (discardEl2) discardEl2.onclick = null;
+                
+                console.log('[Práctica] Estado limpiado. Solicitando nueva partida...');
+                // ▲▲▲ FIN DE LIMPIEZA COMPLETA ▲▲▲
+                
                 // Asegurarnos que currentGameSettings exista antes de usarlo
                 if (currentGameSettings && currentGameSettings.roomId) {
                     socket.emit('requestPracticeRematch', { roomId: currentGameSettings.roomId });
