@@ -1967,24 +1967,36 @@ document.addEventListener('DOMContentLoaded', () => {
         // Interceptar TODOS los intentos de cerrar el modal
         const originalForceHide = window.forceHideCreateRoomModal;
         window.forceHideCreateRoomModal = function() {
-            if (isInteractingWithInput) {
+            // Solo bloquear si estamos interactuando con inputs Y no se permite el cierre
+            if (isInteractingWithInput && !allowClose) {
                 console.log('[Modal Protection] Bloqueado cierre del modal durante interacción con input');
                 forceModalOpen();
                 return;
+            }
+            // Si se permite el cierre, resetear la bandera
+            if (allowClose) {
+                allowClose = false;
             }
             if (originalForceHide) {
                 originalForceHide();
             }
         };
         
+        // Bandera para permitir cierre intencional por botones
+        let allowClose = false;
+        
         // Interceptar cambios directos en el display del modal
         const modalObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                     const display = createRoomModal.style.display;
-                    if (isInteractingWithInput && (display === 'none' || !display || display === '')) {
+                    // Solo bloquear el cierre si estamos interactuando con inputs Y no se permite el cierre
+                    if (isInteractingWithInput && !allowClose && (display === 'none' || !display || display === '')) {
                         console.log('[Modal Protection] Detectado intento de cierre, forzando apertura');
                         forceModalOpen();
+                    } else if (allowClose) {
+                        // Si se permite el cierre, resetear la bandera
+                        allowClose = false;
                     }
                 }
             });
@@ -1992,17 +2004,8 @@ document.addEventListener('DOMContentLoaded', () => {
         modalObserver.observe(createRoomModal, { attributes: true, attributeFilter: ['style'] });
         
         if (modalContent) {
-            // Prevenir TODOS los eventos de propagación dentro del modal-content
-            const stopPropagation = (e) => {
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            };
-            
-            // Prevenir propagación en todos los eventos de clic/touch dentro del modal-content
-            ['click', 'touchstart', 'touchend', 'touchmove', 'mousedown', 'mouseup'].forEach(eventType => {
-                modalContent.addEventListener(eventType, stopPropagation, { passive: false, capture: true });
-            });
+            // NO bloquear eventos en botones - solo en inputs/selects
+            // Los botones deben funcionar normalmente
             
             // Protección específica para el input de apuesta
             if (betInput) {
@@ -2040,8 +2043,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, { passive: true });
             }
             
-            // Prevenir propagación en TODOS los inputs y selects dentro del modal
-            const allInputs = modalContent.querySelectorAll('input, select, textarea');
+            // Prevenir propagación SOLO en inputs y selects (NO en botones)
+            const allInputs = modalContent.querySelectorAll('input:not([type="button"]):not([type="submit"]), select, textarea');
             allInputs.forEach(input => {
                 ['click', 'touchstart', 'touchend', 'focus'].forEach(eventType => {
                     input.addEventListener(eventType, (e) => {
@@ -2061,10 +2064,45 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, { passive: false, capture: true });
                 });
             });
+            
+            // Permitir que los botones funcionen normalmente - NO bloquear sus eventos
+            const buttons = modalContent.querySelectorAll('button');
+            buttons.forEach(button => {
+                // Asegurar que los botones puedan cerrar el modal
+                button.addEventListener('click', (e) => {
+                    // Desactivar la bandera de protección cuando se hace clic en un botón
+                    isInteractingWithInput = false;
+                    allowClose = true; // Permitir que el modal se cierre
+                    if (preventCloseTimeout) {
+                        clearTimeout(preventCloseTimeout);
+                    }
+                    // NO bloquear la propagación - permitir que el evento continúe normalmente
+                }, { passive: true });
+                
+                // También para eventos touch
+                button.addEventListener('touchstart', (e) => {
+                    isInteractingWithInput = false;
+                    allowClose = true;
+                    if (preventCloseTimeout) {
+                        clearTimeout(preventCloseTimeout);
+                    }
+                }, { passive: true });
+            });
         }
         
         // Solo cerrar cuando se hace clic DIRECTAMENTE en el overlay (fuera del modal-content)
+        // NO usar capture: true aquí para permitir que los botones funcionen
         createRoomModal.addEventListener('click', (e) => {
+            // Si el clic fue en un botón, permitir que funcione normalmente
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                // Los botones pueden cerrar el modal normalmente
+                isInteractingWithInput = false;
+                if (preventCloseTimeout) {
+                    clearTimeout(preventCloseTimeout);
+                }
+                return; // Permitir que el evento continúe normalmente
+            }
+            
             // Verificar que el clic fue EXACTAMENTE en el overlay, no en ningún hijo
             if (e.target === createRoomModal && !modalContent.contains(e.target) && !isInteractingWithInput) {
                 createRoomModal.style.display = 'none';
@@ -2072,15 +2110,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     originalForceHide();
                 }
                 createRoomModal.setAttribute('data-forced-hidden', 'true');
-            } else if (isInteractingWithInput) {
+            } else if (isInteractingWithInput && e.target !== createRoomModal) {
+                // Solo prevenir cierre si NO es un botón y estamos interactuando con un input
                 e.stopPropagation();
-                e.preventDefault();
                 forceModalOpen();
             }
-        }, { capture: true });
+        });
         
         // Prevenir cierre en eventos touch en el overlay
         createRoomModal.addEventListener('touchstart', (e) => {
+            // Si el touch fue en un botón, permitir que funcione normalmente
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                isInteractingWithInput = false;
+                if (preventCloseTimeout) {
+                    clearTimeout(preventCloseTimeout);
+                }
+                return; // Permitir que el evento continúe normalmente
+            }
+            
             if (e.target === createRoomModal && !modalContent.contains(e.target) && !isInteractingWithInput) {
                 // Solo permitir cerrar si no hay interacción activa
                 setTimeout(() => {
@@ -2092,12 +2139,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         createRoomModal.setAttribute('data-forced-hidden', 'true');
                     }
                 }, 200);
-            } else if (isInteractingWithInput) {
+            } else if (isInteractingWithInput && e.target !== createRoomModal) {
+                // Solo prevenir cierre si NO es un botón y estamos interactuando con un input
                 e.stopPropagation();
-                e.preventDefault();
                 forceModalOpen();
             }
-        }, { passive: false, capture: true });
+        }, { passive: false });
     }
     // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
