@@ -1945,21 +1945,69 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     });
     
-    // ▼▼▼ FIX: Prevenir cierre del modal cuando se hace clic dentro del modal-content (especialmente en móviles) ▼▼▼
+    // ▼▼▼ FIX MEJORADO: Prevenir cierre del modal en móviles/PWA cuando se interactúa con inputs ▼▼▼
     const createRoomModal = document.getElementById('create-room-modal');
     if (createRoomModal) {
-        // Prevenir que el clic dentro del modal-content cierre el modal
         const modalContent = createRoomModal.querySelector('.modal-content');
+        const betInput = document.getElementById('bet-input');
+        
         if (modalContent) {
-            modalContent.addEventListener('click', (e) => {
-                e.stopPropagation(); // Evitar que el evento se propague al overlay
+            // Prevenir TODOS los eventos de propagación dentro del modal-content
+            const stopPropagation = (e) => {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            };
+            
+            // Prevenir propagación en todos los eventos de clic/touch dentro del modal-content
+            ['click', 'touchstart', 'touchend', 'touchmove', 'mousedown', 'mouseup'].forEach(eventType => {
+                modalContent.addEventListener(eventType, stopPropagation, { passive: false });
+            });
+            
+            // Prevenir que el blur del input cierre el modal
+            if (betInput) {
+                betInput.addEventListener('focus', (e) => {
+                    e.stopPropagation();
+                    // Asegurar que el modal permanezca abierto
+                    createRoomModal.style.display = 'flex';
+                }, { passive: true });
+                
+                betInput.addEventListener('blur', (e) => {
+                    e.stopPropagation();
+                    // NO cerrar el modal cuando el input pierde el focus
+                }, { passive: true });
+                
+                betInput.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    // Asegurar que el modal permanezca abierto
+                    createRoomModal.style.display = 'flex';
+                }, { passive: false });
+                
+                betInput.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    createRoomModal.style.display = 'flex';
+                }, { passive: false });
+            }
+            
+            // Prevenir propagación en TODOS los inputs y selects dentro del modal
+            const allInputs = modalContent.querySelectorAll('input, select, textarea, button');
+            allInputs.forEach(input => {
+                ['click', 'touchstart', 'touchend', 'focus', 'blur'].forEach(eventType => {
+                    input.addEventListener(eventType, (e) => {
+                        e.stopPropagation();
+                        if (eventType === 'focus' || eventType === 'click' || eventType === 'touchstart') {
+                            createRoomModal.style.display = 'flex';
+                        }
+                    }, { passive: eventType !== 'click' && eventType !== 'touchstart' });
+                });
             });
         }
         
-        // Solo cerrar cuando se hace clic en el overlay (fuera del modal-content)
+        // Solo cerrar cuando se hace clic DIRECTAMENTE en el overlay (fuera del modal-content)
         createRoomModal.addEventListener('click', (e) => {
-            if (e.target === createRoomModal) {
-                // Solo cerrar si el clic fue directamente en el overlay, no en el contenido
+            // Verificar que el clic fue EXACTAMENTE en el overlay, no en ningún hijo
+            if (e.target === createRoomModal && !modalContent.contains(e.target)) {
                 createRoomModal.style.display = 'none';
                 if (typeof forceHideCreateRoomModal === 'function') {
                     forceHideCreateRoomModal();
@@ -1969,8 +2017,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 createRoomModal.removeAttribute('data-forced-hidden');
             }
         });
+        
+        // Prevenir cierre en eventos touch en el overlay (solo cerrar si es clic directo)
+        createRoomModal.addEventListener('touchstart', (e) => {
+            if (e.target === createRoomModal && !modalContent.contains(e.target)) {
+                // Permitir cerrar solo si el touch fue directamente en el overlay
+                // Pero agregar un pequeño delay para evitar cierres accidentales
+                setTimeout(() => {
+                    if (e.target === createRoomModal) {
+                        createRoomModal.style.display = 'none';
+                        if (typeof forceHideCreateRoomModal === 'function') {
+                            forceHideCreateRoomModal();
+                        } else if (typeof window.forceHideCreateRoomModal === 'function') {
+                            window.forceHideCreateRoomModal();
+                        }
+                        createRoomModal.removeAttribute('data-forced-hidden');
+                    }
+                }, 100);
+            }
+        }, { passive: true });
     }
-    // ▲▲▲ FIN DEL FIX ▲▲▲
+    // ▲▲▲ FIN DEL FIX MEJORADO ▲▲▲
     // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
 });
 
