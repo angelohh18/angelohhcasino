@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.5.0'; // Actualizado: Fix bloqueo cuando entra jugador en espera
+const CACHE_NAME = 'mutijuego-v1.6.0'; // Actualizado: Fix bloqueo PWA cuando entra jugador en espera
 const urlsToCache = [
   '/',
   '/index.html',
@@ -36,28 +36,28 @@ self.addEventListener('install', (event) => {
         );
       }),
       // Cachear nuevos archivos
-      caches.open(CACHE_NAME)
-        .then((cache) => {
-          console.log('Service Worker: Cacheando archivos');
-          // Cachear archivos uno por uno para no bloquear si alguno falla
-          return Promise.allSettled(
-            urlsToCache.map(url => 
-              cache.add(url).catch(err => {
-                console.warn(`Service Worker: No se pudo cachear ${url}:`, err);
-                return null; // Continuar aunque falle
-              })
-            )
-          );
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Service Worker: Cacheando archivos');
+        // Cachear archivos uno por uno para no bloquear si alguno falla
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`Service Worker: No se pudo cachear ${url}:`, err);
+              return null; // Continuar aunque falle
+            })
+          )
+        );
         })
     ]).then(() => {
       // Activar inmediatamente sin esperar
       return self.skipWaiting();
-    })
-    .catch((error) => {
+      })
+      .catch((error) => {
       console.error('Service Worker: Error durante instalación:', error);
       // Aún así, activar para no bloquear
       return self.skipWaiting();
-    })
+      })
   );
 });
 
@@ -67,15 +67,15 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
       // Limpiar caches antiguos
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log('Service Worker: Eliminando cache antiguo:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Eliminando cache antiguo:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
       }),
       // Tomar control inmediatamente de todos los clientes
       self.clients.claim()
