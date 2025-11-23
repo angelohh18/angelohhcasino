@@ -5996,7 +5996,9 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           gameState: room.gameState
       });
 
-      io.to(roomId).emit('playerJoined', ludoGetSanitizedRoomForClient(room));
+      // IMPORTANTE: Solo enviamos actualización de asientos, NO afectamos el turno actual
+      const roomUpdate = ludoGetSanitizedRoomForClient(room);
+      io.to(roomId).emit('playerJoined', roomUpdate);
       broadcastLudoRoomListUpdate(io);
       // ▲▲▲ FIN DE LA ACTUALIZACIÓN DE `joinLudoRoom` ▲▲▲
     });
@@ -6300,8 +6302,11 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       // ▼▼▼ ¡BLOQUE AÑADIDO PARA SINCRONIZACIÓN! ▼▼▼
       // Notifica a TODOS los clientes en la sala sobre el estado actualizado de los asientos.
       // Esto es crucial para la sincronización cuando un jugador carga la página (join/reconnect).
+      // IMPORTANTE: Solo enviamos actualización de asientos, NO afectamos el turno actual
       console.log(`[${roomId}] Transmitiendo 'playerJoined' a la sala para sincronizar asientos (en joinLudoGame).`);
-      io.to(roomId).emit('playerJoined', ludoGetSanitizedRoomForClient(room));
+      // Enviar solo actualización de asientos sin afectar el estado del turno
+      const roomUpdate = ludoGetSanitizedRoomForClient(room);
+      io.to(roomId).emit('playerJoined', roomUpdate);
 
       // ▼▼▼ ¡AÑADE ESTA LÍNEA! ▼▼▼
       // Notifica a TODOS en el lobby que los asientos de esta sala han cambiado.
@@ -6544,6 +6549,12 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       const mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
       if (mySeatIndex === -1) return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
+
+      // --- VALIDACIÓN: Jugador en espera no puede interactuar ---
+      const mySeat = room.seats[mySeatIndex];
+      if (mySeat && mySeat.status === 'waiting') {
+          return socket.emit('ludoError', { message: 'Estás en espera para la siguiente partida. No puedes jugar ahora.' });
+      }
 
       // --- VALIDACIÓN DE TURNO ---
       if (room.gameState.turn.playerIndex !== mySeatIndex) {
@@ -6929,6 +6940,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
 
       const mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
       if (mySeatIndex === -1) return socket.emit('ludoError', { message: 'No estás sentado.' });
+      
+      // --- VALIDACIÓN: Jugador en espera no puede interactuar ---
+      const mySeat = room.seats[mySeatIndex];
+      if (mySeat && mySeat.status === 'waiting') {
+          return socket.emit('ludoError', { message: 'Estás en espera para la siguiente partida. No puedes mover fichas ahora.' });
+      }
+      
       if (room.gameState.turn.playerIndex !== mySeatIndex) return socket.emit('ludoError', { message: 'No es tu turno.' });
 
       const seatColor = room.seats[mySeatIndex].color;
