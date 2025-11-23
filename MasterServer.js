@@ -7974,44 +7974,80 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       delete room.allowRematchConfirmation; // Limpia la bandera
     
-      // ▼▼▼ DÉBITO DE CRÉDITOS Y ACTUALIZACIÓN DEL BOTE ▼▼▼
-      let newPot = 0;
-      const rebuyBet = parseFloat(room.settings.bet) || 0;
-      const rebuyCurrency = room.settings.betCurrency || 'USD';
-      const playersToCharge = [...(room.rematchData?.confirmedPlayers || [])];
+      // ▼▼▼ DÉBITO DE CRÉDITOS Y ACTUALIZACIÓN DEL BOTE (CORREGIDO) ▼▼▼
+      const roomBet = parseFloat(room.settings.bet) || 0;
+      const roomCurrency = room.settings.betCurrency || 'USD';
+      const confirmedPlayerNames = [...(room.rematchData?.confirmedPlayers || [])];
       const gameType = room.settings.gameType || 'ludo';
       const isGroupsMode = gameType === 'parchis' && room.settings.parchisMode === '4-groups';
 
-      console.log(`[REMATCH START] Debitando ${rebuyBet} ${rebuyCurrency} a jugadores confirmados: [${playersToCharge.join(', ')}]`);
+      console.log(`[REMATCH START] Validando y debitando ${roomBet} ${roomCurrency} a jugadores confirmados: [${confirmedPlayerNames.join(', ')}]`);
 
-      playersToCharge.forEach(pName => {
-          const userInfoCharge = users[pName.toLowerCase()];
-          if (userInfoCharge) {
-              const costInUserCurrency = convertCurrency(rebuyBet, rebuyCurrency, userInfoCharge.currency, exchangeRates);
-              userInfoCharge.credits = Math.max(0, userInfoCharge.credits - costInUserCurrency);
-              newPot += rebuyBet;
+      // --- FASE 1: VALIDAR CRÉDITOS DE TODOS LOS JUGADORES ---
+      const failedPlayers = [];
+      const playersToCharge = [];
 
-              const playerSeatRef = room.seats.find(s => s && s.playerName === pName);
-              if (playerSeatRef && playerSeatRef.playerId) {
-                  const ps = io.sockets.sockets.get(playerSeatRef.playerId);
-                  if (ps) {
-                      ps.emit('userStateUpdated', { credits: userInfoCharge.credits, currency: userInfoCharge.currency });
-                      console.log(`   - Notificado ${pName} (Socket ${playerSeatRef.playerId}), nuevo saldo: ${userInfoCharge.credits.toFixed(2)} ${userInfoCharge.currency}`);
-                  }
-              }
-          } else {
-              console.warn(`[REMATCH START] No se encontró userInfo para ${pName} al debitar créditos.`);
+      for (const playerName of confirmedPlayerNames) {
+          const playerSeat = room.seats.find(s => s && s.playerName === playerName);
+          if (!playerSeat || !playerSeat.userId) {
+              console.warn(`[REMATCH START] No se encontró asiento o userId para ${playerName}`);
+              failedPlayers.push({ name: playerName, reason: 'Asiento no encontrado.' });
+              continue;
           }
-      });
-      console.log(`[REMATCH START] Débito completado. Nuevo bote: ${newPot} ${rebuyCurrency}`);
-      // ▲▲▲ FIN DÉBITO ▲▲▲
+
+          const userInfo = users[playerSeat.userId];
+          if (!userInfo) {
+              console.error(`[REMATCH START] No se encontró userInfo para ${playerName} (userId: ${playerSeat.userId})`);
+              failedPlayers.push({ name: playerName, reason: 'Información de usuario no encontrada.' });
+              continue;
+          }
+
+          const totalCostInUserCurrency = convertCurrency(roomBet, roomCurrency, userInfo.currency, exchangeRates);
+
+          if (userInfo.credits < totalCostInUserCurrency) {
+              failedPlayers.push({ name: playerName, reason: 'Créditos insuficientes.' });
+          } else {
+              playersToCharge.push({ seat: playerSeat, userInfo: userInfo, playerName: playerName });
+          }
+      }
+
+      if (failedPlayers.length > 0) {
+          const errorMsg = 'No se puede iniciar la revancha. Jugadores sin fondos: ' + failedPlayers.map(p => p.name).join(', ');
+          console.warn(`[${roomId}] Fallo al iniciar revancha: ${errorMsg}`);
+          return socket.emit('rematchError', { message: errorMsg });
+      }
+
+      // --- FASE 2: COBRAR Y ACTUALIZAR ESTADO ---
+      let totalPot = 0;
+      for (const { seat, userInfo, playerName } of playersToCharge) {
+          const totalCostInUserCurrency = convertCurrency(roomBet, roomCurrency, userInfo.currency, exchangeRates);
+
+          // 1. Restar créditos
+          userInfo.credits -= totalCostInUserCurrency;
+
+          // 2. Persistir el cambio de créditos
+          await updateUserCredits(seat.userId, userInfo.credits, userInfo.currency);
+          console.log(`[${roomId}] COBRO REVANCHA: ${playerName} pagó ${totalCostInUserCurrency.toFixed(2)} ${userInfo.currency} (Equivalente a ${roomBet.toFixed(2)} ${roomCurrency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
+
+          // 3. Sumar al bote (convertido a la moneda de la sala)
+          totalPot += roomBet;
+
+          // 4. Notificar al jugador su nuevo saldo
+          const playerSocket = io.sockets.sockets.get(seat.playerId);
+          if (playerSocket) {
+              playerSocket.emit('userStateUpdated', userInfo);
+          }
+      }
+
+      console.log(`[REMATCH START] Débito completado. Nuevo bote: ${totalPot} ${roomCurrency}`);
+      // ▲▲▲ FIN DÉBITO (CORREGIDO) ▲▲▲
     
       // ▼▼▼ AÑADE ESTE BLOQUE COMPLETO ▼▼▼
 
       // --- INICIO: LÓGICA DE RE-ASIGNACIÓN DIAGONAL PARA 2 JUGADORES EN REVANCHA ---
     
       // Usamos la lista de jugadores que pagaron (los confirmados)
-      const confirmedPlayerNames = playersToCharge;
+      const confirmedPlayerNames = playersToCharge.map(p => p.playerName);
     
       if (!isGroupsMode) {
           if (confirmedPlayerNames.length === 2) {
@@ -8092,7 +8128,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       // Reinicializar estado del juego
       room.state = 'playing';
-      room.gameState.pot = newPot;
+      room.gameState.pot = totalPot; // Usar totalPot calculado con todas las apuestas
       room.gameState.turn = {
         playerIndex: -1,
         canRoll: true,
@@ -8154,9 +8190,17 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       // Notificar inicio de revancha (AHORA con state: 'playing' y turno asignado)
       io.to(roomId).emit('rematchStarted', {
         message: 'Nueva partida iniciada',
-        gameState: room.gameState, // Ahora incluye el turno inicial correcto
+        gameState: room.gameState, // Ahora incluye el turno inicial correcto y el bote correcto
         seats: room.seats
       });
+      
+      // Notificar actualización del bote a todos
+      io.to(roomId).emit('potUpdated', { 
+        newPotValue: totalPot, 
+        isPenalty: false 
+      });
+      
+      console.log(`[${roomId}] Revancha iniciada. Bote: ${totalPot} ${roomCurrency}`);
     
       // Actualizar lista de salas
       broadcastLudoRoomListUpdate(io);
