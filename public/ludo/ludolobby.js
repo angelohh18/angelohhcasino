@@ -370,6 +370,11 @@ function showPwaInstallModal() {
     socket.on('ludoLobbyChatUpdate', (newMessage) => {
         addLobbyChatMessage(newMessage);
     });
+    
+    socket.on('ludoLobbyChatCleared', () => {
+        console.log('Chat del lobby de Ludo limpiado automáticamente después de 10 minutos de inactividad');
+        renderLobbyChat([]); // Limpiar el chat visualmente
+    });
     // ▲▲▲ FIN DE LOS LISTENERS DEL CHAT DE LUDO ▲▲▲
 
     socket.on('exchangeRatesUpdate', (rates) => {
@@ -1939,6 +1944,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     });
+    
+    // ▼▼▼ FIX: Prevenir cierre del modal cuando se hace clic dentro del modal-content (especialmente en móviles) ▼▼▼
+    const createRoomModal = document.getElementById('create-room-modal');
+    if (createRoomModal) {
+        // Prevenir que el clic dentro del modal-content cierre el modal
+        const modalContent = createRoomModal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.addEventListener('click', (e) => {
+                e.stopPropagation(); // Evitar que el evento se propague al overlay
+            });
+        }
+        
+        // Solo cerrar cuando se hace clic en el overlay (fuera del modal-content)
+        createRoomModal.addEventListener('click', (e) => {
+            if (e.target === createRoomModal) {
+                // Solo cerrar si el clic fue directamente en el overlay, no en el contenido
+                createRoomModal.style.display = 'none';
+                if (typeof forceHideCreateRoomModal === 'function') {
+                    forceHideCreateRoomModal();
+                } else if (typeof window.forceHideCreateRoomModal === 'function') {
+                    window.forceHideCreateRoomModal();
+                }
+                createRoomModal.removeAttribute('data-forced-hidden');
+            }
+        });
+    }
+    // ▲▲▲ FIN DEL FIX ▲▲▲
     // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
 });
 

@@ -712,18 +712,21 @@ let lobbyChatHistory = []; // Chat del lobby general (compartido)
 let ludoLobbyChatHistory = []; // Chat específico del lobby de Ludo
 let la51LobbyChatHistory = []; // Chat específico del lobby de La 51
 const LOBBY_CHAT_HISTORY_LIMIT = 50; // Guardaremos los últimos 50 mensajes
+let ludoChatLastMessageTime = 0; // Timestamp del último mensaje en el chat de Ludo
+let la51ChatLastMessageTime = 0; // Timestamp del último mensaje en el chat de La 51
+const CHAT_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutos en milisegundos
 // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
 // ▼▼▼ VARIABLES GLOBALES PARA LUDO ▼▼▼
 let ludoReconnectTimeouts = {}; // Mapa para rastrear timeouts de reconexión de Ludo: {roomId_userId: timeoutId}
-const LUDO_RECONNECT_TIMEOUT_MS = 5000; // 5 segundos para reconexión
+const LUDO_RECONNECT_TIMEOUT_MS = 60000; // 60 segundos (1 minuto) para reconexión en partida activa
 const LUDO_ORPHAN_ROOM_CLEANUP_INTERVAL_MS = 5000; // Limpiar salas huérfanas cada 5 segundos
 let ludoPeriodicCleanupInterval = null; // Intervalo para limpieza periódica (solo cuando hay salas vacías)
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LUDO ▲▲▲
 
 // ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
 let reconnectTimeouts = {}; // Para rastrear los tiempos de reconexión
-const RECONNECT_TIMEOUT_MS = 5000; // 5 segundos para reconectar
+const RECONNECT_TIMEOUT_MS = 60000; // 60 segundos (1 minuto) para reconectar en partida activa
 // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
 // ▼▼▼ AÑADE ESTAS LÍNEAS ▼▼▼
@@ -5283,6 +5286,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
 
       // Lo guardamos en el historial específico de La 51
       la51LobbyChatHistory.push(newMessage);
+      la51ChatLastMessageTime = Date.now(); // Actualizar timestamp del último mensaje
       if (la51LobbyChatHistory.length > LOBBY_CHAT_HISTORY_LIMIT) {
           la51LobbyChatHistory.shift(); // Eliminamos el mensaje más antiguo si superamos el límite
       }
@@ -5353,9 +5357,46 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
             ludoCheckAndCleanRoom(roomId, io);
 
         } else if (seatIndex !== -1 && (room.state === 'playing' || room.state === 'post-game')) {
-            // El jugador abandonó una partida de Ludo EN JUEGO
-            console.log(`[LUDO DISCONNECT] ${username} abandonó la partida ${roomId}.`);
-            ludoHandlePlayerDeparture(roomId, socket.id, io);
+            // El jugador se desconectó durante una partida activa
+            const leavingPlayerSeat = room.seats[seatIndex];
+            
+            if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
+                // Solo aplicar timeout de reconexión si el jugador está activo (no en espera)
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 60 segundos para reconexión...`);
+                
+                // Inicializar reconnectSeats si no existe
+                if (!room.reconnectSeats) {
+                    room.reconnectSeats = {};
+                }
+                
+                // Guardar información del asiento para reconexión
+                room.reconnectSeats[userId] = {
+                    seatIndex: seatIndex,
+                    seatData: { ...leavingPlayerSeat },
+                    timestamp: Date.now()
+                };
+                
+                // Configurar timeout de 60 segundos antes de considerar abandono
+                const timeoutKey = `${roomId}_${userId}`;
+                ludoReconnectTimeouts[timeoutKey] = setTimeout(() => {
+                    // Si después de 60 segundos no se reconectó, entonces sí es abandono
+                    const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
+                    if (stillDisconnected) {
+                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 60 segundos. Considerado abandono.`);
+                        ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io);
+                    }
+                    delete ludoReconnectTimeouts[timeoutKey];
+                }, LUDO_RECONNECT_TIMEOUT_MS);
+                
+                // Notificar a los demás jugadores que el jugador se desconectó (pero aún puede reconectar)
+                io.to(roomId).emit('playerDisconnected', {
+                    playerName: leavingPlayerSeat.playerName,
+                    message: `${leavingPlayerSeat.playerName} se desconectó. Esperando reconexión...`
+                });
+            } else {
+                // Si está en espera, liberar inmediatamente
+                ludoHandlePlayerDeparture(roomId, socket.id, io);
+            }
 
         } else {
             // Se desconectó del lobby de Ludo sin estar en una sala
@@ -5921,6 +5962,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       }
 
       const effectiveReconnectSeatInfo = (room.reconnectSeats && user.userId) ? room.reconnectSeats[user.userId] : null;
+      
+      // ▼▼▼ FIX: Limpiar timeout de reconexión si el jugador se reconecta exitosamente ▼▼▼
+      if (effectiveReconnectSeatInfo) {
+          console.log(`[LUDO RECONNECT] ${username} se reconectó exitosamente. Limpiando timeout de abandono.`);
+          ludoClearReconnection(roomId, user.userId);
+      }
+      // ▲▲▲ FIN DEL FIX ▲▲▲
 
       // ▼▼▼ INICIO DEL BLOQUE REEMPLAZADO ▼▼▼
       // --- LÓGICA DE ASIGNACIÓN DE ASIENTOS (DIAGONAL OBLIGATORIA PARA 2 JUGADORES) ---
@@ -6084,6 +6132,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
 
         // Lo guardamos en el historial específico de Ludo
         ludoLobbyChatHistory.push(newMessage);
+        ludoChatLastMessageTime = Date.now(); // Actualizar timestamp del último mensaje
 
         if (ludoLobbyChatHistory.length > LOBBY_CHAT_HISTORY_LIMIT) {
             ludoLobbyChatHistory.shift();
@@ -8351,4 +8400,26 @@ server.listen(PORT, '0.0.0.0', async () => {
       console.error('❌ Error verificando estructura de la tabla:', error);
     }
   }
+  
+  // ▼▼▼ LIMPIEZA AUTOMÁTICA DEL CHAT CADA 10 MINUTOS ▼▼▼
+  setInterval(() => {
+    const now = Date.now();
+    
+    // Limpiar chat de Ludo si han pasado 10 minutos desde el último mensaje
+    if (ludoChatLastMessageTime > 0 && (now - ludoChatLastMessageTime) >= CHAT_CLEANUP_INTERVAL_MS) {
+      console.log('[Chat Ludo] Limpiando chat después de 10 minutos de inactividad');
+      ludoLobbyChatHistory = [];
+      ludoChatLastMessageTime = 0;
+      io.emit('ludoLobbyChatCleared');
+    }
+    
+    // Limpiar chat de La 51 si han pasado 10 minutos desde el último mensaje
+    if (la51ChatLastMessageTime > 0 && (now - la51ChatLastMessageTime) >= CHAT_CLEANUP_INTERVAL_MS) {
+      console.log('[Chat La 51] Limpiando chat después de 10 minutos de inactividad');
+      la51LobbyChatHistory = [];
+      la51ChatLastMessageTime = 0;
+      io.emit('la51LobbyChatCleared');
+    }
+  }, 60000); // Verificar cada minuto
+  // ▲▲▲ FIN DE LA LIMPIEZA AUTOMÁTICA DEL CHAT ▲▲▲
 });// Verificación de servidor - Tue Oct  7 13:42:08 WEST 2025

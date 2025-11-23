@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.8.0'; // Actualizado: Fix sincronización lista usuarios en tiempo real
+const CACHE_NAME = 'mutijuego-v1.9.0'; // Actualizado: Fix modal móvil, timeout reconexión 60s, limpieza chat 10min, falsos abandonos
 const urlsToCache = [
   '/',
   '/index.html',
