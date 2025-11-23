@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.1'; // Actualizado: Fix abandono - eliminar jugador correctamente y bloquear interacciones
+const CACHE_NAME = 'mutijuego-v1.10.2'; // Actualizado: Fix errores de sintaxis y actualización automática PWA
 const urlsToCache = [
   '/',
   '/index.html',
