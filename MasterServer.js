@@ -1253,6 +1253,29 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             if (room.gameState && room.gameState.pieces && room.gameState.pieces[playerColor]) {
                 delete room.gameState.pieces[playerColor];
             }
+            
+            // ▼▼▼ FIX: Forzar actualización de estado para sacar al jugador que abandonó de la sala ▼▼▼
+            const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+            io.to(roomId).emit('ludoGameStateUpdated', {
+                newGameState: room.gameState,
+                seats: room.seats,
+                moveInfo: { type: 'game_over_abandonment', leavingPlayer: playerName, winner: winnerDisplayName }
+            });
+            
+            // Notificar específicamente al jugador que abandonó que debe salir
+            const leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (leavingPlayerSocket) {
+                leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
+                leavingPlayerSocket.emit('gameEnded', { reason: 'abandonment', winner: winnerDisplayName });
+                setTimeout(() => {
+                    if (leavingPlayerSocket && leavingPlayerSocket.currentRoomId === roomId) {
+                        leavingPlayerSocket.leave(roomId);
+                        delete leavingPlayerSocket.currentRoomId;
+                        console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de abandono (Parchís Grupos)`);
+                    }
+                }, 1000);
+            }
+            // ▲▲▲ FIN DEL FIX ▲▲▲
 
             return; // Salir de la función handlePlayerDeparture
         }
@@ -1365,7 +1388,32 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                 rematchData: room.rematchData,
                 abandonment: true
             });
-            room.allowRematchConfirmation = true; 
+            room.allowRematchConfirmation = true;
+            
+            // ▼▼▼ FIX: Forzar actualización de estado para sacar al jugador que abandonó de la sala ▼▼▼
+            // Emitir actualización de estado que sincronice a todos los jugadores
+            const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+            io.to(roomId).emit('ludoGameStateUpdated', {
+                newGameState: room.gameState,
+                seats: room.seats,
+                moveInfo: { type: 'game_over_abandonment', leavingPlayer: playerName, winner: winnerName }
+            });
+            
+            // Notificar específicamente al jugador que abandonó que debe salir
+            const leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (leavingPlayerSocket) {
+                leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
+                leavingPlayerSocket.emit('gameEnded', { reason: 'abandonment', winner: winnerName });
+                // Forzar que el socket salga de la sala después de un breve delay
+                setTimeout(() => {
+                    if (leavingPlayerSocket && leavingPlayerSocket.currentRoomId === roomId) {
+                        leavingPlayerSocket.leave(roomId);
+                        delete leavingPlayerSocket.currentRoomId;
+                        console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de abandono`);
+                    }
+                }, 1000);
+            }
+            // ▲▲▲ FIN DEL FIX ▲▲▲ 
         } else if (remainingActivePlayers.length > 1) {
             io.to(roomId).emit('ludoGameStateUpdated', {
                 newGameState: room.gameState, 

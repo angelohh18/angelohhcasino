@@ -2075,6 +2075,34 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // ▲▲▲ FIN DEL LISTENER MODIFICADO ▲▲▲
 
+    // ▼▼▼ FIX: Listener para cuando el juego termina por abandono - redirigir al jugador que abandonó ▼▼▼
+    socket.on('gameEnded', (data) => {
+        console.log('[gameEnded] El juego terminó:', data);
+        if (data.reason === 'abandonment') {
+            // Si el jugador que recibió este evento es el que abandonó, redirigir al lobby
+            setTimeout(() => {
+                alert(`El juego terminó porque abandonaste. El ganador fue: ${data.winner}`);
+                window.location.href = '/ludo';
+            }, 1000);
+        }
+    });
+    
+    socket.on('playerLeft', (roomData) => {
+        console.log('[playerLeft] Un jugador ha salido:', roomData);
+        // Si el estado del juego es post-game y no somos el ganador, verificar si debemos salir
+        if (gameState && gameState.state === 'post-game') {
+            const mySeat = gameState.seats.find(s => s && s.playerId === socket.id);
+            // Si no tenemos asiento o el asiento está null, redirigir al lobby
+            if (!mySeat) {
+                console.log('[playerLeft] No tenemos asiento, redirigiendo al lobby');
+                setTimeout(() => {
+                    window.location.href = '/ludo';
+                }, 2000);
+            }
+        }
+    });
+    // ▲▲▲ FIN DEL FIX ▲▲▲
+    
     // ▼▼▼ REEMPLAZA TU LISTENER 'ludoGameStateUpdated' COMPLETO CON ESTE ▼▼▼
     socket.on('ludoGameStateUpdated', async (data) => { // Añade async
         
@@ -2099,6 +2127,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const newGameState = data.newGameState;
         const moveInfo = data.moveInfo;
 
+        // ▼▼▼ FIX: Manejar caso de abandono - redirigir al jugador que abandonó ▼▼▼
+        if (moveInfo && moveInfo.type === 'game_over_abandonment') {
+            console.log('[ludoGameStateUpdated] Juego terminó por abandono. Jugador que abandonó:', moveInfo.leavingPlayer);
+            // Verificar si somos el jugador que abandonó
+            const mySeat = gameState.seats.find(s => s && s.playerId === socket.id);
+            if (mySeat && mySeat.playerName === moveInfo.leavingPlayer) {
+                // Somos el jugador que abandonó, redirigir al lobby después de un breve delay
+                setTimeout(() => {
+                    alert(`Has abandonado la partida. El ganador fue: ${moveInfo.winner}`);
+                    window.location.href = '/ludo';
+                }, 2000);
+                return; // No procesar más actualizaciones
+            }
+        }
+        // ▲▲▲ FIN DEL FIX ▲▲▲
+        
         // 4. ¿Hubo un movimiento de ficha activa con ruta? -> Animar
         if (moveInfo && moveInfo.type === 'move_active_piece' && moveInfo.movePath && moveInfo.movePath.length > 0) {
              await animatePieceStep(moveInfo.pieceId, moveInfo.movePath); // Espera a que termine la animación

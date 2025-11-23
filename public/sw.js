@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.4'; // Actualizado: Optimización iOS - animaciones de fichas con hardware acceleration
+const CACHE_NAME = 'mutijuego-v1.9.5'; // Actualizado: Fix abandono 2 jugadores - forzar salida del jugador que abandonó
 const urlsToCache = [
   '/',
   '/index.html',
