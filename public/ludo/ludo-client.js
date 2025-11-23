@@ -820,6 +820,14 @@ document.addEventListener('DOMContentLoaded', function() {
      * o muestra opciones si hay múltiples dados/fichas.
      */
     function handlePieceClick(event) {
+        // ▼▼▼ CORRECCIÓN: Verificar si el jugador está en espera ▼▼▼
+        const mySeat = gameState?.seats?.find(s => s && s.playerId === socket.id);
+        if (mySeat && mySeat.status === 'waiting') {
+            console.warn("handlePieceClick: Jugador en espera, acción bloqueada");
+            return;
+        }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+        
         const pieceEl = event.currentTarget;
         const pieceId = pieceEl.id;
         const potentialMovesDataString = pieceEl.dataset.possibleMoves || '[]';
@@ -1293,6 +1301,20 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // ▼▼▼ CORRECCIÓN: Verificar si el jugador está en espera ▼▼▼
+        const mySeat = gameState.seats.find(s => s && s.playerId === socket.id);
+        const isWaitingPlayer = mySeat && mySeat.status === 'waiting';
+        
+        if (isWaitingPlayer) {
+            // Si el jugador está en espera, deshabilitar todas las interacciones
+            if (myDiceContainer) {
+                myDiceContainer.style.pointerEvents = 'none';
+                console.log("❌ Jugador en espera: Dados deshabilitados");
+            }
+            return; // No hacer más actualizaciones
+        }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+
         const turn = gameState.gameState.turn;
         const myTurn = (turn.playerIndex === gameState.mySeatIndex);
 
@@ -1622,20 +1644,51 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // 1. Actualiza el estado de los asientos Y de las FICHAS
-        gameState.seats = room.seats;
-        gameState.gameState = room.gameState; // <-- ¡LÍNEA AÑADIDA! (Sincroniza las fichas)
+        // ▼▼▼ CORRECCIÓN: Verificar si soy un jugador en espera ▼▼▼
+        const mySeat = room.seats.find(s => s && s.playerId === socket.id);
+        const isWaitingPlayer = mySeat && mySeat.status === 'waiting';
         
-        // 2. Vuelve a renderizar el tablero (info boxes y rotación)
+        // 1. Actualiza el estado de los asientos
+        gameState.seats = room.seats;
+        
+        // 2. Solo actualizar el estado del juego si NO soy un jugador en espera
+        // o si el juego está en estado 'waiting' o 'post-game'
+        if (!isWaitingPlayer || room.state === 'waiting' || room.state === 'post-game') {
+            // Actualizar piezas solo si no soy jugador en espera durante partida activa
+            if (room.gameState && room.gameState.pieces) {
+                gameState.gameState.pieces = room.gameState.pieces;
+            }
+            
+            // Actualizar turno solo si no soy jugador en espera durante partida activa
+            if (room.gameState && room.gameState.turn && !isWaitingPlayer) {
+                gameState.gameState.turn = room.gameState.turn;
+            }
+        } else {
+            // Si soy jugador en espera durante partida activa, NO actualizar el turno
+            console.log('Jugador en espera: No actualizando estado del turno para evitar bloqueo');
+        }
+        
+        // 3. Vuelve a renderizar el tablero (info boxes y rotación)
         renderLudoBoard(gameState);
 
-        // 3. ¡AÑADIR ESTAS LÍNEAS PARA RENDERIZAR LAS FICHAS NUEVAS!
-        console.log("Renderizando piezas base y activas para el nuevo jugador...");
-        renderBasePieces(gameState.gameState.pieces);
-        renderActivePieces(gameState.gameState.pieces);
+        // 4. Renderizar piezas (solo si están disponibles)
+        if (gameState.gameState && gameState.gameState.pieces) {
+            console.log("Renderizando piezas base y activas...");
+            renderBasePieces(gameState.gameState.pieces);
+            renderActivePieces(gameState.gameState.pieces);
+        }
         
-        // 4. (Opcional pero bueno) Sincronizar el brillo del turno
-        updateTurnGlow(gameState.gameState.turn.playerIndex);
+        // 5. Sincronizar el brillo del turno SOLO si no soy jugador en espera
+        if (!isWaitingPlayer && gameState.gameState && gameState.gameState.turn) {
+            updateTurnGlow(gameState.gameState.turn.playerIndex);
+            updateTurnUI(); // Actualizar UI del turno
+        } else if (isWaitingPlayer) {
+            // Si soy jugador en espera, deshabilitar todas las interacciones
+            if (myDiceContainer) {
+                myDiceContainer.style.pointerEvents = 'none';
+            }
+            console.log('Jugador en espera: Interacciones deshabilitadas');
+        }
 
         // 5. Lógica del botón de inicio (sin cambios)
         if (btnStartGame && gameState.mySeatIndex === gameState.settings.hostSeatIndex && gameState.state === 'waiting') {
@@ -2291,6 +2344,14 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function handleRollClick() {
         console.log("🖱️ Clic en mis dados detectado (handleRollClick)");
+        
+        // ▼▼▼ CORRECCIÓN: Verificar si el jugador está en espera ▼▼▼
+        const mySeat = gameState?.seats?.find(s => s && s.playerId === socket.id);
+        if (mySeat && mySeat.status === 'waiting') {
+            console.warn("handleRollClick: Jugador en espera, acción bloqueada");
+            return;
+        }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         
         // Validar si es mi turno y puedo tirar
         if (!gameState || !gameState.gameState || !gameState.gameState.turn ||
