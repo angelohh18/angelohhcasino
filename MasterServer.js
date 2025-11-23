@@ -847,23 +847,33 @@ function ludoCheckAndCleanRoom(roomId, io) {
     // 0. Limpiar reconexiones expiradas primero
     ludoCleanupExpiredReconnections(roomId, io);
 
-    // 1. Contar jugadores en los asientos.
+    // 1. Si hay un abandono reciente, esperar antes de limpiar la sala (para permitir notificaciones)
+    if (room._abandonmentProcessed && room._abandonmentTimestamp) {
+        const abandonmentAge = Date.now() - room._abandonmentTimestamp;
+        const ABANDONMENT_NOTIFICATION_DELAY = 60000; // 60 segundos para permitir notificaciones
+        if (abandonmentAge < ABANDONMENT_NOTIFICATION_DELAY) {
+            console.log(`[Ludo Cleanup] Sala ${roomId} tiene abandono reciente (${Math.round(abandonmentAge/1000)}s). Esperando antes de limpiar.`);
+            return; // No limpiar aún
+        }
+    }
+
+    // 2. Contar jugadores en los asientos.
     const playersInSeats = room.seats.filter(s => s !== null).length;
 
-    // 2. Contar reconexiones pendientes (después de limpiar expiradas)
+    // 3. Contar reconexiones pendientes (después de limpiar expiradas)
     const pendingReconnections = room.reconnectSeats ? Object.keys(room.reconnectSeats).length : 0;
 
-    // 3. Verificar si hay sockets conectados a la sala
+    // 4. Verificar si hay sockets conectados a la sala
     const hasSockets = ludoHasConnectedSockets(roomId, io);
 
-    // 4. Verificar si la sala fue creada recientemente (últimos 15 segundos)
+    // 5. Verificar si la sala fue creada recientemente (últimos 15 segundos)
     const roomCreatedAt = room.createdAt || 0;
     const now = Date.now();
     const roomAge = now - roomCreatedAt;
     const RECENT_ROOM_THRESHOLD = 15000; // 15 segundos
     const isRecentRoom = roomAge < RECENT_ROOM_THRESHOLD;
 
-    // 5. Lógica de eliminación mejorada
+    // 6. Lógica de eliminación mejorada
     if (playersInSeats === 0 && pendingReconnections === 0 && !hasSockets && !isRecentRoom) {
         // SOLO si no hay jugadores, no hay reconexiones pendientes, no hay sockets conectados, Y la sala no es reciente
         console.log(`[Ludo Cleanup] Sala ${roomId} vacía (Jugadores: 0, Reconexiones: 0, Sockets: 0, Edad: ${Math.round(roomAge/1000)}s). Eliminando AHORA.`);
