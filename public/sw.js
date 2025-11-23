@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.4.0'; // Actualizado para actualizaciones automáticas
+const CACHE_NAME = 'mutijuego-v1.5.0'; // Actualizado: Fix bloqueo cuando entra jugador en espera
 const urlsToCache = [
   '/',
   '/index.html',
