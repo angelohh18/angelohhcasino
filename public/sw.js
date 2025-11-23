@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.1'; // Actualizado: Fix crítico modal móvil - input apuesta no cierra modal
+const CACHE_NAME = 'mutijuego-v1.9.2'; // Actualizado: Fix crítico modal móvil - bandera global previene cierre durante interacción
 const urlsToCache = [
   '/',
   '/index.html',

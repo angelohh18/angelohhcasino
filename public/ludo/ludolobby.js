@@ -1945,61 +1945,120 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     });
     
-    // ▼▼▼ FIX MEJORADO: Prevenir cierre del modal en móviles/PWA cuando se interactúa con inputs ▼▼▼
+    // ▼▼▼ FIX CRÍTICO: Prevenir cierre del modal en móviles/PWA - Solución agresiva con bandera global ▼▼▼
     const createRoomModal = document.getElementById('create-room-modal');
     if (createRoomModal) {
+        // Bandera global para prevenir cierre durante interacción
+        let isInteractingWithInput = false;
+        let preventCloseTimeout = null;
+        
         const modalContent = createRoomModal.querySelector('.modal-content');
         const betInput = document.getElementById('bet-input');
+        
+        // Función para forzar que el modal permanezca abierto
+        const forceModalOpen = () => {
+            if (createRoomModal) {
+                createRoomModal.style.display = 'flex';
+                createRoomModal.style.setProperty('display', 'flex', 'important');
+                createRoomModal.removeAttribute('data-forced-hidden');
+            }
+        };
+        
+        // Interceptar TODOS los intentos de cerrar el modal
+        const originalForceHide = window.forceHideCreateRoomModal;
+        window.forceHideCreateRoomModal = function() {
+            if (isInteractingWithInput) {
+                console.log('[Modal Protection] Bloqueado cierre del modal durante interacción con input');
+                forceModalOpen();
+                return;
+            }
+            if (originalForceHide) {
+                originalForceHide();
+            }
+        };
+        
+        // Interceptar cambios directos en el display del modal
+        const modalObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const display = createRoomModal.style.display;
+                    if (isInteractingWithInput && (display === 'none' || !display || display === '')) {
+                        console.log('[Modal Protection] Detectado intento de cierre, forzando apertura');
+                        forceModalOpen();
+                    }
+                }
+            });
+        });
+        modalObserver.observe(createRoomModal, { attributes: true, attributeFilter: ['style'] });
         
         if (modalContent) {
             // Prevenir TODOS los eventos de propagación dentro del modal-content
             const stopPropagation = (e) => {
                 e.stopPropagation();
                 e.stopImmediatePropagation();
+                return false;
             };
             
             // Prevenir propagación en todos los eventos de clic/touch dentro del modal-content
             ['click', 'touchstart', 'touchend', 'touchmove', 'mousedown', 'mouseup'].forEach(eventType => {
-                modalContent.addEventListener(eventType, stopPropagation, { passive: false });
+                modalContent.addEventListener(eventType, stopPropagation, { passive: false, capture: true });
             });
             
-            // Prevenir que el blur del input cierre el modal
+            // Protección específica para el input de apuesta
             if (betInput) {
-                betInput.addEventListener('focus', (e) => {
-                    e.stopPropagation();
-                    // Asegurar que el modal permanezca abierto
-                    createRoomModal.style.display = 'flex';
-                }, { passive: true });
+                const setInteractionFlag = (value) => {
+                    isInteractingWithInput = value;
+                    if (value) {
+                        forceModalOpen();
+                        // Limpiar timeout anterior si existe
+                        if (preventCloseTimeout) {
+                            clearTimeout(preventCloseTimeout);
+                        }
+                        // Mantener la bandera activa por 2 segundos después de la última interacción
+                        preventCloseTimeout = setTimeout(() => {
+                            isInteractingWithInput = false;
+                        }, 2000);
+                    }
+                };
+                
+                ['focus', 'click', 'touchstart', 'touchend', 'input', 'keydown', 'keyup'].forEach(eventType => {
+                    betInput.addEventListener(eventType, (e) => {
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        setInteractionFlag(true);
+                        forceModalOpen();
+                        return false;
+                    }, { passive: false, capture: true });
+                });
                 
                 betInput.addEventListener('blur', (e) => {
                     e.stopPropagation();
-                    // NO cerrar el modal cuando el input pierde el focus
+                    // Mantener la bandera activa un poco más después del blur
+                    setTimeout(() => {
+                        isInteractingWithInput = false;
+                    }, 500);
                 }, { passive: true });
-                
-                betInput.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    // Asegurar que el modal permanezca abierto
-                    createRoomModal.style.display = 'flex';
-                }, { passive: false });
-                
-                betInput.addEventListener('touchstart', (e) => {
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    createRoomModal.style.display = 'flex';
-                }, { passive: false });
             }
             
             // Prevenir propagación en TODOS los inputs y selects dentro del modal
-            const allInputs = modalContent.querySelectorAll('input, select, textarea, button');
+            const allInputs = modalContent.querySelectorAll('input, select, textarea');
             allInputs.forEach(input => {
-                ['click', 'touchstart', 'touchend', 'focus', 'blur'].forEach(eventType => {
+                ['click', 'touchstart', 'touchend', 'focus'].forEach(eventType => {
                     input.addEventListener(eventType, (e) => {
                         e.stopPropagation();
-                        if (eventType === 'focus' || eventType === 'click' || eventType === 'touchstart') {
-                            createRoomModal.style.display = 'flex';
+                        e.stopImmediatePropagation();
+                        if (input === betInput || input.tagName === 'INPUT') {
+                            isInteractingWithInput = true;
+                            if (preventCloseTimeout) {
+                                clearTimeout(preventCloseTimeout);
+                            }
+                            preventCloseTimeout = setTimeout(() => {
+                                isInteractingWithInput = false;
+                            }, 2000);
                         }
-                    }, { passive: eventType !== 'click' && eventType !== 'touchstart' });
+                        forceModalOpen();
+                        return false;
+                    }, { passive: false, capture: true });
                 });
             });
         }
@@ -2007,37 +2066,40 @@ document.addEventListener('DOMContentLoaded', () => {
         // Solo cerrar cuando se hace clic DIRECTAMENTE en el overlay (fuera del modal-content)
         createRoomModal.addEventListener('click', (e) => {
             // Verificar que el clic fue EXACTAMENTE en el overlay, no en ningún hijo
-            if (e.target === createRoomModal && !modalContent.contains(e.target)) {
+            if (e.target === createRoomModal && !modalContent.contains(e.target) && !isInteractingWithInput) {
                 createRoomModal.style.display = 'none';
-                if (typeof forceHideCreateRoomModal === 'function') {
-                    forceHideCreateRoomModal();
-                } else if (typeof window.forceHideCreateRoomModal === 'function') {
-                    window.forceHideCreateRoomModal();
+                if (typeof originalForceHide === 'function') {
+                    originalForceHide();
                 }
-                createRoomModal.removeAttribute('data-forced-hidden');
+                createRoomModal.setAttribute('data-forced-hidden', 'true');
+            } else if (isInteractingWithInput) {
+                e.stopPropagation();
+                e.preventDefault();
+                forceModalOpen();
             }
-        });
+        }, { capture: true });
         
-        // Prevenir cierre en eventos touch en el overlay (solo cerrar si es clic directo)
+        // Prevenir cierre en eventos touch en el overlay
         createRoomModal.addEventListener('touchstart', (e) => {
-            if (e.target === createRoomModal && !modalContent.contains(e.target)) {
-                // Permitir cerrar solo si el touch fue directamente en el overlay
-                // Pero agregar un pequeño delay para evitar cierres accidentales
+            if (e.target === createRoomModal && !modalContent.contains(e.target) && !isInteractingWithInput) {
+                // Solo permitir cerrar si no hay interacción activa
                 setTimeout(() => {
-                    if (e.target === createRoomModal) {
+                    if (e.target === createRoomModal && !isInteractingWithInput) {
                         createRoomModal.style.display = 'none';
-                        if (typeof forceHideCreateRoomModal === 'function') {
-                            forceHideCreateRoomModal();
-                        } else if (typeof window.forceHideCreateRoomModal === 'function') {
-                            window.forceHideCreateRoomModal();
+                        if (typeof originalForceHide === 'function') {
+                            originalForceHide();
                         }
-                        createRoomModal.removeAttribute('data-forced-hidden');
+                        createRoomModal.setAttribute('data-forced-hidden', 'true');
                     }
-                }, 100);
+                }, 200);
+            } else if (isInteractingWithInput) {
+                e.stopPropagation();
+                e.preventDefault();
+                forceModalOpen();
             }
-        }, { passive: true });
+        }, { passive: false, capture: true });
     }
-    // ▲▲▲ FIN DEL FIX MEJORADO ▲▲▲
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
 });
 
