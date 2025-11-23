@@ -6002,10 +6002,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           return;
       }
       
+      const username = user.username;
+      // ▼▼▼ CORRECCIÓN CRÍTICA: Usar userId (user_username) para encontrar al usuario ▼▼▼
+      const userId = user.userId || ('user_' + username.toLowerCase()); // Debe coincidir con cómo se guarda en userLoggedIn
+      
       // Verificar si el jugador fue eliminado por abandono antes de permitir unirse
-      const userId = user.userId || ('user_' + user.username.toLowerCase());
       if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
-          console.log(`[LUDO JOIN ROOM BLOCKED] ${user.username} intentó unirse pero fue eliminado por abandono.`);
+          console.log(`[LUDO JOIN ROOM BLOCKED] ${username} intentó unirse pero fue eliminado por abandono.`);
           const bet = parseFloat(room.settings.bet) || 0;
           const roomCurrency = room.settings.betCurrency || 'USD';
           
@@ -6033,10 +6036,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       if (room.state !== 'waiting' && room.state !== 'playing' && room.state !== 'post-game') {
           return socket.emit('joinRoomFailed', { message: 'La sala no está disponible.' });
       }
-
-      const username = user.username;
-      // ▼▼▼ CORRECCIÓN CRÍTICA: Usar userId (user_username) para encontrar al usuario ▼▼▼
-      const userId = user.userId || ('user_' + username.toLowerCase()); // Debe coincidir con cómo se guarda en userLoggedIn
       const userInfo = users[userId];
       
       if (!userInfo) {
