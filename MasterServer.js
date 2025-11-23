@@ -6936,7 +6936,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       }
 
       // --- VALIDACIÓN: Jugador en espera no puede interactuar ---
-      const mySeat = room.seats[mySeatIndex];
       if (mySeat && mySeat.status === 'waiting') {
           return socket.emit('ludoError', { message: 'Estás en espera para la siguiente partida. No puedes jugar ahora.' });
       }
