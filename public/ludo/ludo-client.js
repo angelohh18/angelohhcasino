@@ -1246,25 +1246,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // 4. AHORA SÍ, MOVER LA 'pieceToAnimate' A LA CAPA DE ANIMACIÓN
         svgPiecesContainer.appendChild(pieceToAnimate); 
         
-        // 5. APLICAR ESTILOS Y ¡LA POSICIÓN INICIAL! - OPTIMIZADO PARA AMBOS SISTEMAS
+        // 5. APLICAR ESTILOS Y ¡LA POSICIÓN INICIAL!
         pieceToAnimate.style.position = 'absolute';
         pieceToAnimate.style.zIndex = '50';
-        pieceToAnimate.style.left = '0';
-        pieceToAnimate.style.top = '0';
-        // ▼▼▼ OPTIMIZACIÓN: Usar transform para mejor rendimiento en iOS y Android ▼▼▼
-        pieceToAnimate.style.willChange = 'transform';
-        // NO usar transición durante la animación - la animación se controla manualmente
-        pieceToAnimate.style.transition = 'none';
-        pieceToAnimate.style.transform = `translate3d(${initialLeft}px, ${initialTop}px, 0)`;
-        pieceToAnimate.style.webkitTransform = `translate3d(${initialLeft}px, ${initialTop}px, 0)`;
-        // Forzar repaint
-        pieceToAnimate.offsetHeight;
-        // ▲▲▲ FIN OPTIMIZACIÓN ▲▲▲
+        pieceToAnimate.style.left = `${initialLeft}px`; // <-- FIJA LA POSICIÓN INICIAL
+        pieceToAnimate.style.top = `${initialTop}px`;   // <-- FIJA LA POSICIÓN INICIAL
 
         // Forzar al navegador a aplicar la posición inicial ANTES del primer salto
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise(resolve => setTimeout(resolve, 10)); // Pequeña espera (10ms)
 
-        // 7. BUCLE DE ANIMACIÓN (PASO A PASO) - Usando pieceToAnimate - OPTIMIZADO PARA AMBOS SISTEMAS
+        // 7. BUCLE DE ANIMACIÓN (PASO A PASO) - Usando pieceToAnimate
         for (let i = 0; i < pathCells.length; i++) {
             const cellNumber = pathCells[i];
             
@@ -1283,25 +1274,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetLeft = (cellRect.left + cellRect.width / 2) - containerRect.left;
             const targetTop = (cellRect.top + cellRect.height / 2) - containerRect.top;
 
-            // ▼▼▼ OPTIMIZACIÓN: Usar transform sin transición para animación suave ▼▼▼
-            // Mantener transition: none durante la animación para control manual
-            pieceToAnimate.style.transition = 'none';
-            pieceToAnimate.style.transform = `translate3d(${targetLeft}px, ${targetTop}px, 0)`;
-            pieceToAnimate.style.webkitTransform = `translate3d(${targetLeft}px, ${targetTop}px, 0)`;
-            // Forzar repaint para asegurar que el cambio se aplique
-            pieceToAnimate.offsetHeight;
-            // ▲▲▲ FIN OPTIMIZACIÓN ▲▲▲
+            // Mover la ficha usando left y top (método original que funcionaba bien)
+            pieceToAnimate.style.left = `${targetLeft}px`;
+            pieceToAnimate.style.top = `${targetTop}px`;
             
             // Reproducir sonido al saltar a cada casilla
             playSound('tag');
 
-            // ESPERAR para el efecto de salto - Usar setTimeout para mejor compatibilidad
+            // ESPERAR para el efecto de salto
             await new Promise(resolve => setTimeout(resolve, durationPerStep));
         }
-        
-        // Limpiar will-change después de la animación para liberar recursos
-        pieceToAnimate.style.willChange = 'auto';
-        pieceToAnimate.style.transition = ''; // Restaurar transición por defecto
 
         // 8. LIMPIAR LA FICHA ANIMADA
         // La eliminamos para que 'renderActivePieces' la redibuje correctamente

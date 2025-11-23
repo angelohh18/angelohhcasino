@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.8'; // Actualizado: Fix animación fichas (Android/iOS) y notificación penalización abandono
+const CACHE_NAME = 'mutijuego-v1.9.9'; // Actualizado: Revertir animación fichas a método original (left/top)
 const urlsToCache = [
   '/',
   '/index.html',
