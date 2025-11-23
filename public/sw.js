@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.3'; // Actualizado: Fix botones modal - permitir cierre intencional mientras se protege inputs
+const CACHE_NAME = 'mutijuego-v1.9.4'; // Actualizado: Optimización iOS - animaciones de fichas con hardware acceleration
 const urlsToCache = [
   '/',
   '/index.html',

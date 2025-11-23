@@ -1246,16 +1246,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // 4. AHORA SÍ, MOVER LA 'pieceToAnimate' A LA CAPA DE ANIMACIÓN
         svgPiecesContainer.appendChild(pieceToAnimate); 
         
-        // 5. APLICAR ESTILOS Y ¡LA POSICIÓN INICIAL!
+        // 5. APLICAR ESTILOS Y ¡LA POSICIÓN INICIAL! - OPTIMIZADO PARA iOS
         pieceToAnimate.style.position = 'absolute';
         pieceToAnimate.style.zIndex = '50';
-        pieceToAnimate.style.left = `${initialLeft}px`; // <-- FIJA LA POSICIÓN INICIAL
-        pieceToAnimate.style.top = `${initialTop}px`;   // <-- FIJA LA POSICIÓN INICIAL
+        pieceToAnimate.style.left = '0';
+        pieceToAnimate.style.top = '0';
+        // ▼▼▼ OPTIMIZACIÓN iOS: Usar transform en lugar de left/top para mejor rendimiento ▼▼▼
+        pieceToAnimate.style.willChange = 'transform';
+        pieceToAnimate.style.transform = `translate3d(${initialLeft}px, ${initialTop}px, 0)`;
+        pieceToAnimate.style.webkitTransform = `translate3d(${initialLeft}px, ${initialTop}px, 0)`;
+        // Agregar transición suave para iOS
+        pieceToAnimate.style.transition = 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
+        // ▲▲▲ FIN OPTIMIZACIÓN iOS ▲▲▲
 
         // Forzar al navegador a aplicar la posición inicial ANTES del primer salto
-        await new Promise(resolve => setTimeout(resolve, 10)); // Pequeña espera (10ms)
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-        // 7. BUCLE DE ANIMACIÓN (PASO A PASO) - Usando pieceToAnimate
+        // 7. BUCLE DE ANIMACIÓN (PASO A PASO) - Usando pieceToAnimate - OPTIMIZADO PARA iOS
         for (let i = 0; i < pathCells.length; i++) {
             const cellNumber = pathCells[i];
             
@@ -1274,16 +1281,31 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetLeft = (cellRect.left + cellRect.width / 2) - containerRect.left;
             const targetTop = (cellRect.top + cellRect.height / 2) - containerRect.top;
 
-            // APLICAR LA NUEVA POSICIÓN
-            pieceToAnimate.style.left = `${targetLeft}px`;
-            pieceToAnimate.style.top = `${targetTop}px`;
+            // ▼▼▼ OPTIMIZACIÓN iOS: Usar transform en lugar de left/top ▼▼▼
+            pieceToAnimate.style.transform = `translate3d(${targetLeft}px, ${targetTop}px, 0)`;
+            pieceToAnimate.style.webkitTransform = `translate3d(${targetLeft}px, ${targetTop}px, 0)`;
+            // ▲▲▲ FIN OPTIMIZACIÓN iOS ▲▲▲
             
             // Reproducir sonido al saltar a cada casilla
             playSound('tag');
 
-            // ESPERAR para el efecto de salto
-            await new Promise(resolve => setTimeout(resolve, durationPerStep));
+            // ESPERAR para el efecto de salto - Usar requestAnimationFrame para mejor sincronización en iOS
+            await new Promise(resolve => {
+                const startTime = performance.now();
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    if (elapsed >= durationPerStep) {
+                        resolve();
+                    } else {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                requestAnimationFrame(animate);
+            });
         }
+        
+        // Limpiar will-change después de la animación para liberar recursos
+        pieceToAnimate.style.willChange = 'auto';
 
         // 8. LIMPIAR LA FICHA ANIMADA
         // La eliminamos para que 'renderActivePieces' la redibuje correctamente

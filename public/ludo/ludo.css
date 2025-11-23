@@ -1037,8 +1037,13 @@ body.game-active {
     box-shadow: inset 0 -3px 4px rgba(0, 0, 0, 0.4), 
                 inset 0 4px 5px rgba(255, 255, 255, 0.3),
                 0 2px 3px rgba(0, 0, 0, 0.3);
-    /* Transición para futuros movimientos */
-    transition: transform 0.3s ease, top 0.3s ease, left 0.3s ease;
+    /* ▼▼▼ OPTIMIZACIÓN iOS: Usar solo transform para mejor rendimiento ▼▼▼ */
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Forzar hardware acceleration en iOS */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
+    /* ▲▲▲ FIN OPTIMIZACIÓN iOS ▲▲▲ */
 }
 
 /* Ficha específica en la base */
@@ -1115,7 +1120,11 @@ body.game-active {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    /* ▼▼▼ OPTIMIZACIÓN iOS: Usar translate3d para hardware acceleration ▼▼▼ */
+    -webkit-transform: translate3d(-50%, -50%, 0);
+    transform: translate3d(-50%, -50%, 0);
+    will-change: transform;
+    /* ▲▲▲ FIN OPTIMIZACIÓN iOS ▲▲▲ */
     /* ▼▼▼ TAMAÑO FIJO RELATIVO AL TABLERO Y REDONDO ▼▼▼ */
     /* Calculamos un tamaño ~45% del ancho/alto de una celda (board-size / 15 celdas * 0.45) */
     /* Ajusta el multiplicador 0.45 si quieres más/menos tamaño */
