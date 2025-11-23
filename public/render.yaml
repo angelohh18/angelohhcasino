@@ -3,7 +3,7 @@ services:
     name: juego51
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci || npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV

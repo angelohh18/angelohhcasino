@@ -5,7 +5,9 @@
   "main": "MasterServer.js",
   "scripts": {
     "start": "node MasterServer.js",
-    "dev": "nodemon MasterServer.js"
+    "dev": "nodemon MasterServer.js",
+    "build": "echo 'Build complete'",
+    "postinstall": "echo 'Dependencies installed'"
   },
   "keywords": [],
   "author": "",
