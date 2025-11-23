@@ -6051,10 +6051,16 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           // Verificar si el abandono ya fue finalizado (juego terminó)
           if (room.abandonmentFinalized && room.abandonmentFinalized[user.userId]) {
               console.log(`[LUDO RECONNECT BLOCKED] ${username} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+              const username = user.username || userId.replace('user_', '');
+              const bet = parseFloat(room.settings.bet) || 0;
+              const roomCurrency = room.settings.betCurrency || 'USD';
+              
               socket.emit('gameEnded', { 
                   reason: 'abandonment', 
-                  message: 'El juego terminó porque abandonaste. No puedes reconectar a esta partida.',
-                  redirect: true
+                  message: `Has abandonado la partida. Se te ha descontado la apuesta de ${bet} ${roomCurrency}. El juego terminó.`,
+                  redirect: true,
+                  penalty: bet,
+                  currency: roomCurrency
               });
               return; // NO permitir reconexión
           }
@@ -6297,6 +6303,49 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
 
       socket.join(roomId);
     
+      // ▼▼▼ FIX CRÍTICO: Verificar si el juego ya terminó por abandono antes de permitir reconexión ▼▼▼
+      // Verificar si el abandono ya fue finalizado (juego terminó)
+      if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+          
+          // Obtener información del jugador para mostrar mensaje de penalización
+          const username = userId.replace('user_', '');
+          const bet = parseFloat(room.settings.bet) || 0;
+          const roomCurrency = room.settings.betCurrency || 'USD';
+          
+          socket.emit('gameEnded', { 
+              reason: 'abandonment', 
+              message: `Has abandonado la partida. Se te ha descontado la apuesta de ${bet} ${roomCurrency}. El juego terminó.`,
+              redirect: true,
+              penalty: bet,
+              currency: roomCurrency
+          });
+          return; // NO permitir reconexión
+      }
+      
+      // Si el juego está en post-game por abandono, verificar si fue por este jugador
+      if (room.state === 'post-game' && room.rematchData && room.rematchData.abandonment) {
+          // Verificar si este jugador fue el que abandonó (no está en los asientos activos)
+          const wasAbandoner = !room.seats.some(s => s && s.userId === userId && s.status === 'playing');
+          if (wasAbandoner) {
+              console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+              
+              const username = userId.replace('user_', '');
+              const bet = parseFloat(room.settings.bet) || 0;
+              const roomCurrency = room.settings.betCurrency || 'USD';
+              
+              socket.emit('gameEnded', { 
+                  reason: 'abandonment', 
+                  message: `Has abandonado la partida. Se te ha descontado la apuesta de ${bet} ${roomCurrency}. El juego terminó.`,
+                  redirect: true,
+                  penalty: bet,
+                  currency: roomCurrency
+              });
+              return; // NO permitir reconexión
+          }
+      }
+      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+      
       // ▼▼▼ ¡BLOQUE DE RECONEXIÓN MEJORADO! ▼▼▼
       const timeoutKey = `${roomId}_${userId}`;
       if (room.reconnectSeats && room.reconnectSeats[userId]) {
@@ -6320,8 +6369,20 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
               delete ludoReconnectTimeouts[timeoutKey];
               console.log(`[Cleanup] Timeout de reconexión limpiado para ${userId} en sala ${roomId}`);
           }
+          
+          // Cancelar timeout de abandono si existe
+          if (room.abandonmentTimeouts && room.abandonmentTimeouts[userId]) {
+              clearTimeout(room.abandonmentTimeouts[userId]);
+              delete room.abandonmentTimeouts[userId];
+          }
           // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
           delete room.reconnectSeats[userId];
+          
+          // Notificar a todos que el jugador se reconectó
+          io.to(roomId).emit('playerReconnected', {
+              playerName: reservedInfo.seatData.playerName,
+              message: `${reservedInfo.seatData.playerName} se reconectó.`
+          });
       }
       // ▲▲▲ FIN DEL BLOQUE DE RECONEXIÓN ▲▲▲
     

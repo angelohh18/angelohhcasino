@@ -1246,23 +1246,25 @@ document.addEventListener('DOMContentLoaded', function() {
         // 4. AHORA SÍ, MOVER LA 'pieceToAnimate' A LA CAPA DE ANIMACIÓN
         svgPiecesContainer.appendChild(pieceToAnimate); 
         
-        // 5. APLICAR ESTILOS Y ¡LA POSICIÓN INICIAL! - OPTIMIZADO PARA iOS
+        // 5. APLICAR ESTILOS Y ¡LA POSICIÓN INICIAL! - OPTIMIZADO PARA AMBOS SISTEMAS
         pieceToAnimate.style.position = 'absolute';
         pieceToAnimate.style.zIndex = '50';
         pieceToAnimate.style.left = '0';
         pieceToAnimate.style.top = '0';
-        // ▼▼▼ OPTIMIZACIÓN iOS: Usar transform en lugar de left/top para mejor rendimiento ▼▼▼
+        // ▼▼▼ OPTIMIZACIÓN: Usar transform para mejor rendimiento en iOS y Android ▼▼▼
         pieceToAnimate.style.willChange = 'transform';
+        // NO usar transición durante la animación - la animación se controla manualmente
+        pieceToAnimate.style.transition = 'none';
         pieceToAnimate.style.transform = `translate3d(${initialLeft}px, ${initialTop}px, 0)`;
         pieceToAnimate.style.webkitTransform = `translate3d(${initialLeft}px, ${initialTop}px, 0)`;
-        // Agregar transición suave para iOS
-        pieceToAnimate.style.transition = 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
-        // ▲▲▲ FIN OPTIMIZACIÓN iOS ▲▲▲
+        // Forzar repaint
+        pieceToAnimate.offsetHeight;
+        // ▲▲▲ FIN OPTIMIZACIÓN ▲▲▲
 
         // Forzar al navegador a aplicar la posición inicial ANTES del primer salto
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-        // 7. BUCLE DE ANIMACIÓN (PASO A PASO) - Usando pieceToAnimate - OPTIMIZADO PARA iOS
+        // 7. BUCLE DE ANIMACIÓN (PASO A PASO) - Usando pieceToAnimate - OPTIMIZADO PARA AMBOS SISTEMAS
         for (let i = 0; i < pathCells.length; i++) {
             const cellNumber = pathCells[i];
             
@@ -1281,31 +1283,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetLeft = (cellRect.left + cellRect.width / 2) - containerRect.left;
             const targetTop = (cellRect.top + cellRect.height / 2) - containerRect.top;
 
-            // ▼▼▼ OPTIMIZACIÓN iOS: Usar transform en lugar de left/top ▼▼▼
+            // ▼▼▼ OPTIMIZACIÓN: Usar transform sin transición para animación suave ▼▼▼
+            // Mantener transition: none durante la animación para control manual
+            pieceToAnimate.style.transition = 'none';
             pieceToAnimate.style.transform = `translate3d(${targetLeft}px, ${targetTop}px, 0)`;
             pieceToAnimate.style.webkitTransform = `translate3d(${targetLeft}px, ${targetTop}px, 0)`;
-            // ▲▲▲ FIN OPTIMIZACIÓN iOS ▲▲▲
+            // Forzar repaint para asegurar que el cambio se aplique
+            pieceToAnimate.offsetHeight;
+            // ▲▲▲ FIN OPTIMIZACIÓN ▲▲▲
             
             // Reproducir sonido al saltar a cada casilla
             playSound('tag');
 
-            // ESPERAR para el efecto de salto - Usar requestAnimationFrame para mejor sincronización en iOS
-            await new Promise(resolve => {
-                const startTime = performance.now();
-                const animate = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    if (elapsed >= durationPerStep) {
-                        resolve();
-                    } else {
-                        requestAnimationFrame(animate);
-                    }
-                };
-                requestAnimationFrame(animate);
-            });
+            // ESPERAR para el efecto de salto - Usar setTimeout para mejor compatibilidad
+            await new Promise(resolve => setTimeout(resolve, durationPerStep));
         }
         
         // Limpiar will-change después de la animación para liberar recursos
         pieceToAnimate.style.willChange = 'auto';
+        pieceToAnimate.style.transition = ''; // Restaurar transición por defecto
 
         // 8. LIMPIAR LA FICHA ANIMADA
         // La eliminamos para que 'renderActivePieces' la redibuje correctamente
@@ -2081,7 +2077,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.reason === 'abandonment' && data.redirect) {
             // Si el jugador que recibió este evento es el que abandonó, redirigir al lobby
             setTimeout(() => {
-                const message = data.message || `El juego terminó porque abandonaste. El ganador fue: ${data.winner || 'el otro jugador'}`;
+                let message = data.message || `El juego terminó porque abandonaste.`;
+                if (data.penalty && data.currency) {
+                    message += `\n\nSe te ha descontado la apuesta de ${data.penalty} ${data.currency} por abandono.`;
+                }
+                if (data.winner) {
+                    message += `\n\nEl ganador fue: ${data.winner}`;
+                }
                 alert(message);
                 window.location.href = '/ludo';
             }, 1000);

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.7'; // Actualizado: Timeout de reconexión aumentado a 2 minutos
+const CACHE_NAME = 'mutijuego-v1.9.8'; // Actualizado: Fix animación fichas (Android/iOS) y notificación penalización abandono
 const urlsToCache = [
   '/',
   '/index.html',
