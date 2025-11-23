@@ -2078,12 +2078,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // ▼▼▼ FIX: Listener para cuando el juego termina por abandono - redirigir al jugador que abandonó ▼▼▼
     socket.on('gameEnded', (data) => {
         console.log('[gameEnded] El juego terminó:', data);
-        if (data.reason === 'abandonment') {
+        if (data.reason === 'abandonment' && data.redirect) {
             // Si el jugador que recibió este evento es el que abandonó, redirigir al lobby
             setTimeout(() => {
-                alert(`El juego terminó porque abandonaste. El ganador fue: ${data.winner}`);
+                const message = data.message || `El juego terminó porque abandonaste. El ganador fue: ${data.winner || 'el otro jugador'}`;
+                alert(message);
                 window.location.href = '/ludo';
             }, 1000);
+        }
+    });
+    
+    // Listener para cuando un jugador se reconecta
+    socket.on('playerReconnected', (data) => {
+        console.log('[playerReconnected]', data);
+        if (data && data.message) {
+            showToast(data.message, 3000);
         }
     });
     

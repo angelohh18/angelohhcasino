@@ -1390,7 +1390,24 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             });
             room.allowRematchConfirmation = true;
             
-            // ▼▼▼ FIX: Forzar actualización de estado para sacar al jugador que abandonó de la sala ▼▼▼
+            // ▼▼▼ FIX: Marcar abandono como finalizado y forzar salida del jugador que abandonó ▼▼▼
+            // Marcar que el abandono fue definitivo para este jugador
+            if (!room.abandonmentFinalized) {
+                room.abandonmentFinalized = {};
+            }
+            room.abandonmentFinalized[leavingPlayerSeat.userId] = true;
+            
+            // Cancelar cualquier timeout de reconexión pendiente
+            const timeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
+            if (ludoReconnectTimeouts[timeoutKey]) {
+                clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+                delete ludoReconnectTimeouts[timeoutKey];
+            }
+            if (room.abandonmentTimeouts && room.abandonmentTimeouts[leavingPlayerSeat.userId]) {
+                clearTimeout(room.abandonmentTimeouts[leavingPlayerSeat.userId]);
+                delete room.abandonmentTimeouts[leavingPlayerSeat.userId];
+            }
+            
             // Emitir actualización de estado que sincronice a todos los jugadores
             const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
             io.to(roomId).emit('ludoGameStateUpdated', {
@@ -1403,7 +1420,12 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             const leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
             if (leavingPlayerSocket) {
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
-                leavingPlayerSocket.emit('gameEnded', { reason: 'abandonment', winner: winnerName });
+                leavingPlayerSocket.emit('gameEnded', { 
+                    reason: 'abandonment', 
+                    winner: winnerName,
+                    message: 'Has abandonado la partida. El juego terminó.',
+                    redirect: true
+                });
                 // Forzar que el socket salga de la sala después de un breve delay
                 setTimeout(() => {
                     if (leavingPlayerSocket && leavingPlayerSocket.currentRoomId === roomId) {
@@ -5426,15 +5448,28 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                 
                 // Configurar timeout de 60 segundos antes de considerar abandono
                 const timeoutKey = `${roomId}_${userId}`;
-                ludoReconnectTimeouts[timeoutKey] = setTimeout(() => {
+                // Guardar referencia al timeout en el room para poder cancelarlo si se reconecta
+                if (!room.abandonmentTimeouts) {
+                    room.abandonmentTimeouts = {};
+                }
+                room.abandonmentTimeouts[userId] = setTimeout(() => {
                     // Si después de 60 segundos no se reconectó, entonces sí es abandono
                     const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
                     if (stillDisconnected) {
                         console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 60 segundos. Considerado abandono.`);
+                        // Marcar que el abandono fue definitivo
+                        if (!room.abandonmentFinalized) {
+                            room.abandonmentFinalized = {};
+                        }
+                        room.abandonmentFinalized[userId] = true;
                         ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io);
                     }
                     delete ludoReconnectTimeouts[timeoutKey];
+                    if (room.abandonmentTimeouts) {
+                        delete room.abandonmentTimeouts[userId];
+                    }
                 }, LUDO_RECONNECT_TIMEOUT_MS);
+                ludoReconnectTimeouts[timeoutKey] = room.abandonmentTimeouts[userId];
                 
                 // Notificar a los demás jugadores que el jugador se desconectó (pero aún puede reconectar)
                 io.to(roomId).emit('playerDisconnected', {
@@ -6011,12 +6046,56 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
 
       const effectiveReconnectSeatInfo = (room.reconnectSeats && user.userId) ? room.reconnectSeats[user.userId] : null;
       
-      // ▼▼▼ FIX: Limpiar timeout de reconexión si el jugador se reconecta exitosamente ▼▼▼
+      // ▼▼▼ FIX CRÍTICO: Verificar si el juego ya terminó por abandono antes de permitir reconexión ▼▼▼
       if (effectiveReconnectSeatInfo) {
-          console.log(`[LUDO RECONNECT] ${username} se reconectó exitosamente. Limpiando timeout de abandono.`);
+          // Verificar si el abandono ya fue finalizado (juego terminó)
+          if (room.abandonmentFinalized && room.abandonmentFinalized[user.userId]) {
+              console.log(`[LUDO RECONNECT BLOCKED] ${username} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+              socket.emit('gameEnded', { 
+                  reason: 'abandonment', 
+                  message: 'El juego terminó porque abandonaste. No puedes reconectar a esta partida.',
+                  redirect: true
+              });
+              return; // NO permitir reconexión
+          }
+          
+          // Si el juego está en post-game por abandono, verificar si fue por este jugador
+          if (room.state === 'post-game' && room.rematchData && room.rematchData.abandonment) {
+              // Verificar si este jugador fue el que abandonó
+              const wasAbandoner = !room.seats.some(s => s && s.userId === user.userId && s.status === 'playing');
+              if (wasAbandoner) {
+                  console.log(`[LUDO RECONNECT BLOCKED] ${username} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+                  socket.emit('gameEnded', { 
+                      reason: 'abandonment', 
+                      message: 'El juego terminó porque abandonaste. No puedes reconectar a esta partida.',
+                      redirect: true
+                  });
+                  return; // NO permitir reconexión
+              }
+          }
+          
+          // Cancelar el timeout de abandono si existe
+          if (room.abandonmentTimeouts && room.abandonmentTimeouts[user.userId]) {
+              clearTimeout(room.abandonmentTimeouts[user.userId]);
+              delete room.abandonmentTimeouts[user.userId];
+              console.log(`[LUDO RECONNECT] ${username} se reconectó exitosamente. Timeout de abandono cancelado.`);
+          }
+          
+          const timeoutKey = `${roomId}_${user.userId}`;
+          if (ludoReconnectTimeouts[timeoutKey]) {
+              clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+              delete ludoReconnectTimeouts[timeoutKey];
+          }
+          
           ludoClearReconnection(roomId, user.userId);
+          
+          // Notificar a todos que el jugador se reconectó
+          io.to(roomId).emit('playerReconnected', {
+              playerName: username,
+              message: `${username} se reconectó.`
+          });
       }
-      // ▲▲▲ FIN DEL FIX ▲▲▲
+      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
 
       // ▼▼▼ INICIO DEL BLOQUE REEMPLAZADO ▼▼▼
       // --- LÓGICA DE ASIGNACIÓN DE ASIENTOS (DIAGONAL OBLIGATORIA PARA 2 JUGADORES) ---

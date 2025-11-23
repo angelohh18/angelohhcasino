@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.5'; // Actualizado: Fix abandono 2 jugadores - forzar salida del jugador que abandonó
+const CACHE_NAME = 'mutijuego-v1.9.6'; // Actualizado: Fix reconexión después de abandono - bloquear reconexión si juego ya terminó
 const urlsToCache = [
   '/',
   '/index.html',
