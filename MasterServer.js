@@ -1390,7 +1390,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             });
             room.allowRematchConfirmation = true;
             
-            // ▼▼▼ FIX: Marcar abandono como finalizado y forzar salida del jugador que abandonó ▼▼▼
+            // ▼▼▼ FIX CRÍTICO: Marcar abandono como finalizado ANTES de liberar asiento y notificar ▼▼▼
             // Marcar que el abandono fue definitivo para este jugador
             if (!room.abandonmentFinalized) {
                 room.abandonmentFinalized = {};
@@ -1408,6 +1408,14 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                 delete room.abandonmentTimeouts[leavingPlayerSeat.userId];
             }
             
+            // Limpiar reconnectSeats para este jugador
+            if (room.reconnectSeats && room.reconnectSeats[leavingPlayerSeat.userId]) {
+                delete room.reconnectSeats[leavingPlayerSeat.userId];
+                if (Object.keys(room.reconnectSeats).length === 0) {
+                    delete room.reconnectSeats;
+                }
+            }
+            
             // Emitir actualización de estado que sincronice a todos los jugadores
             const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
             io.to(roomId).emit('ludoGameStateUpdated', {
@@ -1423,18 +1431,18 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             // Si no encontramos el socket por playerId, buscar por userId en todos los sockets conectados
             if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
                 for (const [socketId, socket] of io.sockets.sockets.entries()) {
-                    if (socket.userId === leavingPlayerSeat.userId || 
-                        (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId === leavingPlayerSeat.userId)) {
+                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                    if (socketUserId === leavingPlayerSeat.userId) {
                         leavingPlayerSocket = socket;
                         break;
                     }
                 }
             }
             
+            const bet = parseFloat(room.settings.bet) || 0;
+            const roomCurrency = room.settings.betCurrency || 'USD';
+            
             if (leavingPlayerSocket) {
-                const bet = parseFloat(room.settings.bet) || 0;
-                const roomCurrency = room.settings.betCurrency || 'USD';
-                
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
                 leavingPlayerSocket.emit('gameEnded', { 
                     reason: 'abandonment', 
@@ -1444,19 +1452,21 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                     penalty: bet,
                     currency: roomCurrency
                 });
-                // Forzar que el socket salga de la sala después de un breve delay
-                setTimeout(() => {
-                    if (leavingPlayerSocket && leavingPlayerSocket.currentRoomId === roomId) {
-                        leavingPlayerSocket.leave(roomId);
-                        delete leavingPlayerSocket.currentRoomId;
-                        console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de abandono`);
-                    }
-                }, 1000);
-            } else {
-                // Si el socket no está conectado, guardar la información para cuando se reconecte
-                console.log(`[${roomId}] Jugador ${playerName} (${leavingPlayerSeat.userId}) no está conectado. Se notificará cuando intente reconectar.`);
+                // Forzar que el socket salga de la sala inmediatamente
+                if (leavingPlayerSocket.currentRoomId === roomId) {
+                    leavingPlayerSocket.leave(roomId);
+                    delete leavingPlayerSocket.currentRoomId;
+                    console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de abandono`);
+                }
             }
-            // ▲▲▲ FIN DEL FIX ▲▲▲ 
+            
+            // IMPORTANTE: Marcar la sala para que no se limpie inmediatamente después del abandono
+            // Esto permite que el jugador que abandonó pueda recibir la notificación si se reconecta
+            room._abandonmentProcessed = true;
+            room._abandonmentTimestamp = Date.now();
+            
+            console.log(`[${roomId}] Abandono procesado para ${playerName} (${leavingPlayerSeat.userId}). Sala marcada para limpieza diferida.`);
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲ 
         } else if (remainingActivePlayers.length > 1) {
             io.to(roomId).emit('ludoGameStateUpdated', {
                 newGameState: room.gameState, 
