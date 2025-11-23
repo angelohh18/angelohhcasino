@@ -1417,14 +1417,32 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             });
             
             // Notificar específicamente al jugador que abandonó que debe salir
-            const leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+            // Buscar el socket por userId en caso de que se haya reconectado con nuevo socket.id
+            let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+            
+            // Si no encontramos el socket por playerId, buscar por userId en todos los sockets conectados
+            if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                    if (socket.userId === leavingPlayerSeat.userId || 
+                        (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId === leavingPlayerSeat.userId)) {
+                        leavingPlayerSocket = socket;
+                        break;
+                    }
+                }
+            }
+            
             if (leavingPlayerSocket) {
+                const bet = parseFloat(room.settings.bet) || 0;
+                const roomCurrency = room.settings.betCurrency || 'USD';
+                
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
                 leavingPlayerSocket.emit('gameEnded', { 
                     reason: 'abandonment', 
                     winner: winnerName,
-                    message: 'Has abandonado la partida. El juego terminó.',
-                    redirect: true
+                    message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+                    redirect: true,
+                    penalty: bet,
+                    currency: roomCurrency
                 });
                 // Forzar que el socket salga de la sala después de un breve delay
                 setTimeout(() => {
@@ -1434,6 +1452,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                         console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de abandono`);
                     }
                 }, 1000);
+            } else {
+                // Si el socket no está conectado, guardar la información para cuando se reconecte
+                console.log(`[${roomId}] Jugador ${playerName} (${leavingPlayerSeat.userId}) no está conectado. Se notificará cuando intente reconectar.`);
             }
             // ▲▲▲ FIN DEL FIX ▲▲▲ 
         } else if (remainingActivePlayers.length > 1) {
@@ -6881,7 +6902,34 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       }
     
       const mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
-      if (mySeatIndex === -1) return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
+      if (mySeatIndex === -1) {
+          // Verificar si el jugador fue eliminado por abandono
+          const mySeat = room.seats.find(s => s && s.playerId === socket.id);
+          if (!mySeat) {
+              // Buscar por userId para verificar si fue eliminado
+              const userId = socket.userId || socket.handshake.auth?.userId;
+              if (userId && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+                  socket.emit('gameEnded', { 
+                      reason: 'abandonment', 
+                      message: 'Has sido eliminado por abandono. Redirigiendo al lobby...',
+                      redirect: true
+                  });
+                  return;
+              }
+          }
+          return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
+      }
+      
+      const mySeat = room.seats[mySeatIndex];
+      // Verificar si el jugador fue eliminado por abandono
+      if (mySeat && mySeat.userId && room.abandonmentFinalized && room.abandonmentFinalized[mySeat.userId]) {
+          socket.emit('gameEnded', { 
+              reason: 'abandonment', 
+              message: 'Has sido eliminado por abandono. Redirigiendo al lobby...',
+              redirect: true
+          });
+          return;
+      }
 
       // --- VALIDACIÓN: Jugador en espera no puede interactuar ---
       const mySeat = room.seats[mySeatIndex];

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.0'; // Actualizado: Fix manejo abandono - verificar sala existe y notificar correctamente
+const CACHE_NAME = 'mutijuego-v1.10.1'; // Actualizado: Fix abandono - eliminar jugador correctamente y bloquear interacciones
 const urlsToCache = [
   '/',
   '/index.html',
