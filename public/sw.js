@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.7.0'; // Actualizado: Fix apuesta y bote en revanchas
+const CACHE_NAME = 'mutijuego-v1.8.0'; // Actualizado: Fix sincronización lista usuarios en tiempo real
 const urlsToCache = [
   '/',
   '/index.html',
