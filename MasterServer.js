@@ -7949,7 +7949,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       });
     });
 
-    socket.on('startRematch', (data) => {
+    socket.on('startRematch', async (data) => {
       const { roomId } = data;
       const room = ludoRooms[roomId];
     
@@ -7977,17 +7977,17 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       // ▼▼▼ DÉBITO DE CRÉDITOS Y ACTUALIZACIÓN DEL BOTE (CORREGIDO) ▼▼▼
       const roomBet = parseFloat(room.settings.bet) || 0;
       const roomCurrency = room.settings.betCurrency || 'USD';
-      const confirmedPlayerNames = [...(room.rematchData?.confirmedPlayers || [])];
+      const initialConfirmedPlayerNames = [...(room.rematchData?.confirmedPlayers || [])];
       const gameType = room.settings.gameType || 'ludo';
       const isGroupsMode = gameType === 'parchis' && room.settings.parchisMode === '4-groups';
 
-      console.log(`[REMATCH START] Validando y debitando ${roomBet} ${roomCurrency} a jugadores confirmados: [${confirmedPlayerNames.join(', ')}]`);
+      console.log(`[REMATCH START] Validando y debitando ${roomBet} ${roomCurrency} a jugadores confirmados: [${initialConfirmedPlayerNames.join(', ')}]`);
 
       // --- FASE 1: VALIDAR CRÉDITOS DE TODOS LOS JUGADORES ---
       const failedPlayers = [];
       const playersToCharge = [];
 
-      for (const playerName of confirmedPlayerNames) {
+      for (const playerName of initialConfirmedPlayerNames) {
           const playerSeat = room.seats.find(s => s && s.playerName === playerName);
           if (!playerSeat || !playerSeat.userId) {
               console.warn(`[REMATCH START] No se encontró asiento o userId para ${playerName}`);
