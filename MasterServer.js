@@ -6903,19 +6903,19 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       const mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
       if (mySeatIndex === -1) {
-          // Verificar si el jugador fue eliminado por abandono
-          const mySeat = room.seats.find(s => s && s.playerId === socket.id);
-          if (!mySeat) {
-              // Buscar por userId para verificar si fue eliminado
-              const userId = socket.userId || socket.handshake.auth?.userId;
-              if (userId && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
-                  socket.emit('gameEnded', { 
-                      reason: 'abandonment', 
-                      message: 'Has sido eliminado por abandono. Redirigiendo al lobby...',
-                      redirect: true
-                  });
-                  return;
-              }
+          // Buscar por userId para verificar si fue eliminado por abandono
+          const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+          if (userId && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+              const bet = parseFloat(room.settings.bet) || 0;
+              const roomCurrency = room.settings.betCurrency || 'USD';
+              socket.emit('gameEnded', { 
+                  reason: 'abandonment', 
+                  message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+                  redirect: true,
+                  penalty: bet,
+                  currency: roomCurrency
+              });
+              return;
           }
           return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
       }
@@ -6923,10 +6923,14 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       const mySeat = room.seats[mySeatIndex];
       // Verificar si el jugador fue eliminado por abandono
       if (mySeat && mySeat.userId && room.abandonmentFinalized && room.abandonmentFinalized[mySeat.userId]) {
+          const bet = parseFloat(room.settings.bet) || 0;
+          const roomCurrency = room.settings.betCurrency || 'USD';
           socket.emit('gameEnded', { 
               reason: 'abandonment', 
-              message: 'Has sido eliminado por abandono. Redirigiendo al lobby...',
-              redirect: true
+              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+              redirect: true,
+              penalty: bet,
+              currency: roomCurrency
           });
           return;
       }
