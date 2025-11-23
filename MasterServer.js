@@ -719,14 +719,14 @@ const CHAT_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutos en milisegundos
 
 // ▼▼▼ VARIABLES GLOBALES PARA LUDO ▼▼▼
 let ludoReconnectTimeouts = {}; // Mapa para rastrear timeouts de reconexión de Ludo: {roomId_userId: timeoutId}
-const LUDO_RECONNECT_TIMEOUT_MS = 60000; // 60 segundos (1 minuto) para reconexión en partida activa
+const LUDO_RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconexión en partida activa
 const LUDO_ORPHAN_ROOM_CLEANUP_INTERVAL_MS = 5000; // Limpiar salas huérfanas cada 5 segundos
 let ludoPeriodicCleanupInterval = null; // Intervalo para limpieza periódica (solo cuando hay salas vacías)
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LUDO ▲▲▲
 
 // ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
 let reconnectTimeouts = {}; // Para rastrear los tiempos de reconexión
-const RECONNECT_TIMEOUT_MS = 60000; // 60 segundos (1 minuto) para reconectar en partida activa
+const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar en partida activa
 // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
 // ▼▼▼ AÑADE ESTAS LÍNEAS ▼▼▼
@@ -5432,7 +5432,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
                 // Solo aplicar timeout de reconexión si el jugador está activo (no en espera)
-                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 60 segundos para reconexión...`);
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos para reconexión...`);
                 
                 // Inicializar reconnectSeats si no existe
                 if (!room.reconnectSeats) {
@@ -5446,7 +5446,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     timestamp: Date.now()
                 };
                 
-                // Configurar timeout de 60 segundos antes de considerar abandono
+                // Configurar timeout de 2 minutos antes de considerar abandono
                 const timeoutKey = `${roomId}_${userId}`;
                 // Guardar referencia al timeout en el room para poder cancelarlo si se reconecta
                 if (!room.abandonmentTimeouts) {
@@ -5456,7 +5456,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     // Si después de 60 segundos no se reconectó, entonces sí es abandono
                     const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
                     if (stillDisconnected) {
-                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 60 segundos. Considerado abandono.`);
+                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 2 minutos. Considerado abandono.`);
                         // Marcar que el abandono fue definitivo
                         if (!room.abandonmentFinalized) {
                             room.abandonmentFinalized = {};

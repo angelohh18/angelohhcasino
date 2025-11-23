@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.6'; // Actualizado: Fix reconexión después de abandono - bloquear reconexión si juego ya terminó
+const CACHE_NAME = 'mutijuego-v1.9.7'; // Actualizado: Timeout de reconexión aumentado a 2 minutos
 const urlsToCache = [
   '/',
   '/index.html',
