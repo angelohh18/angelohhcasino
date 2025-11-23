@@ -2056,17 +2056,43 @@ document.addEventListener('DOMContentLoaded', function() {
     // ▼▼▼ FIX: Listener para cuando el juego termina por abandono - redirigir al jugador que abandonó ▼▼▼
     socket.on('gameEnded', (data) => {
         console.log('[gameEnded] El juego terminó:', data);
-        if (data.reason === 'abandonment' && data.redirect) {
-            // Si el jugador que recibió este evento es el que abandonó, redirigir al lobby
+        if (data.redirect) {
+            // Redirigir al lobby con mensaje apropiado
             setTimeout(() => {
-                let message = data.message || `El juego terminó porque abandonaste.`;
-                if (data.penalty && data.currency) {
-                    message += `\n\nSe te ha descontado la apuesta de ${data.penalty} ${data.currency} por abandono.`;
+                let message = data.message || 'El juego terminó.';
+                if (data.reason === 'abandonment') {
+                    message = `Has sido eliminado por abandono.`;
+                    if (data.penalty && data.currency) {
+                        message += `\n\nSe te ha descontado la apuesta de ${data.penalty} ${data.currency}.`;
+                    }
+                } else if (data.reason === 'room_not_found') {
+                    message = data.message || 'La sala ya no existe. Puede que hayas sido eliminado por abandono.';
                 }
                 if (data.winner) {
                     message += `\n\nEl ganador fue: ${data.winner}`;
                 }
                 alert(message);
+                window.location.href = '/ludo';
+            }, 1000);
+        }
+    });
+    
+    // Listener para errores de sala
+    socket.on('ludoError', (data) => {
+        console.log('[ludoError]', data);
+        if (data.message && (data.message.includes('no existe') || data.message.includes('no encontrada'))) {
+            setTimeout(() => {
+                alert('La sala ya no existe. Puede que hayas sido eliminado por abandono.');
+                window.location.href = '/ludo';
+            }, 1000);
+        }
+    });
+    
+    socket.on('joinRoomFailed', (data) => {
+        console.log('[joinRoomFailed]', data);
+        if (data.message && (data.message.includes('no existe') || data.message.includes('no encontrada'))) {
+            setTimeout(() => {
+                alert('La sala ya no existe. Puede que hayas sido eliminado por abandono.');
                 window.location.href = '/ludo';
             }, 1000);
         }

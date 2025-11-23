@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.9.9'; // Actualizado: Revertir animación fichas a método original (left/top)
+const CACHE_NAME = 'mutijuego-v1.10.0'; // Actualizado: Fix manejo abandono - verificar sala existe y notificar correctamente
 const urlsToCache = [
   '/',
   '/index.html',
