@@ -595,6 +595,25 @@ function broadcastUserListUpdate(io) {
         }
     });
     
+    // ▼▼▼ CORRECCIÓN: Eliminar usuarios duplicados por username (mantener solo el más reciente) ▼▼▼
+    const usernameToSocketId = new Map();
+    Object.keys(connectedUsers).forEach(socketId => {
+        const user = connectedUsers[socketId];
+        if (user && user.username) {
+            const existingSocketId = usernameToSocketId.get(user.username);
+            if (!existingSocketId) {
+                // Primera vez que vemos este username, guardarlo
+                usernameToSocketId.set(user.username, socketId);
+            } else {
+                // Ya existe este username, eliminar el anterior (mantener el más reciente)
+                console.log(`[User List] Eliminando usuario duplicado: ${user.username} (socket anterior: ${existingSocketId})`);
+                delete connectedUsers[existingSocketId];
+                usernameToSocketId.set(user.username, socketId);
+            }
+        }
+    });
+    // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+    
     // Convierte el objeto de usuarios en un array simple para enviarlo al cliente
     // Y añade información sobre en qué sala y juego están
     const userList = Object.keys(connectedUsers)
@@ -627,9 +646,11 @@ function broadcastUserListUpdate(io) {
                 }
                 // Si no está jugando, mostrar en qué lobby está
                 else if (user.currentLobby) {
-                    if (user.status === 'En el Lobby' || user.status === 'En el lobby de Ludo' || user.status === 'En el lobby de La 51') {
-                        user.status = `En el lobby de ${user.currentLobby}`;
-                    }
+                    // Actualizar el estado basándose en el lobby actual
+                    user.status = `En el lobby de ${user.currentLobby}`;
+                } else if (!user.status || user.status === 'En el Lobby') {
+                    // Si no tiene lobby específico, mantener "En el Lobby"
+                    user.status = 'En el Lobby';
                 }
             }
             
@@ -4284,23 +4305,69 @@ io.on('connection', (socket) => {
 
     // Eventos para rastrear en qué lobby está el usuario
     socket.on('enterLudoLobby', () => {
+        // ▼▼▼ CORRECCIÓN: Eliminar entradas duplicadas del mismo usuario antes de actualizar ▼▼▼
+        const username = connectedUsers[socket.id]?.username;
+        if (username) {
+            // Buscar y eliminar otras entradas del mismo usuario
+            Object.keys(connectedUsers).forEach(otherSocketId => {
+                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === username) {
+                    console.log(`[enterLudoLobby] Eliminando entrada duplicada de ${username} (socket anterior: ${otherSocketId})`);
+                    delete connectedUsers[otherSocketId];
+                }
+            });
+        }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+        
         if (connectedUsers[socket.id]) {
             connectedUsers[socket.id].currentLobby = 'Ludo';
-            // Si no está jugando, actualizar el estado
-            if (connectedUsers[socket.id].status === 'En el Lobby') {
+            // Actualizar el estado inmediatamente
+            if (!connectedUsers[socket.id].status || connectedUsers[socket.id].status === 'En el Lobby' || connectedUsers[socket.id].status.includes('lobby')) {
                 connectedUsers[socket.id].status = 'En el lobby de Ludo';
             }
+            // Emitir actualización inmediata
+            broadcastUserListUpdate(io);
+        } else {
+            // Si no existe, crear la entrada
+            const username = connectedUsers[socket.id]?.username || 'Usuario';
+            connectedUsers[socket.id] = {
+                username: username,
+                status: 'En el lobby de Ludo',
+                currentLobby: 'Ludo'
+            };
             broadcastUserListUpdate(io);
         }
     });
 
     socket.on('enterLa51Lobby', () => {
+        // ▼▼▼ CORRECCIÓN: Eliminar entradas duplicadas del mismo usuario antes de actualizar ▼▼▼
+        const username = connectedUsers[socket.id]?.username;
+        if (username) {
+            // Buscar y eliminar otras entradas del mismo usuario
+            Object.keys(connectedUsers).forEach(otherSocketId => {
+                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === username) {
+                    console.log(`[enterLa51Lobby] Eliminando entrada duplicada de ${username} (socket anterior: ${otherSocketId})`);
+                    delete connectedUsers[otherSocketId];
+                }
+            });
+        }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+        
         if (connectedUsers[socket.id]) {
             connectedUsers[socket.id].currentLobby = 'La 51';
-            // Si no está jugando, actualizar el estado
-            if (connectedUsers[socket.id].status === 'En el Lobby') {
+            // Actualizar el estado inmediatamente
+            if (!connectedUsers[socket.id].status || connectedUsers[socket.id].status === 'En el Lobby' || connectedUsers[socket.id].status.includes('lobby')) {
                 connectedUsers[socket.id].status = 'En el lobby de La 51';
             }
+            // Emitir actualización inmediata
+            broadcastUserListUpdate(io);
+        } else {
+            // Si no existe, crear la entrada
+            const username = connectedUsers[socket.id]?.username || 'Usuario';
+            connectedUsers[socket.id] = {
+                username: username,
+                status: 'En el lobby de La 51',
+                currentLobby: 'La 51'
+            };
             broadcastUserListUpdate(io);
         }
     });
