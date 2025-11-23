@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.6.0'; // Actualizado: Fix bloqueo PWA cuando entra jugador en espera
+const CACHE_NAME = 'mutijuego-v1.7.0'; // Actualizado: Fix apuesta y bote en revanchas
 const urlsToCache = [
   '/',
   '/index.html',
