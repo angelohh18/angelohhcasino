@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.3.0'; // Actualizado para detección automática mejorada
+const CACHE_NAME = 'mutijuego-v1.4.0'; // Actualizado para actualizaciones automáticas
 const urlsToCache = [
   '/',
   '/index.html',
@@ -21,44 +21,74 @@ const urlsToCache = [
 // Instalar Service Worker
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Instalando nueva versión...');
-  // Usar skipWaiting() automáticamente para actualizar inmediatamente
-  self.skipWaiting();
+  // Forzar actualización inmediata saltando la fase de espera
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Cacheando archivos');
-        // Cachear archivos uno por uno para no bloquear si alguno falla
-        return Promise.allSettled(
-          urlsToCache.map(url => 
-            cache.add(url).catch(err => {
-              console.warn(`Service Worker: No se pudo cachear ${url}:`, err);
-              return null; // Continuar aunque falle
-            })
-          )
+    Promise.all([
+      // Limpiar caches antiguos primero
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Service Worker: Eliminando cache antiguo:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
         );
-      })
-      .catch((error) => {
-        console.error('Service Worker: Error al abrir cache:', error);
-      })
+      }),
+      // Cachear nuevos archivos
+      caches.open(CACHE_NAME)
+        .then((cache) => {
+          console.log('Service Worker: Cacheando archivos');
+          // Cachear archivos uno por uno para no bloquear si alguno falla
+          return Promise.allSettled(
+            urlsToCache.map(url => 
+              cache.add(url).catch(err => {
+                console.warn(`Service Worker: No se pudo cachear ${url}:`, err);
+                return null; // Continuar aunque falle
+              })
+            )
+          );
+        })
+    ]).then(() => {
+      // Activar inmediatamente sin esperar
+      return self.skipWaiting();
+    })
+    .catch((error) => {
+      console.error('Service Worker: Error durante instalación:', error);
+      // Aún así, activar para no bloquear
+      return self.skipWaiting();
+    })
   );
 });
 
 // Activar Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activando...');
+  console.log('Service Worker: Activando nueva versión...');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Eliminando cache antiguo:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      // Tomar control inmediatamente para activar la nueva versión
-      return self.clients.claim();
+    Promise.all([
+      // Limpiar caches antiguos
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Service Worker: Eliminando cache antiguo:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Tomar control inmediatamente de todos los clientes
+      self.clients.claim()
+    ]).then(() => {
+      // Notificar a todos los clientes que hay una nueva versión
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_UPDATED',
+            message: 'Nueva versión disponible. Recargando...'
+          });
+        });
+      });
     })
   );
 });
@@ -127,7 +157,10 @@ self.addEventListener('fetch', (event) => {
 // Manejar mensajes del cliente
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+    self.skipWaiting().then(() => {
+      // Notificar al cliente que se activó
+      event.ports && event.ports[0] && event.ports[0].postMessage({ type: 'SKIP_WAITING_DONE' });
+    });
   }
 });
 

@@ -5942,6 +5942,42 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           color: assignedColor
       };
 
+      // ▼▼▼ CORRECCIÓN: Inicializar piezas para jugadores en espera ▼▼▼
+      // Si el jugador entra en espera durante una partida en curso, inicializar sus piezas
+      if (room.state === 'playing' && room.seats[emptySeatIndex].status === 'waiting' && room.gameState && room.gameState.pieces) {
+          // Verificar si las piezas para este color ya están inicializadas
+          if (!room.gameState.pieces[assignedColor] || room.gameState.pieces[assignedColor].length === 0) {
+              const pieceCount = room.settings.pieceCount || 4;
+              const gameType = room.settings.gameType || 'ludo';
+              const autoExitSetting = room.settings.autoExit || 'double';
+              
+              // Inicializar las piezas para este color
+              room.gameState.pieces[assignedColor] = [];
+              for (let i = 0; i < pieceCount; i++) {
+                  let pieceState = 'base';
+                  let piecePosition = -1;
+                  
+                  // Lógica de salida automática SOLO aplica a Ludo con autoExit 'auto'
+                  if (gameType === 'ludo' && autoExitSetting === 'auto') {
+                      pieceState = 'active';
+                      const startPos = room.gameState.board?.start?.[assignedColor];
+                      if (startPos !== undefined) {
+                          piecePosition = startPos;
+                      }
+                  }
+                  
+                  room.gameState.pieces[assignedColor].push({
+                      id: `${assignedColor}-${i + 1}`,
+                      color: assignedColor,
+                      state: pieceState,
+                      position: piecePosition,
+                  });
+              }
+              console.log(`[${roomId}] Piezas inicializadas para jugador en espera ${username} (${assignedColor}): ${pieceCount} piezas`);
+          }
+      }
+      // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+
       if (effectiveReconnectSeatInfo) {
           ludoClearReconnection(roomId, user.userId);
       }
@@ -6167,6 +6203,42 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
               };
               console.log(`[${roomId}] ${userId} asignado al asiento ${mySeatIndex} (${assignedColor}) con estado ${room.seats[mySeatIndex].status}`);
               playerName = room.seats[mySeatIndex].playerName; // Guardar nombre
+              
+              // ▼▼▼ CORRECCIÓN: Inicializar piezas para jugadores en espera ▼▼▼
+              // Si el jugador entra en espera durante una partida en curso, inicializar sus piezas
+              if (room.state === 'playing' && room.seats[mySeatIndex].status === 'waiting' && room.gameState && room.gameState.pieces) {
+                  // Verificar si las piezas para este color ya están inicializadas
+                  if (!room.gameState.pieces[assignedColor] || room.gameState.pieces[assignedColor].length === 0) {
+                      const pieceCount = room.settings.pieceCount || 4;
+                      const gameType = room.settings.gameType || 'ludo';
+                      const autoExitSetting = room.settings.autoExit || 'double';
+                      
+                      // Inicializar las piezas para este color
+                      room.gameState.pieces[assignedColor] = [];
+                      for (let i = 0; i < pieceCount; i++) {
+                          let pieceState = 'base';
+                          let piecePosition = -1;
+                          
+                          // Lógica de salida automática SOLO aplica a Ludo con autoExit 'auto'
+                          if (gameType === 'ludo' && autoExitSetting === 'auto') {
+                              pieceState = 'active';
+                              const startPos = room.gameState.board?.start?.[assignedColor];
+                              if (startPos !== undefined) {
+                                  piecePosition = startPos;
+                              }
+                          }
+                          
+                          room.gameState.pieces[assignedColor].push({
+                              id: `${assignedColor}-${i + 1}`,
+                              color: assignedColor,
+                              state: pieceState,
+                              position: piecePosition,
+                          });
+                      }
+                      console.log(`[${roomId}] Piezas inicializadas para jugador en espera ${playerName} (${assignedColor}): ${pieceCount} piezas`);
+                  }
+              }
+              // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
           }
         
           if (mySeatIndex === -1) {

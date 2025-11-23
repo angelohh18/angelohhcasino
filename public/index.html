@@ -1205,8 +1205,11 @@
                                             // Recargar automáticamente después de un breve delay
                                             setTimeout(() => {
                                                 window.location.reload();
-                                            }, 1000);
+                                            }, 500);
                                         }
+                                    } else if (newWorker.state === 'activated') {
+                                        console.log('Nuevo Service Worker activado. Recargando...');
+                                        window.location.reload();
                                     }
                                 });
                             }
@@ -1218,10 +1221,20 @@
                             window.location.reload();
                         });
                         
-                        // Verificar actualizaciones periódicamente (cada 1 minuto)
+                        // Escuchar mensajes del Service Worker
+                        navigator.serviceWorker.addEventListener('message', (event) => {
+                            if (event.data && event.data.type === 'SW_UPDATED') {
+                                console.log('Service Worker:', event.data.message);
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 500);
+                            }
+                        });
+                        
+                        // Verificar actualizaciones periódicamente (cada 30 segundos)
                         setInterval(() => {
                             registration.update();
-                        }, 60000); // Cada 1 minuto para detectar cambios más rápido
+                        }, 30000); // Cada 30 segundos para detectar cambios más rápido
                         
                         // Verificar actualizaciones cuando la página gana foco (usuario vuelve a la app)
                         window.addEventListener('focus', () => {
