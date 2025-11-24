@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.18'; // Actualizado: Fix preservar username y avatar en userStateUpdated listener del lobby
+const CACHE_NAME = 'mutijuego-v1.12.19'; // Actualizado: Fix timeouts duplicados - usar userId en lugar de socket.id para evitar múltiples timeouts
 const urlsToCache = [
   '/',
   '/index.html',
