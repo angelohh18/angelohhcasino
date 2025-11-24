@@ -1040,6 +1040,15 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
 
     console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}.`);
     
+    // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está saliendo ▼▼▼
+    const inactivityTimeoutKey = `${roomId}_${leavingPlayerId}`;
+    if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+        clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+        delete ludoInactivityTimeouts[inactivityTimeoutKey];
+        console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${leavingPlayerId} (jugador está saliendo)`);
+    }
+    // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
+    
     // Declarar roomCurrency al inicio para evitar duplicación
     const roomCurrency = room.settings.betCurrency || 'USD';
 
@@ -5550,6 +5559,15 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
             // ▼▼▼ SIMPLE Y DIRECTO: El jugador se desconectó durante una partida activa - ELIMINAR INMEDIATAMENTE ▼▼▼
             // Usar la misma lógica que cuando abandona voluntariamente
             console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Eliminando INMEDIATAMENTE por abandono.`);
+            
+            // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador se desconectó ▼▼▼
+            const inactivityTimeoutKey = `${roomId}_${socket.id}`;
+            if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+                clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+                delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${socket.id} (jugador se desconectó)`);
+            }
+            // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
             
             // Llamar a ludoHandlePlayerDeparture para eliminar al jugador inmediatamente
             // (esta función ya maneja todo: liberar asiento, eliminar fichas, mostrar modal, etc.)
