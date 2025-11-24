@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.28'; // Actualizado: Fix - esperar 2 minutos de inactividad para desconexiones involuntarias, eliminar inmediatamente solo para abandonos voluntarios
+const CACHE_NAME = 'mutijuego-v1.12.29'; // Actualizado: Fix - eliminar handler duplicado de disconnect que causaba error de sintaxis
 const urlsToCache = [
   '/',
   '/index.html',
