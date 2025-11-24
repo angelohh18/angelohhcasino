@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.11.3'; // Actualizado: Fix reconexión - actualizar socket.currentRoomId y join room al reconectar
+const CACHE_NAME = 'mutijuego-v1.11.4'; // Actualizado: Fix reconexión - buscar asiento por userId si no se encuentra por socket.id
 const urlsToCache = [
   '/',
   '/index.html',

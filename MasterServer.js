@@ -7555,7 +7555,20 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       if (!room) return socket.emit('ludoError', { message: 'Sala no encontrada.' });
       if (room.state !== 'playing') return socket.emit('ludoError', { message: 'El juego no ha comenzado.' });
 
-      const mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
+      // Buscar asiento por socket.id primero, luego por userId (para casos de reconexión)
+      const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+      let mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
+      
+      // Si no se encuentra por socket.id, buscar por userId (reconexión)
+      if (mySeatIndex === -1 && userId) {
+          mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
+          // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id
+          if (mySeatIndex !== -1) {
+              room.seats[mySeatIndex].playerId = socket.id;
+              console.log(`[${roomId}] Actualizado playerId del asiento ${mySeatIndex} a ${socket.id} para userId ${userId}`);
+          }
+      }
+      
       if (mySeatIndex === -1) return socket.emit('ludoError', { message: 'No estás sentado.' });
       
       // --- VALIDACIÓN: Jugador en espera no puede interactuar ---
