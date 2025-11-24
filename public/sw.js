@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.8'; // Actualizado: Agregar logs para verificar tiempo exacto de timeout de abandono
+const CACHE_NAME = 'mutijuego-v1.10.9'; // Actualizado: Fix ludoCleanupExpiredReconnections - no debe eliminar jugadores con timeout activo
 const urlsToCache = [
   '/',
   '/index.html',

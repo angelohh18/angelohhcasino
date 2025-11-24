@@ -810,15 +810,21 @@ function ludoCleanupExpiredReconnections(roomId, io) {
     const expiredUserIds = [];
 
     for (const [userId, reconnectData] of Object.entries(room.reconnectSeats)) {
-        // Si la reconexión tiene timestamp y ha expirado
-        if (reconnectData.timestamp && (now - reconnectData.timestamp > LUDO_RECONNECT_TIMEOUT_MS)) {
+        // IMPORTANTE: Solo limpiar si el timeout ya se ejecutó (verificar que NO hay timeout activo)
+        // El timeout de abandono es el que debe ejecutar la lógica de eliminación, no esta función
+        const timeoutKey = `${roomId}_${userId}`;
+        const hasActiveTimeout = ludoReconnectTimeouts[timeoutKey] || (room.abandonmentTimeouts && room.abandonmentTimeouts[userId]);
+        
+        // Solo limpiar si NO hay timeout activo Y el tiempo ha expirado
+        // Esto significa que el timeout ya se ejecutó y procesó el abandono
+        if (!hasActiveTimeout && reconnectData.timestamp && (now - reconnectData.timestamp > LUDO_RECONNECT_TIMEOUT_MS)) {
             expiredUserIds.push(userId);
         }
     }
 
-    // Limpiar reconexiones expiradas
+    // Limpiar reconexiones expiradas (solo datos residuales, no jugadores activos)
     expiredUserIds.forEach(userId => {
-        console.log(`[Ludo Cleanup] Limpiando reconexión expirada para usuario ${userId} en sala ${roomId}`);
+        console.log(`[Ludo Cleanup] Limpiando datos residuales de reconexión expirada para usuario ${userId} en sala ${roomId}`);
         ludoClearReconnection(roomId, userId);
     });
 }
