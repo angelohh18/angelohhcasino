@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.2'; // Actualizado: Fix abandono - eliminar jugador inmediatamente después de 2 minutos, mostrar modal sin delays
+const CACHE_NAME = 'mutijuego-v1.12.3'; // Actualizado: Fix reconexión PWA - usar localStorage como respaldo para userId cuando sessionStorage se pierde
 const urlsToCache = [
   '/',
   '/index.html',

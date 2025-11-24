@@ -1410,17 +1410,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // ▲▲▲ FIN DE LAS NUEVAS FUNCIONES ▲▲▲
     
     // 1. Unirse a la sala
-    // ▼▼▼ BLOQUE MODIFICADO ▼▼▼
-    let userId = sessionStorage.getItem('userId');
+    // ▼▼▼ BLOQUE MODIFICADO - Usar localStorage como respaldo para PWA ▼▼▼
+    let userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
     
-    // Si no hay userId, intentar recuperarlo desde username
+    // Si no hay userId, intentar recuperarlo desde username (sessionStorage o localStorage)
     if (!userId) {
-        const username = sessionStorage.getItem('username');
+        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
         if (username) {
             userId = 'user_' + username.toLowerCase();
+            // Guardar en ambos para persistencia en PWA
             sessionStorage.setItem('userId', userId);
+            localStorage.setItem('userId', userId);
             console.log('[joinLudoGame] userId restaurado desde username:', userId);
         }
+    } else {
+        // Si encontramos userId, asegurarnos de que esté en ambos lugares
+        sessionStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId);
     }
     
     if (!userId) {
@@ -1428,6 +1434,8 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = '/ludo';
         return;
     }
+    
+    console.log('[joinLudoGame] Usando userId:', userId, 'para reconectar a roomId:', roomId);
     
     // Enviar el userId para la re-asociación
     socket.emit('joinLudoGame', { roomId, userId }); 
@@ -2074,15 +2082,22 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('gameEnded', (data) => {
         console.log('[gameEnded] El juego terminó:', data);
         if (data.redirect) {
-            // ▼▼▼ CRÍTICO: Preservar userId en sessionStorage antes de redirigir ▼▼▼
-            const userId = sessionStorage.getItem('userId');
+            // ▼▼▼ CRÍTICO: Preservar userId en sessionStorage Y localStorage antes de redirigir (para PWA) ▼▼▼
+            let userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
             if (!userId) {
-                // Intentar recuperar desde localStorage o currentUser
-                const username = sessionStorage.getItem('username');
+                // Intentar recuperar desde username (sessionStorage o localStorage)
+                const username = sessionStorage.getItem('username') || localStorage.getItem('username');
                 if (username) {
-                    sessionStorage.setItem('userId', 'user_' + username.toLowerCase());
-                    console.log('[gameEnded] userId restaurado desde username:', sessionStorage.getItem('userId'));
+                    userId = 'user_' + username.toLowerCase();
+                    // Guardar en ambos para persistencia en PWA
+                    sessionStorage.setItem('userId', userId);
+                    localStorage.setItem('userId', userId);
+                    console.log('[gameEnded] userId restaurado desde username:', userId);
                 }
+            } else {
+                // Asegurarse de que esté en ambos lugares
+                sessionStorage.setItem('userId', userId);
+                localStorage.setItem('userId', userId);
             }
             // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
             

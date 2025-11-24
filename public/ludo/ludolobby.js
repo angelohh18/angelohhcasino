@@ -268,12 +268,20 @@ function showPwaInstallModal() {
 
 // --- INICIO: SCRIPT DEL LOBBY ---
 (function(){
-    // ▼▼▼ CRÍTICO: Verificar y restaurar userId desde sessionStorage si existe ▼▼▼
-    const savedUserId = sessionStorage.getItem('userId');
-    const savedUsername = sessionStorage.getItem('username');
+    // ▼▼▼ CRÍTICO: Verificar y restaurar userId desde sessionStorage o localStorage (para PWA) ▼▼▼
+    let savedUserId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+    let savedUsername = sessionStorage.getItem('username') || localStorage.getItem('username');
+    
     if (savedUsername && !savedUserId) {
-        sessionStorage.setItem('userId', 'user_' + savedUsername.toLowerCase());
-        console.log('[Lobby] userId restaurado desde username:', sessionStorage.getItem('userId'));
+        savedUserId = 'user_' + savedUsername.toLowerCase();
+        // Guardar en ambos para persistencia
+        sessionStorage.setItem('userId', savedUserId);
+        localStorage.setItem('userId', savedUserId);
+        console.log('[Lobby] userId restaurado desde username:', savedUserId);
+    } else if (savedUserId) {
+        // Asegurarse de que esté en ambos lugares
+        sessionStorage.setItem('userId', savedUserId);
+        localStorage.setItem('userId', savedUserId);
     }
     // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     
@@ -1448,10 +1456,18 @@ function showRoomsOverview() {
         }, 0);
         window.addEventListener('resize', scaleAndCenterLobby);
 
-        sessionStorage.setItem('userId', currentUser.userId);
+        // ▼▼▼ CRÍTICO: Guardar en sessionStorage Y localStorage para persistencia en PWA ▼▼▼
+        const userId = currentUser.userId;
+        sessionStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId); // Respaldo para PWA
         sessionStorage.setItem('username', user.name);
+        localStorage.setItem('username', user.name); // Respaldo para PWA
         sessionStorage.setItem('userAvatar', user.avatar || '');
+        localStorage.setItem('userAvatar', user.avatar || ''); // Respaldo para PWA
         sessionStorage.setItem('userCurrency', user.currency || 'USD');
+        localStorage.setItem('userCurrency', user.currency || 'USD'); // Respaldo para PWA
+        console.log('[completeLogin] userId guardado en sessionStorage y localStorage:', userId);
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     }
 
 
