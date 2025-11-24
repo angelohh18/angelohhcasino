@@ -6569,43 +6569,65 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       }
       // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
       
-      // ▼▼▼ ¡BLOQUE DE RECONEXIÓN MEJORADO! ▼▼▼
+      // ▼▼▼ BLOQUE DE RECONEXIÓN: Si se reconecta antes de 2 minutos, restaurar asiento y cancelar timeout ▼▼▼
       const timeoutKey = `${roomId}_${userId}`;
       if (room.reconnectSeats && room.reconnectSeats[userId]) {
-          console.log(`[LUDO RECONNECT] ¡${userId} se ha reconectado a ${roomId} a tiempo!`);
+          console.log(`[LUDO RECONNECT] ¡${userId} se ha reconectado a ${roomId} antes de 2 minutos! Restaurando asiento...`);
           
           const reservedInfo = room.reconnectSeats[userId];
-          if (room.seats[reservedInfo.seatIndex] === null) {
-              // El asiento sigue libre, lo devolvemos
-              room.seats[reservedInfo.seatIndex] = {
-                  ...reservedInfo.seatData,
-                  playerId: socket.id, // ¡Actualizamos con el NUEVO socket.id!
-                  status: 'waiting' // Lo ponemos en espera
-              };
-              console.log(`[${roomId}] ${userId} recuperó su asiento reservado ${reservedInfo.seatIndex} al reconectarse.`);
-          }
+          const originalSeatIndex = reservedInfo.seatIndex;
           
-          // Limpiamos el timeout y los datos de reconexión
-          // ▼▼▼ CORRECCIÓN: Usar ludoReconnectTimeouts ▼▼▼
+          // Cancelar timeout de abandono ANTES de restaurar el asiento
           if (ludoReconnectTimeouts[timeoutKey]) {
               clearTimeout(ludoReconnectTimeouts[timeoutKey]);
               delete ludoReconnectTimeouts[timeoutKey];
-              console.log(`[Cleanup] Timeout de reconexión limpiado para ${userId} en sala ${roomId}`);
+              console.log(`[Cleanup] Timeout de abandono cancelado para ${userId} en sala ${roomId}`);
           }
           
-          // Cancelar timeout de abandono si existe
           if (room.abandonmentTimeouts && room.abandonmentTimeouts[userId]) {
               clearTimeout(room.abandonmentTimeouts[userId]);
               delete room.abandonmentTimeouts[userId];
           }
-          // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+          
+          // Restaurar el asiento si está libre - IMPORTANTE: mantener el status original (playing, no waiting)
+          if (room.seats[originalSeatIndex] === null) {
+              room.seats[originalSeatIndex] = {
+                  ...reservedInfo.seatData,
+                  playerId: socket.id, // Actualizar con el nuevo socket.id
+                  status: reservedInfo.seatData.status || 'playing' // Mantener el status original (playing, no waiting)
+              };
+              console.log(`[${roomId}] ${userId} recuperó su asiento ${originalSeatIndex} al reconectarse. Status: ${room.seats[originalSeatIndex].status}`);
+          } else {
+              console.warn(`[${roomId}] El asiento ${originalSeatIndex} ya está ocupado. No se puede restaurar.`);
+          }
+          
+          // Limpiar datos de reconexión
           delete room.reconnectSeats[userId];
+          if (Object.keys(room.reconnectSeats).length === 0) {
+              delete room.reconnectSeats;
+          }
           
           // Notificar a todos que el jugador se reconectó
           io.to(roomId).emit('playerReconnected', {
               playerName: reservedInfo.seatData.playerName,
               message: `${reservedInfo.seatData.playerName} se reconectó.`
           });
+          
+          // Actualizar estado del juego para sincronizar al jugador reconectado
+          const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+          socket.emit('joinedRoomSuccessfully', {
+              roomId: roomId,
+              roomName: room.settings.roomName,
+              seats: room.seats,
+              settings: room.settings,
+              mySeatIndex: originalSeatIndex,
+              gameState: room.gameState
+          });
+          
+          io.to(roomId).emit('playerJoined', sanitizedRoom);
+          
+          // IMPORTANTE: No continuar con la lógica de asignación de asientos, ya que el asiento fue restaurado
+          return;
       }
       // ▲▲▲ FIN DEL BLOQUE DE RECONEXIÓN ▲▲▲
     
