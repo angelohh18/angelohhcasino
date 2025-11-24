@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.15'; // Actualizado: Timeout de inactividad - esperar 2 minutos de inactividad cuando jugador se desconecta antes de eliminar
+const CACHE_NAME = 'mutijuego-v1.12.16'; // Actualizado: Fix error de sesión - preservar username antes de redirigir desde gameEnded
 const urlsToCache = [
   '/',
   '/index.html',

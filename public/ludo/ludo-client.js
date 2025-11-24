@@ -2082,23 +2082,31 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('gameEnded', (data) => {
         console.log('[gameEnded] El juego terminó:', data);
         if (data.redirect) {
-            // ▼▼▼ CRÍTICO: Preservar userId en sessionStorage Y localStorage antes de redirigir (para PWA) ▼▼▼
+            // ▼▼▼ CRÍTICO: Preservar userId Y username en sessionStorage Y localStorage antes de redirigir (para PWA) ▼▼▼
             let userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
-            if (!userId) {
-                // Intentar recuperar desde username (sessionStorage o localStorage)
-                const username = sessionStorage.getItem('username') || localStorage.getItem('username');
-                if (username) {
-                    userId = 'user_' + username.toLowerCase();
-                    // Guardar en ambos para persistencia en PWA
-                    sessionStorage.setItem('userId', userId);
-                    localStorage.setItem('userId', userId);
-                    console.log('[gameEnded] userId restaurado desde username:', userId);
-                }
-            } else {
-                // Asegurarse de que esté en ambos lugares
+            let username = sessionStorage.getItem('username') || localStorage.getItem('username');
+            
+            // Si no hay username, intentar recuperarlo desde userId
+            if (!username && userId) {
+                username = userId.replace('user_', '');
+            }
+            
+            // Si no hay userId, intentar recuperarlo desde username
+            if (!userId && username) {
+                userId = 'user_' + username.toLowerCase();
+            }
+            
+            // Guardar en ambos lugares para persistencia en PWA
+            if (userId) {
                 sessionStorage.setItem('userId', userId);
                 localStorage.setItem('userId', userId);
             }
+            if (username) {
+                sessionStorage.setItem('username', username);
+                localStorage.setItem('username', username);
+            }
+            
+            console.log('[gameEnded] Datos preservados antes de redirigir - userId:', userId, 'username:', username);
             // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
             
             // Redirigir al lobby con mensaje apropiado
