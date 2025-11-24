@@ -1030,6 +1030,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
     if (!room) return;
 
     console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}.`);
+    
+    // Declarar roomCurrency al inicio para evitar duplicación
+    const roomCurrency = room.settings.betCurrency || 'USD';
 
     if (room.spectators) {
         room.spectators = room.spectators.filter(s => s.playerId !== leavingPlayerId);
@@ -1284,9 +1287,10 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
         const username = leavingPlayerSeat.userId.replace('user_', '');
         const userInfo = users[username.toLowerCase()];
         const bet = parseFloat(room.settings.bet) || 0;
-        const roomCurrency = room.settings.betCurrency || 'USD';
+        // roomCurrency se declara más abajo cuando se declara victoria, no aquí
         io.to(roomId).emit('playSound', 'fault');
-        io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName, bet: bet.toLocaleString('es-ES'), currency: roomCurrency });
+        const roomCurrencyForFault = room.settings.betCurrency || 'USD';
+        io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName, bet: bet.toLocaleString('es-ES'), currency: roomCurrencyForFault });
         
         if (room.gameState && room.gameState.pieces && room.gameState.pieces[playerColor]) {
             delete room.gameState.pieces[playerColor];
@@ -1439,8 +1443,8 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                 }
             }
             
+            // roomCurrency ya está declarado al inicio de la función
             const bet = parseFloat(room.settings.bet) || 0;
-            const roomCurrency = room.settings.betCurrency || 'USD';
             
             if (leavingPlayerSocket) {
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);

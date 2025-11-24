@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.5'; // Actualizado: Fix timeout async para abandono
+const CACHE_NAME = 'mutijuego-v1.10.6'; // Actualizado: Fix declaración duplicada de roomCurrency
 const urlsToCache = [
   '/',
   '/index.html',
