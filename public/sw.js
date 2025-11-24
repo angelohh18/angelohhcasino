@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.3'; // Actualizado: Fix abandono - limpieza correcta de sala y notificaciones
+const CACHE_NAME = 'mutijuego-v1.10.4'; // Actualizado: Simplificar lógica de abandono - eliminar después de 2 minutos
 const urlsToCache = [
   '/',
   '/index.html',

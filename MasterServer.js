@@ -847,17 +847,7 @@ function ludoCheckAndCleanRoom(roomId, io) {
     // 0. Limpiar reconexiones expiradas primero
     ludoCleanupExpiredReconnections(roomId, io);
 
-    // 1. Si hay un abandono reciente, esperar antes de limpiar la sala (para permitir notificaciones)
-    if (room._abandonmentProcessed && room._abandonmentTimestamp) {
-        const abandonmentAge = Date.now() - room._abandonmentTimestamp;
-        const ABANDONMENT_NOTIFICATION_DELAY = 60000; // 60 segundos para permitir notificaciones
-        if (abandonmentAge < ABANDONMENT_NOTIFICATION_DELAY) {
-            console.log(`[Ludo Cleanup] Sala ${roomId} tiene abandono reciente (${Math.round(abandonmentAge/1000)}s). Esperando antes de limpiar.`);
-            return; // No limpiar aún
-        }
-    }
-
-    // 2. Contar jugadores en los asientos.
+    // 1. Contar jugadores en los asientos.
     const playersInSeats = room.seats.filter(s => s !== null).length;
 
     // 3. Contar reconexiones pendientes (después de limpiar expiradas)
@@ -5497,14 +5487,173 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     // Si después de 2 minutos no se reconectó, entonces sí es abandono
                     const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
                     if (stillDisconnected) {
-                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 2 minutos. Considerado abandono.`);
-                        // Marcar que el abandono fue definitivo ANTES de llamar a ludoHandlePlayerDeparture
+                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 2 minutos. Eliminando por abandono.`);
+                        
+                        // Obtener información del jugador antes de eliminarlo
+                        const leavingSeatInfo = room.reconnectSeats[userId];
+                        const leavingSeatIndex = leavingSeatInfo.seatIndex;
+                        const leavingPlayerName = leavingSeatInfo.seatData.playerName;
+                        const leavingPlayerColor = leavingSeatInfo.seatData.color;
+                        
+                        // Limpiar datos de reconexión
+                        delete room.reconnectSeats[userId];
+                        if (Object.keys(room.reconnectSeats).length === 0) {
+                            delete room.reconnectSeats;
+                        }
+                        
+                        // Liberar el asiento
+                        room.seats[leavingSeatIndex] = null;
+                        
+                        // Marcar abandono finalizado
                         if (!room.abandonmentFinalized) {
                             room.abandonmentFinalized = {};
                         }
                         room.abandonmentFinalized[userId] = true;
-                        ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io);
+                        
+                        // Notificar falta por abandono a todos los jugadores
+                        const bet = parseFloat(room.settings.bet) || 0;
+                        const roomCurrency = room.settings.betCurrency || 'USD';
+                        io.to(roomId).emit('playSound', 'fault');
+                        io.to(roomId).emit('ludoFoulPenalty', { 
+                            type: 'abandon', 
+                            playerName: leavingPlayerName, 
+                            bet: bet.toLocaleString('es-ES'), 
+                            currency: roomCurrency 
+                        });
+                        
+                        // Buscar el socket del jugador que abandonó para notificarlo y redirigirlo
+                        let leavingPlayerSocket = null;
+                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                            if (socketUserId === userId) {
+                                leavingPlayerSocket = socket;
+                                break;
+                            }
+                        }
+                        
+                        if (leavingPlayerSocket) {
+                            leavingPlayerSocket.emit('gameEnded', { 
+                                reason: 'abandonment', 
+                                message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+                                redirect: true,
+                                penalty: bet,
+                                currency: roomCurrency
+                            });
+                            // Forzar salida de la sala
+                            if (leavingPlayerSocket.currentRoomId === roomId) {
+                                leavingPlayerSocket.leave(roomId);
+                                delete leavingPlayerSocket.currentRoomId;
+                            }
+                        }
+                        
+                        // Eliminar fichas del jugador que abandonó
+                        if (room.gameState && room.gameState.pieces && room.gameState.pieces[leavingPlayerColor]) {
+                            delete room.gameState.pieces[leavingPlayerColor];
+                        }
+                        
+                        // Verificar si queda solo un jugador (ganador)
+                        const remainingActivePlayers = room.seats.filter(s => s !== null && s.status === 'playing');
+                        if (remainingActivePlayers.length === 1) {
+                            // Declarar victoria para el jugador restante
+                            const winnerSeat = remainingActivePlayers[0];
+                            const winnerName = winnerSeat.playerName;
+                            console.log(`[${roomId}] ¡¡¡VICTORIA POR ABANDONO!!! Solo queda 1 jugador: ${winnerName}`);
+                            
+                            room.state = 'post-game';
+                            const totalPot = room.gameState.pot;
+                            const commission = totalPot * 0.10;
+                            const finalWinnings = totalPot - commission;
+                            
+                            // Guardar comisión
+                            if (!room.commissionSaved) {
+                                const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
+                                await saveCommission(commissionInCOP, 'COP');
+                                room.commissionSaved = true;
+                            }
+                            
+                            // Pagar al ganador
+                            const winnerUsername = winnerSeat.userId.replace('user_', '');
+                            let winnerInfo = users[winnerSeat.userId];
+                            
+                            if (!winnerInfo) {
+                                try {
+                                    if (DISABLE_DB) {
+                                        const userFromMemory = inMemoryUsers.get(winnerUsername);
+                                        if (userFromMemory) {
+                                            winnerInfo = {
+                                                credits: parseFloat(userFromMemory.credits || 0),
+                                                currency: userFromMemory.currency || 'EUR'
+                                            };
+                                            users[winnerSeat.userId] = winnerInfo;
+                                        }
+                                    } else {
+                                        const userData = await getUserByUsername(winnerUsername);
+                                        if (userData) {
+                                            winnerInfo = userData;
+                                            users[winnerSeat.userId] = winnerInfo;
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error(`[${roomId}] Error obteniendo datos de usuario para pago:`, error);
+                                }
+                            }
+                            
+                            if (winnerInfo) {
+                                const winningsInUserCurrency = convertCurrency(finalWinnings, roomCurrency, winnerInfo.currency, exchangeRates);
+                                winnerInfo.credits += winningsInUserCurrency;
+                                await updateUserCredits(winnerSeat.userId, winnerInfo.credits, winnerInfo.currency);
+                                
+                                const winnerSocket = io.sockets.sockets.get(winnerSeat.playerId);
+                                if (winnerSocket) {
+                                    winnerSocket.emit('userStateUpdated', winnerInfo);
+                                }
+                            }
+                            
+                            const playersWhoPlayed = room.gameState.playersAtStart || [winnerSeat.playerName, leavingPlayerName];
+                            room.rematchData = {
+                                winnerId: winnerSeat.playerId,
+                                winnerName: winnerName,
+                                winnerColor: winnerSeat.color,
+                                confirmedPlayers: [],
+                                canStart: false,
+                                expectedPlayers: 1
+                            };
+                            
+                            io.to(roomId).emit('playSound', 'victory');
+                            io.to(roomId).emit('ludoGameOver', {
+                                winnerName: winnerName,
+                                winnerColor: winnerSeat.color,
+                                winnerAvatar: winnerSeat.avatar,
+                                playersWhoPlayed: playersWhoPlayed,
+                                totalPot: totalPot,
+                                commission: commission,
+                                finalWinnings: finalWinnings,
+                                rematchData: room.rematchData,
+                                abandonment: true
+                            });
+                            room.allowRematchConfirmation = true;
+                        } else if (remainingActivePlayers.length > 1) {
+                            // Si quedan más jugadores, pasar el turno si era el turno del que abandonó
+                            if (room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === leavingSeatIndex) {
+                                console.log(`[${roomId}] Era el turno del jugador que abandonó. Pasando al siguiente...`);
+                                ludoPassTurn(room, io);
+                            }
+                        }
+                        
+                        // Actualizar estado del juego
+                        const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+                        io.to(roomId).emit('ludoGameStateUpdated', {
+                            newGameState: room.gameState,
+                            seats: room.seats,
+                            moveInfo: { type: 'player_abandoned', playerName: leavingPlayerName, playerColor: leavingPlayerColor }
+                        });
+                        
+                        // Limpiar la sala después de un delay
+                        setTimeout(() => {
+                            ludoCheckAndCleanRoom(roomId, io);
+                        }, 5000);
                     }
+                    
                     delete ludoReconnectTimeouts[timeoutKey];
                     if (room.abandonmentTimeouts) {
                         delete room.abandonmentTimeouts[userId];
