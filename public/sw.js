@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.21'; // Actualizado: Fix - aplicar penalización cuando jugador abandona voluntariamente durante partida activa
+const CACHE_NAME = 'mutijuego-v1.12.22'; // Actualizado: Fix - procesar abandono voluntario inmediatamente sin esperar timeouts
 const urlsToCache = [
   '/',
   '/index.html',
