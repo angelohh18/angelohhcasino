@@ -1100,9 +1100,22 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
     }
     // ▲▲▲ FIN: LÓGICA DE REASIGNACIÓN DE ANFITRIÓN DE REVANCHA ▲▲▲
 
-    // ▼▼▼ MODIFICADO: Liberar asiento inmediatamente sin reserva de reconexión ▼▼▼
-    // Limpiar cualquier reconexión pendiente para este usuario
+    // ▼▼▼ CORRECCIÓN: Verificar si hay un timeout de reconexión activo antes de procesar abandono ▼▼▼
+    // Si el jugador se desconectó durante una partida activa, el timeout de 2 minutos ya está configurado
+    // NO debemos procesar el abandono inmediatamente aquí
     const timeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
+    const hasActiveReconnectTimeout = ludoReconnectTimeouts[timeoutKey] || (room.abandonmentTimeouts && room.abandonmentTimeouts[leavingPlayerSeat.userId]);
+    const isInReconnectSeats = room.reconnectSeats && room.reconnectSeats[leavingPlayerSeat.userId];
+    
+    // Si hay un timeout activo o está en reconnectSeats, NO procesar el abandono aquí
+    // El timeout se encargará de procesar el abandono después de 2 minutos
+    if (hasActiveReconnectTimeout || isInReconnectSeats) {
+        console.log(`[${roomId}] Jugador ${playerName} tiene timeout de reconexión activo. NO procesando abandono inmediato.`);
+        return; // Salir de la función - el timeout se encargará del abandono
+    }
+    
+    // Si NO hay timeout activo, entonces es un abandono intencional (leaveGame, etc.)
+    // Limpiar cualquier reconexión pendiente para este usuario
     if (ludoReconnectTimeouts[timeoutKey]) {
         clearTimeout(ludoReconnectTimeouts[timeoutKey]);
         delete ludoReconnectTimeouts[timeoutKey];
@@ -1116,10 +1129,10 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
         }
     }
     
-    // Liberar el asiento inmediatamente (sin importar el estado)
+    // Liberar el asiento (solo para abandonos intencionales, no para desconexiones)
     room.seats[seatIndex] = null;
-    console.log(`[${roomId}] Jugador ${playerName} (asiento ${seatIndex}) abandonó la mesa. Asiento liberado inmediatamente.`);
-    // ▲▲▲ FIN DE LA MODIFICACIÓN ▲▲▲
+    console.log(`[${roomId}] Jugador ${playerName} (asiento ${seatIndex}) abandonó la mesa intencionalmente. Asiento liberado.`);
+    // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
     if (room.state === 'playing' && leavingPlayerSeat.status !== 'waiting') {
         console.log(`Jugador activo ${playerName} ha abandonado durante el juego.`);
