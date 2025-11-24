@@ -2185,10 +2185,27 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('playerLeft', (roomData) => {
         console.log('[playerLeft] Un jugador ha salido:', roomData);
         
-        // ▼▼▼ CRÍTICO: Actualizar asientos cuando un jugador abandona ▼▼▼
+        // ▼▼▼ CRÍTICO: Actualizar asientos cuando un jugador abandona y notificar ▼▼▼
         if (roomData && roomData.seats && gameState) {
             console.log('[playerLeft] Actualizando asientos después de que un jugador abandonó');
+            
+            // Contar jugadores antes y después para detectar si alguien abandonó
+            const playersBefore = gameState.seats.filter(s => s !== null).length;
             gameState.seats = roomData.seats;
+            const playersAfter = gameState.seats.filter(s => s !== null).length;
+            
+            // Si hay menos jugadores, alguien abandonó
+            if (playersAfter < playersBefore) {
+                const notificationMessage = 'Un jugador ha abandonado la partida.';
+                if (typeof window.showToast === 'function') {
+                    window.showToast(notificationMessage, 5000);
+                } else if (typeof showToast === 'function') {
+                    showToast(notificationMessage, 5000);
+                } else {
+                    console.log('[playerLeft]', notificationMessage);
+                }
+            }
+            
             // Re-renderizar el tablero para reflejar los cambios
             renderLudoBoard(gameState);
         }
@@ -2248,7 +2265,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // ▲▲▲ FIN DEL FIX ▲▲▲
         
-        // ▼▼▼ CRÍTICO: Manejar caso de jugador abandonado - actualizar asientos ▼▼▼
+        // ▼▼▼ CRÍTICO: Manejar caso de jugador abandonado - actualizar asientos y notificar ▼▼▼
         if (moveInfo && moveInfo.type === 'player_abandoned') {
             console.log('[ludoGameStateUpdated] Un jugador abandonó:', moveInfo.playerName);
             // Actualizar asientos si se proporcionan
@@ -2257,6 +2274,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderLudoBoard(gameState);
                 console.log('[ludoGameStateUpdated] Asientos actualizados después de abandono');
             }
+            
+            // ▼▼▼ CRÍTICO: Mostrar notificación al jugador que quedó en la mesa ▼▼▼
+            const notificationMessage = `El jugador ${moveInfo.playerName} ha abandonado la partida.`;
+            if (typeof window.showToast === 'function') {
+                window.showToast(notificationMessage, 5000);
+            } else if (typeof showToast === 'function') {
+                showToast(notificationMessage, 5000);
+            } else {
+                console.log('[ludoGameStateUpdated]', notificationMessage);
+            }
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
         }
         // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
         
