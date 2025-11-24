@@ -2162,6 +2162,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // ▲▲▲ FIN DEL FIX ▲▲▲
         
+        // ▼▼▼ FIX: Manejar caso de reconexión - sincronizar estado sin animar ▼▼▼
+        if (moveInfo && moveInfo.type === 'reconnect_sync') {
+            console.log('[ludoGameStateUpdated] Sincronización de reconexión. Actualizando estado completo sin animar.');
+            // Sincronizar estado completo sin animar movimientos
+            gameState.gameState = newGameState;
+            if (data.seats) {
+                gameState.seats = data.seats;
+                renderLudoBoard(gameState);
+            }
+            // Renderizar fichas en su posición actual
+            renderBasePieces(gameState.gameState.pieces);
+            renderActivePieces(gameState.gameState.pieces);
+            // Actualizar UI del turno
+            updateTurnUI();
+            updateClickablePieces();
+            // Resolver la promesa inmediatamente (sin esperar animaciones)
+            updateResolver();
+            return; // No procesar más (no animar movimientos)
+        }
+        // ▲▲▲ FIN DEL FIX ▲▲▲
+        
         // 4. ¿Hubo un movimiento de ficha activa con ruta? -> Animar
         if (moveInfo && moveInfo.type === 'move_active_piece' && moveInfo.movePath && moveInfo.movePath.length > 0) {
              await animatePieceStep(moveInfo.pieceId, moveInfo.movePath); // Espera a que termine la animación

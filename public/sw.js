@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.11.7'; // Actualizado: Fix reconexión - emitir ludoGameStateUpdated al reconectar para sincronizar estado completo
+const CACHE_NAME = 'mutijuego-v1.11.8'; // Actualizado: Fix reconexión - manejar reconnect_sync en cliente para sincronizar sin animar
 const urlsToCache = [
   '/',
   '/index.html',
