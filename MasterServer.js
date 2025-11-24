@@ -9065,9 +9065,8 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           console.log(`[${roomId}] (Rematch) Modo Parejas: Se mantienen los asientos fijos. Los huecos libres podrán ser llenados por nuevos jugadores.`);
       }
       // --- FIN: LÓGICA DE RE-ASIGNACIÓN DIAGONAL ---
+      // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
-  // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
-    
       // ▼▼▼ REINICIAR JUEGO CON MISMA CONFIGURACIÓN ▼▼▼
       const pieceCount = room.settings.pieceCount || 4;
     
