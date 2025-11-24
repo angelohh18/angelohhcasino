@@ -1067,11 +1067,24 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
 
     console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}.`);
     
-    // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está saliendo ▼▼▼
-    // CRÍTICO: Buscar el userId del jugador que está saliendo para cancelar el timeout correctamente
-    const leavingPlayerSeat = room.seats.find(s => s && (s.playerId === leavingPlayerId || s.userId === leavingPlayerId));
-    const leavingPlayerUserId = leavingPlayerSeat ? leavingPlayerSeat.userId : null;
+    // Declarar roomCurrency al inicio para evitar duplicación
+    const roomCurrency = room.settings.betCurrency || 'USD';
+
+    if (room.spectators) {
+        room.spectators = room.spectators.filter(s => s.playerId !== leavingPlayerId);
+    }
+
+    const seatIndex = room.seats.findIndex(s => s && s.playerId === leavingPlayerId);
+    if (seatIndex === -1) {
+        io.to(roomId).emit('spectatorListUpdated', { spectators: room.spectators });
+        ludoCheckAndCleanRoom(roomId, io);
+        return;
+    }
     
+    const leavingPlayerSeat = { ...room.seats[seatIndex] };
+    const leavingPlayerUserId = leavingPlayerSeat.userId;
+    
+    // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está saliendo ▼▼▼
     // Cancelar timeout usando userId (preferido)
     if (leavingPlayerUserId) {
         const inactivityTimeoutKey = `${roomId}_${leavingPlayerUserId}`;
@@ -1101,22 +1114,6 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
         });
     }
     // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
-    
-    // Declarar roomCurrency al inicio para evitar duplicación
-    const roomCurrency = room.settings.betCurrency || 'USD';
-
-    if (room.spectators) {
-        room.spectators = room.spectators.filter(s => s.playerId !== leavingPlayerId);
-    }
-
-    const seatIndex = room.seats.findIndex(s => s && s.playerId === leavingPlayerId);
-    if (seatIndex === -1) {
-        io.to(roomId).emit('spectatorListUpdated', { spectators: room.spectators });
-        ludoCheckAndCleanRoom(roomId, io);
-        return;
-    }
-    
-    const leavingPlayerSeat = { ...room.seats[seatIndex] };
     const playerName = leavingPlayerSeat.playerName;
     const playerColor = leavingPlayerSeat.color; 
 
