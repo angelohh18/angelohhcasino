@@ -2756,8 +2756,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Botón "Sí" (volver al lobby)
         btnConfirmLeaveYes.addEventListener('click', () => {
-            // (Opcional: podrías emitir un socket.emit('leaveRoom', { roomId }); aquí)
-            window.location.href = '/ludo'; // Redirige al lobby de Ludo
+            // ▼▼▼ CRÍTICO: Emitir leaveGame ANTES de redirigir para eliminar al jugador inmediatamente ▼▼▼
+            if (gameState && gameState.roomId) {
+                console.log('[btnConfirmLeaveYes] Emitiendo leaveGame para eliminar jugador inmediatamente de sala:', gameState.roomId);
+                socket.emit('leaveGame', { roomId: gameState.roomId });
+            }
+            // Cerrar modal
+            confirmLeaveModal.style.display = 'none';
+            // Pequeño delay para asegurar que el servidor procese el leaveGame antes de redirigir
+            setTimeout(() => {
+                window.location.href = '/ludo';
+            }, 200);
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
         });
     }
 

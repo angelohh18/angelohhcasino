@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.22'; // Actualizado: Fix - procesar abandono voluntario inmediatamente sin esperar timeouts
+const CACHE_NAME = 'mutijuego-v1.12.23'; // Actualizado: Fix - emitir leaveGame desde botón de confirmación para eliminar jugador inmediatamente
 const urlsToCache = [
   '/',
   '/index.html',
