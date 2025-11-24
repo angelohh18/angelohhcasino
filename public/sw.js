@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.7'; // Actualizado: Fix reconexión - procesar reconexión inmediatamente al inicio, eliminar código duplicado
+const CACHE_NAME = 'mutijuego-v1.12.8'; // Actualizado: Fix PWA - evitar recargas automáticas durante partidas activas
 const urlsToCache = [
   '/',
   '/index.html',
@@ -67,29 +67,39 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
       // Limpiar caches antiguos
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Eliminando cache antiguo:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Service Worker: Eliminando cache antiguo:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
       }),
-      // Tomar control inmediatamente de todos los clientes
-      self.clients.claim()
-    ]).then(() => {
-      // Notificar a todos los clientes que hay una nueva versión
-      return self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'SW_UPDATED',
-            message: 'Nueva versión disponible. Recargando...'
+      // Tomar control de clientes SIN forzar recarga automática
+      self.clients.claim().then(() => {
+        // Verificar clientes y notificar solo si NO están en partidas activas
+        return self.clients.matchAll({ includeUncontrolled: true }).then(clients => {
+          clients.forEach(client => {
+            // Solo notificar si NO está en una partida activa
+            const url = client.url || '';
+            const isInActiveGame = url.includes('/ludo-game') || url.includes('/la51game') || url.includes('/la51-game');
+            
+            if (!isInActiveGame) {
+              // Solo notificar, NO forzar recarga
+              client.postMessage({
+                type: 'SW_UPDATED',
+                message: 'Nueva versión disponible.',
+                action: 'notify' // El cliente decidirá si recargar
+              });
+            } else {
+              console.log('Service Worker: Cliente en partida activa, no se notifica actualización:', url);
+            }
           });
         });
-      });
-    })
+      })
+    ])
   );
 });
 
