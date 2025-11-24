@@ -6640,79 +6640,12 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       const room = ludoRooms[roomId];
     
-      // ▼▼▼ CRÍTICO: Verificar reconexión ANTES de verificar si la sala existe ▼▼▼
-      // Si el jugador está en reconnectSeats, la sala puede existir pero necesitamos restaurar el asiento
-      if (room && room.reconnectSeats && room.reconnectSeats[userId]) {
-          // El jugador está intentando reconectar, procesar reconexión primero
-          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId}. Procesando reconexión...`);
-          // Continuar con la lógica de reconexión más abajo
-      } else if (!room) {
-          // La sala ya no existe (probablemente fue limpiada después de abandono)
-          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} que ya no existe.`);
-          socket.emit('gameEnded', { 
-              reason: 'room_not_found', 
-              message: 'La sala ya no existe. Puede que hayas sido eliminado por abandono.',
-              redirect: true
-          });
-          return;
-      }
-      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
-      
-      // Verificar si el jugador fue eliminado por abandono (incluso si la sala existe)
-      if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
-          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero fue eliminado por abandono. Redirigiendo al lobby.`);
-          
-          const username = userId.replace('user_', '');
-          const bet = parseFloat(room.settings.bet) || 0;
-          const roomCurrency = room.settings.betCurrency || 'USD';
-          
-          socket.emit('gameEnded', { 
-              reason: 'abandonment', 
-              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
-              redirect: true,
-              penalty: bet,
-              currency: roomCurrency
-          });
-          return; // NO permitir reconexión
-      }
-
-      // ¡CLAVE! Si la sala estaba marcada para eliminación, cancelar
-      if (room._cleanupScheduled) {
-          console.log(`[${roomId}] Jugador ${userId} se ha reconectado. Cancelando eliminación.`);
-          delete room._cleanupScheduled;
-      }
-
-      socket.join(roomId);
-    
-      // ▼▼▼ FIX CRÍTICO: Verificación ya se hizo arriba, pero verificamos también si el juego terminó por abandono ▼▼▼
-      // Si el juego está en post-game por abandono, verificar si este jugador fue el que abandonó
-      if (room.state === 'post-game' && room.rematchData && room.rematchData.abandonment) {
-          // Verificar si este jugador fue el que abandonó (no está en los asientos activos o está marcado como abandonado)
-          const wasAbandoner = (room.abandonmentFinalized && room.abandonmentFinalized[userId]) || 
-                               !room.seats.some(s => s && s.userId === userId && s.status === 'playing');
-          if (wasAbandoner) {
-              console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
-              
-              const username = userId.replace('user_', '');
-              const bet = parseFloat(room.settings.bet) || 0;
-              const roomCurrency = room.settings.betCurrency || 'USD';
-              
-              socket.emit('gameEnded', { 
-                  reason: 'abandonment', 
-                  message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
-                  redirect: true,
-                  penalty: bet,
-                  currency: roomCurrency
-              });
-              return; // NO permitir reconexión
-          }
-      }
-      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
-      
-      // ▼▼▼ BLOQUE DE RECONEXIÓN: Si se reconecta antes de 2 minutos, restaurar asiento y cancelar timeout ▼▼▼
+      // ▼▼▼ CRÍTICO: Verificar reconexión PRIMERO, antes de cualquier otra verificación ▼▼▼
+      // Si el jugador está en reconnectSeats, procesar reconexión inmediatamente
       const timeoutKey = `${roomId}_${userId}`;
-      if (room.reconnectSeats && room.reconnectSeats[userId]) {
-          console.log(`[LUDO RECONNECT] ¡${userId} se ha reconectado a ${roomId} antes de 2 minutos! Restaurando asiento...`);
+      if (room && room.reconnectSeats && room.reconnectSeats[userId]) {
+          // El jugador está intentando reconectar, procesar reconexión INMEDIATAMENTE
+          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId}. Procesando reconexión...`);
           
           const reservedInfo = room.reconnectSeats[userId];
           const originalSeatIndex = reservedInfo.seatIndex;
@@ -6775,7 +6708,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           io.to(roomId).emit('playerJoined', sanitizedRoom);
           
           // ▼▼▼ CRÍTICO: Emitir ludoGameStateUpdated para sincronizar completamente el estado del juego ▼▼▼
-          // Esto asegura que el jugador reconectado reciba el estado completo (fichas, turno, etc.)
           if (room.state === 'playing' && room.gameState) {
               console.log(`[${roomId}] Enviando ludoGameStateUpdated al jugador reconectado ${userId} para sincronizar estado completo.`);
               socket.emit('ludoGameStateUpdated', {
@@ -6790,15 +6722,76 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           socket.currentRoomId = roomId;
           socket.join(roomId);
           
-          // ▼▼▼ CRÍTICO: Notificar a todos los jugadores que el asiento fue restaurado ▼▼▼
-          // Esto asegura que todos vean que el jugador está de vuelta
-          io.to(roomId).emit('playerJoined', sanitizedRoom);
-          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
-          
           // IMPORTANTE: No continuar con la lógica de asignación de asientos, ya que el asiento fue restaurado
           return;
       }
-      // ▲▲▲ FIN DEL BLOQUE DE RECONEXIÓN ▲▲▲
+      // ▲▲▲ FIN DEL BLOQUE DE RECONEXIÓN INMEDIATA ▲▲▲
+      
+      // Si no está en reconnectSeats, verificar si la sala existe
+      if (!room) {
+          // La sala ya no existe (probablemente fue limpiada después de abandono)
+          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} que ya no existe.`);
+          socket.emit('gameEnded', { 
+              reason: 'room_not_found', 
+              message: 'La sala ya no existe. Puede que hayas sido eliminado por abandono.',
+              redirect: true
+          });
+          return;
+      }
+      
+      // Verificar si el jugador fue eliminado por abandono (incluso si la sala existe)
+      if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero fue eliminado por abandono. Redirigiendo al lobby.`);
+          
+          const username = userId.replace('user_', '');
+          const bet = parseFloat(room.settings.bet) || 0;
+          const roomCurrency = room.settings.betCurrency || 'USD';
+          
+          socket.emit('gameEnded', { 
+              reason: 'abandonment', 
+              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+              redirect: true,
+              penalty: bet,
+              currency: roomCurrency
+          });
+          return; // NO permitir reconexión
+      }
+
+      // ¡CLAVE! Si la sala estaba marcada para eliminación, cancelar
+      if (room._cleanupScheduled) {
+          console.log(`[${roomId}] Jugador ${userId} se ha reconectado. Cancelando eliminación.`);
+          delete room._cleanupScheduled;
+      }
+
+      socket.join(roomId);
+    
+      // ▼▼▼ FIX CRÍTICO: Verificación ya se hizo arriba, pero verificamos también si el juego terminó por abandono ▼▼▼
+      // Si el juego está en post-game por abandono, verificar si este jugador fue el que abandonó
+      if (room.state === 'post-game' && room.rematchData && room.rematchData.abandonment) {
+          // Verificar si este jugador fue el que abandonó (no está en los asientos activos o está marcado como abandonado)
+          const wasAbandoner = (room.abandonmentFinalized && room.abandonmentFinalized[userId]) || 
+                               !room.seats.some(s => s && s.userId === userId && s.status === 'playing');
+          if (wasAbandoner) {
+              console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+              
+              const username = userId.replace('user_', '');
+              const bet = parseFloat(room.settings.bet) || 0;
+              const roomCurrency = room.settings.betCurrency || 'USD';
+              
+              socket.emit('gameEnded', { 
+                  reason: 'abandonment', 
+                  message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+                  redirect: true,
+                  penalty: bet,
+                  currency: roomCurrency
+              });
+              return; // NO permitir reconexión
+          }
+      }
+      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+      
+      // Si llegamos aquí, el jugador no está en reconnectSeats y la sala existe
+      // Continuar con la lógica normal de asignación de asientos (nuevo jugador)
     
       // Buscar el asiento del jugador por su 'userId' (que es el username)
       let mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);

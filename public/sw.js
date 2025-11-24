@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.6'; // Actualizado: Fix notificaciones - mostrar notificación cuando jugador abandona, fix showToast con fallback
+const CACHE_NAME = 'mutijuego-v1.12.7'; // Actualizado: Fix reconexión - procesar reconexión inmediatamente al inicio, eliminar código duplicado
 const urlsToCache = [
   '/',
   '/index.html',
