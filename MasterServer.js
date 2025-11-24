@@ -5547,8 +5547,14 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             delete room.reconnectSeats;
                         }
                         
-                        // Liberar el asiento
+                        // ▼▼▼ CRÍTICO: Eliminar jugador INMEDIATAMENTE después de 2 minutos ▼▼▼
+                        // Liberar el asiento INMEDIATAMENTE
                         room.seats[leavingSeatIndex] = null;
+                        
+                        // Eliminar fichas del jugador que abandonó INMEDIATAMENTE
+                        if (room.gameState && room.gameState.pieces && room.gameState.pieces[leavingPlayerColor]) {
+                            delete room.gameState.pieces[leavingPlayerColor];
+                        }
                         
                         // Marcar abandono finalizado
                         if (!room.abandonmentFinalized) {
@@ -5556,7 +5562,22 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                         }
                         room.abandonmentFinalized[userId] = true;
                         
-                        // Notificar falta por abandono a todos los jugadores
+                        // ▼▼▼ CRÍTICO: Sincronizar estado INMEDIATAMENTE antes de mostrar modal ▼▼▼
+                        const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+                        
+                        // Emitir actualización de asientos INMEDIATAMENTE para que todos vean que el jugador ya no está
+                        io.to(roomId).emit('playerJoined', sanitizedRoom);
+                        io.to(roomId).emit('playerLeft', sanitizedRoom);
+                        
+                        // Emitir actualización del estado del juego INMEDIATAMENTE
+                        io.to(roomId).emit('ludoGameStateUpdated', {
+                            newGameState: room.gameState,
+                            seats: room.seats,
+                            moveInfo: { type: 'player_abandoned', playerName: leavingPlayerName, playerColor: leavingPlayerColor }
+                        });
+                        // ▲▲▲ FIN DE LA SINCRONIZACIÓN INMEDIATA ▲▲▲
+                        
+                        // Notificar falta por abandono a todos los jugadores (INMEDIATAMENTE después de sincronizar)
                         const bet = parseFloat(room.settings.bet) || 0;
                         const roomCurrency = room.settings.betCurrency || 'USD';
                         io.to(roomId).emit('playSound', 'fault');
@@ -5566,6 +5587,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             bet: bet.toLocaleString('es-ES'), 
                             currency: roomCurrency 
                         });
+                        // ▲▲▲ FIN DE LA ELIMINACIÓN INMEDIATA ▲▲▲
                         
                         // Buscar el socket del jugador que abandonó para notificarlo y redirigirlo
                         let leavingPlayerSocket = null;
@@ -5577,6 +5599,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             }
                         }
                         
+                        // Notificar al jugador que abandonó INMEDIATAMENTE
                         if (leavingPlayerSocket) {
                             leavingPlayerSocket.emit('gameEnded', { 
                                 reason: 'abandonment', 
@@ -5585,16 +5608,11 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                                 penalty: bet,
                                 currency: roomCurrency
                             });
-                            // Forzar salida de la sala
+                            // Forzar salida de la sala INMEDIATAMENTE
                             if (leavingPlayerSocket.currentRoomId === roomId) {
                                 leavingPlayerSocket.leave(roomId);
                                 delete leavingPlayerSocket.currentRoomId;
                             }
-                        }
-                        
-                        // Eliminar fichas del jugador que abandonó
-                        if (room.gameState && room.gameState.pieces && room.gameState.pieces[leavingPlayerColor]) {
-                            delete room.gameState.pieces[leavingPlayerColor];
                         }
                         
                         // Verificar si queda solo un jugador (ganador)
@@ -5686,24 +5704,9 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             }
                         }
                         
-                        // ▼▼▼ CRÍTICO: Actualizar estado del juego y sincronizar asientos ▼▼▼
-                        const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+                        // La sincronización ya se hizo arriba, no repetir aquí
                         
-                        // Emitir actualización de asientos primero para que todos vean que el jugador ya no está
-                        io.to(roomId).emit('playerJoined', sanitizedRoom);
-                        
-                        // Luego emitir actualización del estado del juego
-                        io.to(roomId).emit('ludoGameStateUpdated', {
-                            newGameState: room.gameState,
-                            seats: room.seats,
-                            moveInfo: { type: 'player_abandoned', playerName: leavingPlayerName, playerColor: leavingPlayerColor }
-                        });
-                        
-                        // Notificar explícitamente que un jugador abandonó
-                        io.to(roomId).emit('playerLeft', sanitizedRoom);
-                        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
-                        
-                        // Limpiar la sala después de un delay
+                        // Limpiar la sala después de un delay (solo para limpieza, no afecta la eliminación)
                         setTimeout(() => {
                             ludoCheckAndCleanRoom(roomId, io);
                         }, 5000);

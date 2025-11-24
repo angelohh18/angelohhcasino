@@ -1952,6 +1952,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (data.type === 'abandon') {
+            console.log('🚨 [FALTA POR ABANDONO] Mostrando modal inmediatamente');
             isFoulPenaltyVisualizing = false;
             penalizedPieceIdDuringFoul = null;
             foulKillingPosition = -1;
@@ -1965,7 +1966,11 @@ document.addEventListener('DOMContentLoaded', function() {
             detailsEl.innerHTML = `El jugador <strong>${data.playerName}</strong> ha abandonado la partida.<br>
                                Será eliminado y se le cobrará la apuesta de <strong>${data.bet} ${data.currency}</strong>.`;
 
+            // ▼▼▼ CRÍTICO: Mostrar modal INMEDIATAMENTE sin delays ▼▼▼
             modal.style.display = 'flex';
+            modal.style.zIndex = '10000'; // Asegurar que esté por encima de todo
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+            
             acceptBtn.textContent = 'Aceptar';
             acceptBtn.onclick = () => {
                 modal.style.display = 'none';
