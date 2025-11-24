@@ -1865,13 +1865,26 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
     const nextPlayerDisconnectKey = `${roomId}_${nextPlayer.userId}`;
     const isDisconnected = ludoDisconnectedPlayers[nextPlayerDisconnectKey];
     
-    if (isDisconnected) {
+    // ▼▼▼ CRÍTICO: Verificar si el jugador ya fue eliminado antes de iniciar timeout ▼▼▼
+    // Si el jugador ya fue penalizado, significa que ya fue eliminado, no iniciar timeout
+    const globalPenaltyKey = `${roomId}_${nextPlayer.userId}`;
+    const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey] || (room.penaltyApplied && room.penaltyApplied[nextPlayer.userId]);
+    
+    if (alreadyPenalized) {
+        console.log(`[${roomId}] ⚠️ El jugador ${nextPlayer.playerName} ya fue eliminado y penalizado. NO se inicia timeout de inactividad.`);
+        // No iniciar timeout si ya fue eliminado
+        // Continuar con el flujo normal del turno
+    } else if (isDisconnected) {
         console.log(`[${roomId}] ⚠️ El jugador ${nextPlayer.playerName} está desconectado y le toca el turno. Iniciando timeout de inactividad de 2 minutos.`);
     }
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     
-    // Iniciar timeout de inactividad para el nuevo jugador
+    // Iniciar timeout de inactividad para el nuevo jugador SOLO si NO fue eliminado
     const newTimeoutKey = `${roomId}_${nextPlayer.playerId}`;
-    ludoInactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+    
+    // Solo iniciar timeout si el jugador NO fue eliminado
+    if (!alreadyPenalized) {
+        ludoInactivityTimeouts[newTimeoutKey] = setTimeout(() => {
         console.log(`[${roomId}] ⏰ TIMEOUT DE INACTIVIDAD: El jugador ${nextPlayer.playerName} (asiento ${nextPlayerIndex}) no hizo nada en 2 minutos. Eliminando por falta.`);
         
         // Verificar que el turno todavía es de este jugador
@@ -1905,9 +1918,9 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         delete ludoDisconnectedPlayers[nextPlayerDisconnectKey];
     }, LUDO_INACTIVITY_TIMEOUT_MS);
     
-    if (isDisconnected) {
+    if (isDisconnected && !alreadyPenalized) {
         console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (DESCONECTADO, asiento ${nextPlayerIndex}). Si no vuelve y actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-    } else {
+    } else if (!alreadyPenalized) {
         console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (asiento ${nextPlayerIndex}). Si no actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     }
     // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲

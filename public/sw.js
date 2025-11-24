@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.26'; // Actualizado: Fix - sistema global de penalizaciones para evitar cobrar apuesta dos veces cuando jugador regresa a sala inexistente
+const CACHE_NAME = 'mutijuego-v1.12.27'; // Actualizado: Fix - no iniciar timeout de inactividad si jugador ya fue eliminado al desconectarse
 const urlsToCache = [
   '/',
   '/index.html',
