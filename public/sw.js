@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.20'; // Actualizado: Fix - liberar asiento correctamente cuando jugador sale del modal de revancha
+const CACHE_NAME = 'mutijuego-v1.12.21'; // Actualizado: Fix - aplicar penalización cuando jugador abandona voluntariamente durante partida activa
 const urlsToCache = [
   '/',
   '/index.html',

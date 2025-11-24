@@ -1366,11 +1366,67 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
         // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
 
         const username = leavingPlayerSeat.userId.replace('user_', '');
-        const userInfo = users[username.toLowerCase()];
+        let userInfo = users[leavingPlayerSeat.userId];
         const bet = parseFloat(room.settings.bet) || 0;
-        // roomCurrency se declara más abajo cuando se declara victoria, no aquí
-        io.to(roomId).emit('playSound', 'fault');
         const roomCurrencyForFault = room.settings.betCurrency || 'USD';
+        
+        // ▼▼▼ CRÍTICO: Aplicar penalización al jugador que abandona voluntariamente ▼▼▼
+        // Obtener información del usuario si no está en users
+        if (!userInfo && leavingPlayerSeat.userId) {
+            try {
+                if (DISABLE_DB) {
+                    const userFromMemory = inMemoryUsers.get(username);
+                    if (userFromMemory) {
+                        userInfo = {
+                            credits: parseFloat(userFromMemory.credits || 0),
+                            currency: userFromMemory.currency || 'EUR'
+                        };
+                        users[leavingPlayerSeat.userId] = userInfo;
+                    }
+                } else {
+                    const userData = await getUserByUsername(username);
+                    if (userData) {
+                        userInfo = userData;
+                        users[leavingPlayerSeat.userId] = userInfo;
+                    }
+                }
+            } catch (error) {
+                console.error(`[${roomId}] Error obteniendo datos de usuario para penalización:`, error);
+            }
+        }
+        
+        // Aplicar penalización (descontar la apuesta)
+        if (userInfo) {
+            const penaltyInUserCurrency = convertCurrency(bet, roomCurrencyForFault, userInfo.currency, exchangeRates);
+            userInfo.credits -= penaltyInUserCurrency;
+            
+            // Actualizar en BD o inMemoryUsers
+            await updateUserCredits(leavingPlayerSeat.userId, userInfo.credits, userInfo.currency);
+            
+            console.log(`[${roomId}] PENALIZACIÓN APLICADA (Abandono Voluntario): ${username} perdió ${bet.toFixed(2)} ${roomCurrencyForFault} (Equivalente a ${penaltyInUserCurrency.toFixed(2)} ${userInfo.currency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
+            
+            // Notificar al jugador que abandonó de su nuevo saldo
+            let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                    if (socketUserId === leavingPlayerSeat.userId) {
+                        leavingPlayerSocket = socket;
+                        break;
+                    }
+                }
+            }
+            if (leavingPlayerSocket) {
+                leavingPlayerSocket.emit('userStateUpdated', userInfo);
+                console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency})`);
+            }
+        } else {
+            console.warn(`[${roomId}] PENALIZACIÓN FALLIDA (Abandono Voluntario): No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
+        }
+        // ▲▲▲ FIN DE LA PENALIZACIÓN ▲▲▲
+        
+        // Emitir notificación de falta por abandono
+        io.to(roomId).emit('playSound', 'fault');
         io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName, bet: bet.toLocaleString('es-ES'), currency: roomCurrencyForFault });
         
         if (room.gameState && room.gameState.pieces && room.gameState.pieces[playerColor]) {
