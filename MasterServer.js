@@ -5741,108 +5741,58 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
             ludoCheckAndCleanRoom(roomId, io);
 
         } else if (seatIndex !== -1 && (room.state === 'playing' || room.state === 'post-game')) {
-            // ▼▼▼ NUEVA LÓGICA: El jugador se desconectó durante una partida activa - ESPERAR 2 MINUTOS DE INACTIVIDAD ▼▼▼
+            // ▼▼▼ CRÍTICO: El jugador se desconectó durante una partida activa - ELIMINAR INMEDIATAMENTE ▼▼▼
             const leavingPlayerSeat = room.seats[seatIndex];
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
-                // ▼▼▼ CRÍTICO: Si el jugador ya fue penalizado (abandono voluntario previo), eliminar INMEDIATAMENTE ▼▼▼
-                if (room.penaltyApplied && room.penaltyApplied[leavingPlayerSeat.userId]) {
-                    console.log(`[LUDO DISCONNECT] ${username} se desconectó pero ya fue penalizado anteriormente. Eliminando INMEDIATAMENTE sin esperar timeout.`);
-                    ludoHandlePlayerDeparture(roomId, socket.id, io, false);
-                    return; // Salir inmediatamente, no esperar timeout
-                }
-                // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Eliminando INMEDIATAMENTE como abandono voluntario.`);
                 
-                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos de inactividad antes de eliminar.`);
-                
-                // Marcar como desconectado (pero NO eliminar aún)
+                // Limpiar cualquier timeout de inactividad o reconexión pendiente
                 const disconnectKey = `${roomId}_${userId}`;
-                ludoDisconnectedPlayers[disconnectKey] = {
-                    disconnectedAt: Date.now(),
-                    seatIndex: seatIndex,
-                    playerId: socket.id,
-                    userId: userId
-                };
+                const timeoutKey = `${roomId}_${userId}`;
                 
-                // Verificar si es su turno actualmente
-                const isCurrentTurn = room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === seatIndex;
-                
-                if (isCurrentTurn) {
-                    // Si es su turno, iniciar timeout de inactividad INMEDIATAMENTE
-                    // ▼▼▼ CRÍTICO: Usar userId en lugar de socket.id para evitar duplicados en reconexión ▼▼▼
-                    const inactivityTimeoutKey = `${roomId}_${userId}`;
-                    
-                    // Cancelar timeout anterior si existe (usando userId)
-                    if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
-                        clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
-                        delete ludoInactivityTimeouts[inactivityTimeoutKey];
-                        console.log(`[LUDO DISCONNECT] Timeout anterior cancelado para ${username} (userId: ${userId})`);
-                    }
-                    
-                    // Verificar que no haya otro timeout activo para este jugador
-                    // Buscar cualquier timeout que pueda existir con diferentes claves
-                    Object.keys(ludoInactivityTimeouts).forEach(key => {
-                        if (key.startsWith(`${roomId}_`) && key.includes(userId)) {
-                            clearTimeout(ludoInactivityTimeouts[key]);
-                            delete ludoInactivityTimeouts[key];
-                            console.log(`[LUDO DISCONNECT] Timeout duplicado cancelado: ${key}`);
-                        }
-                    });
-                    
-                    // Iniciar nuevo timeout de inactividad
-                    ludoInactivityTimeouts[inactivityTimeoutKey] = setTimeout(() => {
-                        console.log(`[LUDO DISCONNECT TIMEOUT] ⏰ Han pasado 2 minutos desde que ${username} se desconectó. Eliminando por abandono.`);
-                        
-                        // Verificar que el jugador sigue desconectado
-                        const currentRoom = ludoRooms[roomId];
-                        if (!currentRoom) {
-                            delete ludoInactivityTimeouts[inactivityTimeoutKey];
-                            delete ludoDisconnectedPlayers[disconnectKey];
-                            return;
-                        }
-                        
-                        // Verificar que el jugador todavía está marcado como desconectado
-                        if (!ludoDisconnectedPlayers[disconnectKey]) {
-                            console.log(`[LUDO DISCONNECT TIMEOUT] ${username} se reconectó antes del timeout. No se elimina.`);
-                            delete ludoInactivityTimeouts[inactivityTimeoutKey];
-                            return;
-                        }
-                        
-                        // Verificar que el turno todavía es de este jugador
-                        const currentTurnIndex = currentRoom.gameState && currentRoom.gameState.turn ? currentRoom.gameState.turn.playerIndex : -1;
-                        if (currentTurnIndex !== seatIndex) {
-                            console.log(`[LUDO DISCONNECT TIMEOUT] El turno ya cambió. No se elimina al jugador por inactividad.`);
-                            delete ludoInactivityTimeouts[inactivityTimeoutKey];
-                            delete ludoDisconnectedPlayers[disconnectKey];
-                            return;
-                        }
-                        
-                        // Eliminar al jugador por abandono
-                        console.log(`[LUDO DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN: ${username} (asiento ${seatIndex})`);
-                        ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io);
-                        
-                        // Limpiar
-                        delete ludoInactivityTimeouts[inactivityTimeoutKey];
-                        delete ludoDisconnectedPlayers[disconnectKey];
-                    }, LUDO_INACTIVITY_TIMEOUT_MS);
-                    
-                    console.log(`[LUDO DISCONNECT] ⏰ Timeout de inactividad iniciado para ${username} (userId: ${userId}). Si no vuelve en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-                    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
-                } else {
-                    // Si NO es su turno, esperar a que le toque el turno
-                    console.log(`[LUDO DISCONNECT] ${username} se desconectó pero NO es su turno. Se eliminará cuando le toque el turno y no actúe en 2 minutos.`);
+                // Cancelar timeout de inactividad si existe
+                const inactivityTimeoutKey = `${roomId}_${userId}`;
+                if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+                    clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+                    delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                    console.log(`[LUDO DISCONNECT] Timeout de inactividad cancelado para ${username} (userId: ${userId})`);
                 }
                 
-                // Notificar a todos que el jugador se desconectó (pero aún puede volver)
+                // Cancelar timeout de reconexión si existe
+                if (ludoReconnectTimeouts[timeoutKey]) {
+                    clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+                    delete ludoReconnectTimeouts[timeoutKey];
+                    console.log(`[LUDO DISCONNECT] Timeout de reconexión cancelado para ${username} (userId: ${userId})`);
+                }
+                
+                // Limpiar reconnectSeats si existe
+                if (room.reconnectSeats && room.reconnectSeats[userId]) {
+                    delete room.reconnectSeats[userId];
+                    if (Object.keys(room.reconnectSeats).length === 0) {
+                        delete room.reconnectSeats;
+                    }
+                }
+                
+                // Limpiar estado de desconexión si existe
+                if (ludoDisconnectedPlayers[disconnectKey]) {
+                    delete ludoDisconnectedPlayers[disconnectKey];
+                }
+                
+                // Eliminar al jugador INMEDIATAMENTE como abandono voluntario
+                // Usar isVoluntaryAbandonment=false porque no es realmente voluntario, pero procesar inmediatamente
+                ludoHandlePlayerDeparture(roomId, socket.id, io, false);
+                
+                // Notificar a todos que el jugador se desconectó y fue eliminado
                 io.to(roomId).emit('playerDisconnected', {
                     playerName: leavingPlayerSeat.playerName,
-                    message: `${leavingPlayerSeat.playerName} se desconectó. Esperando reconexión...`
+                    message: `${leavingPlayerSeat.playerName} se desconectó y fue eliminado de la mesa.`
                 });
             } else {
                 // Si está en espera, eliminar inmediatamente
                 ludoHandlePlayerDeparture(roomId, socket.id, io);
             }
-            // ▲▲▲ FIN: ESPERAR 2 MINUTOS DE INACTIVIDAD ▲▲▲
+            // ▲▲▲ FIN: ELIMINAR INMEDIATAMENTE ▲▲▲
 
         } else {
             // Se desconectó del lobby de Ludo sin estar en una sala

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.24'; // Actualizado: Fix - evitar cobrar apuesta dos veces cuando jugador desconectado es eliminado por inactividad
+const CACHE_NAME = 'mutijuego-v1.12.25'; // Actualizado: Fix - eliminar jugador inmediatamente al desconectarse, sin esperar timeout de inactividad
 const urlsToCache = [
   '/',
   '/index.html',
