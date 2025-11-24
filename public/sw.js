@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.17'; // Actualizado: Fix preservación de sesión completa (username, créditos, avatar) y limpieza de salas en tiempo real
+const CACHE_NAME = 'mutijuego-v1.12.18'; // Actualizado: Fix preservar username y avatar en userStateUpdated listener del lobby
 const urlsToCache = [
   '/',
   '/index.html',
