@@ -6014,10 +6014,22 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
   socket.on('leaveGame', (data) => {
     const { roomId } = data;
 
+    // ▼▼▼ CRÍTICO: Detectar si es una sala de Ludo o La 51 ▼▼▼
+    const isLudoRoom = roomId && ludoRooms[roomId];
+    const isLa51Room = roomId && la51Rooms[roomId];
+    
     // 1. (ORDEN CORREGIDO) Primero, ejecuta toda la lógica de estado del juego.
     // Esto asegura que el asiento se libere, se apliquen multas y el juego avance
     // antes de limpiar el estado del socket.
-    handlePlayerDeparture(roomId, socket.id, io);
+    if (isLudoRoom) {
+        // Es una sala de Ludo - usar ludoHandlePlayerDeparture
+        ludoHandlePlayerDeparture(roomId, socket.id, io);
+    } else if (isLa51Room) {
+        // Es una sala de La 51 - usar handlePlayerDeparture
+        handlePlayerDeparture(roomId, socket.id, io);
+    } else {
+        console.warn(`[leaveGame] Sala ${roomId} no encontrada en ludoRooms ni la51Rooms.`);
+    }
 
     // 2. (ORDEN CORREGIDO) AHORA, con la lógica del juego ya resuelta,
     // limpiamos el estado del socket de forma segura.

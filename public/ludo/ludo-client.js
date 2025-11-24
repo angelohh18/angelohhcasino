@@ -2882,7 +2882,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función global para volver al lobby
     window.goBackToLobby = function() {
-        window.location.href = '/ludo';
+        // ▼▼▼ CRÍTICO: Emitir leaveGame antes de redirigir para liberar el asiento correctamente ▼▼▼
+        if (gameState && gameState.roomId) {
+            console.log('[goBackToLobby] Emitiendo leaveGame para liberar asiento en sala:', gameState.roomId);
+            socket.emit('leaveGame', { roomId: gameState.roomId });
+        }
+        // Pequeño delay para asegurar que el servidor procese el leaveGame antes de redirigir
+        setTimeout(() => {
+            window.location.href = '/ludo';
+        }, 100);
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     };
     
     // Función para configurar la pantalla de revancha

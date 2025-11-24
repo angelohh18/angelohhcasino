@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.19'; // Actualizado: Fix timeouts duplicados - usar userId en lugar de socket.id para evitar múltiples timeouts
+const CACHE_NAME = 'mutijuego-v1.12.20'; // Actualizado: Fix - liberar asiento correctamente cuando jugador sale del modal de revancha
 const urlsToCache = [
   '/',
   '/index.html',
