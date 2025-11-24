@@ -5794,11 +5794,15 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                 }, LUDO_RECONNECT_TIMEOUT_MS);
                 ludoReconnectTimeouts[timeoutKey] = room.abandonmentTimeouts[userId];
                 
-                // Notificar a los demás jugadores que el jugador se desconectó (pero aún puede reconectar)
-                io.to(roomId).emit('playerDisconnected', {
+                // ▼▼▼ CRÍTICO: Notificar a TODOS los jugadores que el jugador se desconectó (pero aún puede reconectar) ▼▼▼
+                // Asegurar que todos los jugadores en la sala reciban la notificación
+                const disconnectedMessage = {
                     playerName: leavingPlayerSeat.playerName,
                     message: `${leavingPlayerSeat.playerName} se desconectó. Esperando reconexión...`
-                });
+                };
+                io.to(roomId).emit('playerDisconnected', disconnectedMessage);
+                console.log(`[LUDO DISCONNECT] Notificación de desconexión enviada a todos en sala ${roomId}:`, disconnectedMessage);
+                // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
             } else {
                 // Si está en espera, liberar inmediatamente
                 ludoHandlePlayerDeparture(roomId, socket.id, io);
@@ -6636,7 +6640,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       const room = ludoRooms[roomId];
     
-      if (!room) {
+      // ▼▼▼ CRÍTICO: Verificar reconexión ANTES de verificar si la sala existe ▼▼▼
+      // Si el jugador está en reconnectSeats, la sala puede existir pero necesitamos restaurar el asiento
+      if (room && room.reconnectSeats && room.reconnectSeats[userId]) {
+          // El jugador está intentando reconectar, procesar reconexión primero
+          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId}. Procesando reconexión...`);
+          // Continuar con la lógica de reconexión más abajo
+      } else if (!room) {
           // La sala ya no existe (probablemente fue limpiada después de abandono)
           console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} que ya no existe.`);
           socket.emit('gameEnded', { 
@@ -6646,6 +6656,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           });
           return;
       }
+      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
       
       // Verificar si el jugador fue eliminado por abandono (incluso si la sala existe)
       if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {

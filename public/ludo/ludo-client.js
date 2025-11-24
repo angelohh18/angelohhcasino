@@ -2148,7 +2148,15 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('playerDisconnected', (data) => {
         console.log('[playerDisconnected]', data);
         if (data && data.message) {
-            showToast(data.message, 3000);
+            // ▼▼▼ FIX: Usar window.showToast o alert como fallback ▼▼▼
+            if (typeof window.showToast === 'function') {
+                window.showToast(data.message, 3000);
+            } else if (typeof showToast === 'function') {
+                showToast(data.message, 3000);
+            } else {
+                console.log('[playerDisconnected]', data.message);
+            }
+            // ▲▲▲ FIN DEL FIX ▲▲▲
         }
     });
     
@@ -2156,7 +2164,15 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('playerReconnected', (data) => {
         console.log('[playerReconnected]', data);
         if (data && data.message) {
-            showToast(data.message, 3000);
+            // ▼▼▼ FIX: Usar window.showToast o alert como fallback ▼▼▼
+            if (typeof window.showToast === 'function') {
+                window.showToast(data.message, 3000);
+            } else if (typeof showToast === 'function') {
+                showToast(data.message, 3000);
+            } else {
+                console.log('[playerReconnected]', data.message);
+            }
+            // ▲▲▲ FIN DEL FIX ▲▲▲
         }
         // ▼▼▼ CRÍTICO: Sincronizar estado cuando un jugador se reconecta ▼▼▼
         // Solicitar actualización del estado del juego
