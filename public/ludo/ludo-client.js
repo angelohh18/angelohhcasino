@@ -2124,16 +2124,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Listener para cuando un jugador se desconecta temporalmente
+    socket.on('playerDisconnected', (data) => {
+        console.log('[playerDisconnected]', data);
+        if (data && data.message) {
+            showToast(data.message, 3000);
+        }
+    });
+    
     // Listener para cuando un jugador se reconecta
     socket.on('playerReconnected', (data) => {
         console.log('[playerReconnected]', data);
         if (data && data.message) {
             showToast(data.message, 3000);
         }
+        // ▼▼▼ CRÍTICO: Sincronizar estado cuando un jugador se reconecta ▼▼▼
+        // Solicitar actualización del estado del juego
+        if (gameState && gameState.roomId) {
+            socket.emit('requestGameState', { roomId: gameState.roomId });
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     });
     
     socket.on('playerLeft', (roomData) => {
         console.log('[playerLeft] Un jugador ha salido:', roomData);
+        
+        // ▼▼▼ CRÍTICO: Actualizar asientos cuando un jugador abandona ▼▼▼
+        if (roomData && roomData.seats && gameState) {
+            console.log('[playerLeft] Actualizando asientos después de que un jugador abandonó');
+            gameState.seats = roomData.seats;
+            // Re-renderizar el tablero para reflejar los cambios
+            renderLudoBoard(gameState);
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+        
         // Si el estado del juego es post-game y no somos el ganador, verificar si debemos salir
         if (gameState && gameState.state === 'post-game') {
             const mySeat = gameState.seats.find(s => s && s.playerId === socket.id);
@@ -2187,6 +2211,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         // ▲▲▲ FIN DEL FIX ▲▲▲
+        
+        // ▼▼▼ CRÍTICO: Manejar caso de jugador abandonado - actualizar asientos ▼▼▼
+        if (moveInfo && moveInfo.type === 'player_abandoned') {
+            console.log('[ludoGameStateUpdated] Un jugador abandonó:', moveInfo.playerName);
+            // Actualizar asientos si se proporcionan
+            if (data.seats) {
+                gameState.seats = data.seats;
+                renderLudoBoard(gameState);
+                console.log('[ludoGameStateUpdated] Asientos actualizados después de abandono');
+            }
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
         
         // ▼▼▼ FIX: Manejar caso de reconexión - sincronizar estado sin animar ▼▼▼
         if (moveInfo && moveInfo.type === 'reconnect_sync') {

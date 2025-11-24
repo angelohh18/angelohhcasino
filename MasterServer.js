@@ -5686,13 +5686,22 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             }
                         }
                         
-                        // Actualizar estado del juego
+                        // ▼▼▼ CRÍTICO: Actualizar estado del juego y sincronizar asientos ▼▼▼
                         const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+                        
+                        // Emitir actualización de asientos primero para que todos vean que el jugador ya no está
+                        io.to(roomId).emit('playerJoined', sanitizedRoom);
+                        
+                        // Luego emitir actualización del estado del juego
                         io.to(roomId).emit('ludoGameStateUpdated', {
                             newGameState: room.gameState,
                             seats: room.seats,
                             moveInfo: { type: 'player_abandoned', playerName: leavingPlayerName, playerColor: leavingPlayerColor }
                         });
+                        
+                        // Notificar explícitamente que un jugador abandonó
+                        io.to(roomId).emit('playerLeft', sanitizedRoom);
+                        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
                         
                         // Limpiar la sala después de un delay
                         setTimeout(() => {
@@ -6691,6 +6700,11 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           // IMPORTANTE: Actualizar socket.currentRoomId para que el jugador pueda interactuar
           socket.currentRoomId = roomId;
           socket.join(roomId);
+          
+          // ▼▼▼ CRÍTICO: Notificar a todos los jugadores que el asiento fue restaurado ▼▼▼
+          // Esto asegura que todos vean que el jugador está de vuelta
+          io.to(roomId).emit('playerJoined', sanitizedRoom);
+          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
           
           // IMPORTANTE: No continuar con la lógica de asignación de asientos, ya que el asiento fue restaurado
           return;
