@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.12'; // Actualizado: Fix abandono - NO permitir reconexión después de 2 minutos, simple y directo
+const CACHE_NAME = 'mutijuego-v1.12.13'; // Actualizado: Fix abandono - eliminar INMEDIATAMENTE al desconectarse, sin esperar 2 minutos, misma lógica que abandono voluntario
 const urlsToCache = [
   '/',
   '/index.html',
