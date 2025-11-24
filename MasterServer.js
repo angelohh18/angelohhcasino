@@ -722,6 +722,9 @@ let ludoReconnectTimeouts = {}; // Mapa para rastrear timeouts de reconexión de
 const LUDO_RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconexión en partida activa
 const LUDO_ORPHAN_ROOM_CLEANUP_INTERVAL_MS = 5000; // Limpiar salas huérfanas cada 5 segundos
 let ludoPeriodicCleanupInterval = null; // Intervalo para limpieza periódica (solo cuando hay salas vacías)
+// ▼▼▼ TIMEOUT DE INACTIVIDAD: 2 minutos sin acción durante el turno ▼▼▼
+const LUDO_INACTIVITY_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) de inactividad antes de eliminar por falta
+let ludoInactivityTimeouts = {}; // { `${roomId}_${playerId}`: timeoutId }
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LUDO ▲▲▲
 
 // ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
@@ -1659,6 +1662,53 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
     }
 
     console.log(`[${roomId}] Turno pasado de ${currentColor ?? 'desconocido'} (Asiento ${currentTurnIndex}) a ${nextPlayer.color} (Asiento ${nextPlayerIndex})`);
+
+    // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout de 2 minutos para el nuevo jugador ▼▼▼
+    // Cancelar timeout anterior si existe
+    const previousTimeoutKey = `${roomId}_${currentSeat?.playerId}`;
+    if (ludoInactivityTimeouts[previousTimeoutKey]) {
+        clearTimeout(ludoInactivityTimeouts[previousTimeoutKey]);
+        delete ludoInactivityTimeouts[previousTimeoutKey];
+        console.log(`[${roomId}] Timeout de inactividad cancelado para el jugador anterior (asiento ${currentTurnIndex})`);
+    }
+    
+    // Iniciar timeout de inactividad para el nuevo jugador
+    const newTimeoutKey = `${roomId}_${nextPlayer.playerId}`;
+    ludoInactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+        console.log(`[${roomId}] ⏰ TIMEOUT DE INACTIVIDAD: El jugador ${nextPlayer.playerName} (asiento ${nextPlayerIndex}) no hizo nada en 2 minutos. Eliminando por falta.`);
+        
+        // Verificar que el turno todavía es de este jugador
+        const currentRoom = ludoRooms[roomId];
+        if (!currentRoom || !currentRoom.gameState || !currentRoom.gameState.turn) {
+            delete ludoInactivityTimeouts[newTimeoutKey];
+            return;
+        }
+        
+        const currentTurnPlayerIndex = currentRoom.gameState.turn.playerIndex;
+        if (currentTurnPlayerIndex !== nextPlayerIndex) {
+            console.log(`[${roomId}] El turno ya cambió. No se elimina al jugador por inactividad.`);
+            delete ludoInactivityTimeouts[newTimeoutKey];
+            return;
+        }
+        
+        // Verificar que el jugador todavía está en la sala
+        const currentSeat = currentRoom.seats[nextPlayerIndex];
+        if (!currentSeat || currentSeat.playerId !== nextPlayer.playerId) {
+            console.log(`[${roomId}] El jugador ya no está en la sala. No se elimina por inactividad.`);
+            delete ludoInactivityTimeouts[newTimeoutKey];
+            return;
+        }
+        
+        // Eliminar al jugador por inactividad usando la misma lógica que abandono voluntario
+        console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${nextPlayer.playerName} (asiento ${nextPlayerIndex})`);
+        ludoHandlePlayerDeparture(roomId, nextPlayer.playerId, io);
+        
+        // Limpiar el timeout
+        delete ludoInactivityTimeouts[newTimeoutKey];
+    }, LUDO_INACTIVITY_TIMEOUT_MS);
+    
+    console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (asiento ${nextPlayerIndex}). Si no actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+    // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 
     io.to(room.roomId).emit('ludoTurnChanged', {
         nextPlayerIndex,
@@ -7011,6 +7061,15 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           }
       }
       
+      // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está actuando ▼▼▼
+      const inactivityTimeoutKey = `${roomId}_${socket.id}`;
+      if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+          clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+          delete ludoInactivityTimeouts[inactivityTimeoutKey];
+          console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${socket.id} (jugador tiró los dados)`);
+      }
+      // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
+      
       if (mySeatIndex === -1) {
           // Buscar por userId para verificar si fue eliminado por abandono
           if (userId && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
@@ -7433,6 +7492,15 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       // Buscar asiento por socket.id primero, luego por userId (para casos de reconexión)
       const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
       let mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
+      
+      // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está moviendo una ficha ▼▼▼
+      const inactivityTimeoutKey = `${roomId}_${socket.id}`;
+      if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+          clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+          delete ludoInactivityTimeouts[inactivityTimeoutKey];
+          console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${socket.id} (jugador movió una ficha)`);
+      }
+      // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
       
       // Si no se encuentra por socket.id, buscar por userId (reconexión)
       if (mySeatIndex === -1 && userId) {
