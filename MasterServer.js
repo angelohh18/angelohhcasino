@@ -5526,9 +5526,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     room.abandonmentTimeouts = {};
                 }
                 room.abandonmentTimeouts[userId] = setTimeout(async () => {
+                    // ▼▼▼ CRÍTICO: Después de 2 minutos, eliminar INMEDIATAMENTE sin esperar más ▼▼▼
+                    console.log(`[LUDO TIMEOUT] ⏰ TIMEOUT EJECUTADO: Han pasado ${LUDO_RECONNECT_TIMEOUT_MS/1000} segundos. Verificando si ${username} se reconectó...`);
+                    
                     // Verificar tiempo transcurrido
                     const elapsedTime = Date.now() - disconnectTimestamp;
                     const elapsedSeconds = Math.floor(elapsedTime / 1000);
+                    console.log(`[LUDO TIMEOUT] Tiempo transcurrido: ${elapsedSeconds} segundos (esperado: ${LUDO_RECONNECT_TIMEOUT_MS/1000} segundos)`);
                     
                     // ▼▼▼ CRÍTICO: Verificar que la sala todavía existe y el jugador sigue desconectado ▼▼▼
                     const currentRoom = ludoRooms[roomId];
@@ -5543,7 +5547,11 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     
                     // Verificar si el jugador todavía está en reconnectSeats (no se reconectó)
                     const stillDisconnected = currentRoom.reconnectSeats && currentRoom.reconnectSeats[userId];
+                    console.log(`[LUDO TIMEOUT] ¿Jugador ${username} sigue desconectado? ${stillDisconnected ? 'SÍ - ELIMINANDO INMEDIATAMENTE' : 'NO - Ya se reconectó'}`);
+                    
                     if (stillDisconnected) {
+                        // ▼▼▼ DESPUÉS DE 2 MINUTOS: ELIMINAR INMEDIATAMENTE, NO ESPERAR MÁS ▼▼▼
+                        console.log(`[LUDO TIMEOUT] 🚨 ELIMINACIÓN INMEDIATA: ${username} no se reconectó después de ${elapsedSeconds} segundos (${LUDO_RECONNECT_TIMEOUT_MS/1000}s esperados). Eliminando por abandono AHORA.`);
                         console.log(`[LUDO TIMEOUT] ${username} no se reconectó después de ${elapsedSeconds} segundos (${LUDO_RECONNECT_TIMEOUT_MS/1000}s esperados). Eliminando por abandono.`);
                         
                         // Obtener información del jugador antes de eliminarlo
@@ -5621,17 +5629,19 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                         io.to(roomId).emit('playerJoined', sanitizedRoom);
                         io.to(roomId).emit('playerLeft', sanitizedRoom);
                         
-                        // Emitir actualización del estado del juego INMEDIATAMENTE
+                        // Emitir actualización del estado del juego INMEDIATAMENTE (usar currentRoom, no room)
                         io.to(roomId).emit('ludoGameStateUpdated', {
-                            newGameState: room.gameState,
-                            seats: room.seats,
+                            newGameState: currentRoom.gameState,
+                            seats: currentRoom.seats,
                             moveInfo: { type: 'player_abandoned', playerName: leavingPlayerName, playerColor: leavingPlayerColor }
                         });
+                        console.log(`[LUDO TIMEOUT] Estado del juego sincronizado para todos los jugadores después de eliminar a ${leavingPlayerName}`);
                         // ▲▲▲ FIN DE LA SINCRONIZACIÓN INMEDIATA ▲▲▲
                         
-                        // Notificar falta por abandono a todos los jugadores (INMEDIATAMENTE después de sincronizar)
-                        const bet = parseFloat(room.settings.bet) || 0;
-                        const roomCurrency = room.settings.betCurrency || 'USD';
+                        // ▼▼▼ CRÍTICO: Notificar falta por abandono a TODOS los jugadores INMEDIATAMENTE ▼▼▼
+                        const bet = parseFloat(currentRoom.settings.bet) || 0;
+                        const roomCurrency = currentRoom.settings.betCurrency || 'USD';
+                        console.log(`[LUDO TIMEOUT] Emitiendo modal de falta por abandono para ${leavingPlayerName} a TODOS los jugadores en sala ${roomId}`);
                         io.to(roomId).emit('playSound', 'fault');
                         io.to(roomId).emit('ludoFoulPenalty', { 
                             type: 'abandon', 
@@ -5639,7 +5649,8 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             bet: bet.toLocaleString('es-ES'), 
                             currency: roomCurrency 
                         });
-                        // ▲▲▲ FIN DE LA ELIMINACIÓN INMEDIATA ▲▲▲
+                        console.log(`[LUDO TIMEOUT] Modal de falta por abandono emitido correctamente para ${leavingPlayerName}`);
+                        // ▲▲▲ FIN DE LA NOTIFICACIÓN DE FALTA ▲▲▲
                         
                         // Buscar el socket del jugador que abandonó para notificarlo y redirigirlo
                         let leavingPlayerSocket = null;
@@ -5766,11 +5777,16 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             });
                             currentRoom.allowRematchConfirmation = true;
                         } else if (remainingActivePlayers.length > 1) {
-                            // Si quedan más jugadores, pasar el turno si era el turno del que abandonó
+                            // ▼▼▼ CRÍTICO: Si quedan más jugadores, pasar el turno si era el turno del que abandonó ▼▼▼
                             if (currentRoom.gameState && currentRoom.gameState.turn && currentRoom.gameState.turn.playerIndex === leavingSeatIndex) {
-                                console.log(`[${roomId}] Era el turno del jugador que abandonó. Pasando al siguiente...`);
+                                console.log(`[LUDO TIMEOUT] Era el turno del jugador ${leavingPlayerName} que abandonó (índice ${leavingSeatIndex}). Pasando al siguiente jugador...`);
+                                // Pasar el turno al siguiente jugador activo
                                 ludoPassTurn(currentRoom, io);
+                                console.log(`[LUDO TIMEOUT] Turno pasado al siguiente jugador después del abandono de ${leavingPlayerName}`);
+                            } else {
+                                console.log(`[LUDO TIMEOUT] No era el turno del jugador que abandonó. El turno actual es del índice ${currentRoom.gameState.turn?.playerIndex}`);
                             }
+                            // ▲▲▲ FIN DEL PASO DE TURNO ▲▲▲
                         } else {
                             console.warn(`[LUDO TIMEOUT] No quedan jugadores activos después del abandono de ${leavingPlayerName}`);
                         }
