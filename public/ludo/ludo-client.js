@@ -2082,9 +2082,12 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('gameEnded', (data) => {
         console.log('[gameEnded] El juego terminó:', data);
         if (data.redirect) {
-            // ▼▼▼ CRÍTICO: Preservar userId Y username en sessionStorage Y localStorage antes de redirigir (para PWA) ▼▼▼
-            let userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
-            let username = sessionStorage.getItem('username') || localStorage.getItem('username');
+            // ▼▼▼ CRÍTICO: Preservar userId, username, avatar y currency en sessionStorage Y localStorage antes de redirigir (para PWA) ▼▼▼
+            // Priorizar los datos enviados por el servidor si están disponibles
+            let userId = data.userId || sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            let username = data.username || sessionStorage.getItem('username') || localStorage.getItem('username');
+            let userAvatar = data.avatar || sessionStorage.getItem('userAvatar') || localStorage.getItem('userAvatar');
+            let userCurrency = data.userCurrency || sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency');
             
             // Si no hay username, intentar recuperarlo desde userId
             if (!username && userId) {
@@ -2105,8 +2108,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 sessionStorage.setItem('username', username);
                 localStorage.setItem('username', username);
             }
+            if (userAvatar) {
+                sessionStorage.setItem('userAvatar', userAvatar);
+                localStorage.setItem('userAvatar', userAvatar);
+            }
+            if (userCurrency) {
+                sessionStorage.setItem('userCurrency', userCurrency);
+                localStorage.setItem('userCurrency', userCurrency);
+            }
             
-            console.log('[gameEnded] Datos preservados antes de redirigir - userId:', userId, 'username:', username);
+            console.log('[gameEnded] Datos preservados antes de redirigir - userId:', userId, 'username:', username, 'avatar:', userAvatar, 'currency:', userCurrency);
             // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
             
             // Redirigir al lobby con mensaje apropiado

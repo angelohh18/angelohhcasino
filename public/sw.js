@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.16'; // Actualizado: Fix error de sesión - preservar username antes de redirigir desde gameEnded
+const CACHE_NAME = 'mutijuego-v1.12.17'; // Actualizado: Fix preservación de sesión completa (username, créditos, avatar) y limpieza de salas en tiempo real
 const urlsToCache = [
   '/',
   '/index.html',

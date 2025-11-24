@@ -863,8 +863,33 @@ function ludoCheckAndCleanRoom(roomId, io) {
     // 3. Contar reconexiones pendientes (después de limpiar expiradas)
     const pendingReconnections = room.reconnectSeats ? Object.keys(room.reconnectSeats).length : 0;
 
-    // 4. Verificar si hay sockets conectados a la sala
+    // 4. Verificar si hay sockets conectados a la sala que correspondan a jugadores en los asientos
     const hasSockets = ludoHasConnectedSockets(roomId, io);
+    
+    // Verificar si los sockets conectados corresponden a jugadores en los asientos
+    let hasValidSockets = false;
+    if (hasSockets && playersInSeats > 0) {
+        try {
+            const roomSockets = io.sockets.adapter.rooms.get(roomId);
+            if (roomSockets) {
+                // Verificar si algún socket conectado corresponde a un jugador en los asientos
+                for (const socketId of roomSockets) {
+                    const socket = io.sockets.sockets.get(socketId);
+                    if (socket) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        // Verificar si este userId está en algún asiento
+                        const isInSeat = room.seats.some(s => s && s.userId === socketUserId);
+                        if (isInSeat) {
+                            hasValidSockets = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`[Ludo Cleanup] Error verificando sockets válidos para ${roomId}:`, error);
+        }
+    }
 
     // 5. Verificar si la sala fue creada recientemente (últimos 15 segundos)
     const roomCreatedAt = room.createdAt || 0;
@@ -874,7 +899,8 @@ function ludoCheckAndCleanRoom(roomId, io) {
     const isRecentRoom = roomAge < RECENT_ROOM_THRESHOLD;
 
     // 6. Lógica de eliminación mejorada
-    if (playersInSeats === 0 && pendingReconnections === 0 && !hasSockets && !isRecentRoom) {
+    // Si no hay jugadores en los asientos, no hay reconexiones pendientes, no hay sockets válidos (o no hay sockets), y la sala no es reciente, eliminar
+    if (playersInSeats === 0 && pendingReconnections === 0 && (!hasSockets || !hasValidSockets) && !isRecentRoom) {
         // SOLO si no hay jugadores, no hay reconexiones pendientes, no hay sockets conectados, Y la sala no es reciente
         console.log(`[Ludo Cleanup] Sala ${roomId} vacía (Jugadores: 0, Reconexiones: 0, Sockets: 0, Edad: ${Math.round(roomAge/1000)}s). Eliminando AHORA.`);
         
@@ -888,10 +914,10 @@ function ludoCheckAndCleanRoom(roomId, io) {
         
         delete ludoRooms[roomId];
     } else {
-        console.log(`[Ludo Cleanup] Mesa ${roomId} no se elimina (Jugadores: ${playersInSeats}, Reconexiones: ${pendingReconnections}, Sockets conectados: ${hasSockets}, Reciente: ${isRecentRoom}).`);
+        console.log(`[Ludo Cleanup] Mesa ${roomId} no se elimina (Jugadores: ${playersInSeats}, Reconexiones: ${pendingReconnections}, Sockets conectados: ${hasSockets}, Sockets válidos: ${hasValidSockets}, Reciente: ${isRecentRoom}).`);
         
-        // Si la sala está vacía pero tiene reconexiones pendientes o es reciente, activar limpieza periódica
-        if (playersInSeats === 0 && (pendingReconnections > 0 || hasSockets || isRecentRoom)) {
+        // Si la sala está vacía pero tiene reconexiones pendientes, sockets válidos o es reciente, activar limpieza periódica
+        if (playersInSeats === 0 && (pendingReconnections > 0 || hasValidSockets || isRecentRoom)) {
             ludoStartPeriodicCleanup(io);
         }
     }
@@ -1495,6 +1521,52 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
             const bet = parseFloat(room.settings.bet) || 0;
             
             if (leavingPlayerSocket) {
+                // ▼▼▼ CRÍTICO: Enviar userStateUpdated ANTES de gameEnded para preservar sesión ▼▼▼
+                // Obtener información del usuario eliminado para enviar su estado actualizado
+                const leavingPlayerUsername = leavingPlayerSeat.userId.replace('user_', '');
+                let leavingPlayerInfo = users[leavingPlayerSeat.userId];
+                
+                // Si no está en users, intentar obtenerlo de la BD o inMemoryUsers
+                if (!leavingPlayerInfo) {
+                    try {
+                        if (DISABLE_DB) {
+                            const userFromMemory = inMemoryUsers.get(leavingPlayerUsername);
+                            if (userFromMemory) {
+                                leavingPlayerInfo = {
+                                    credits: parseFloat(userFromMemory.credits || 0),
+                                    currency: userFromMemory.currency || 'EUR',
+                                    username: leavingPlayerUsername,
+                                    avatar: leavingPlayerSeat.avatar || ''
+                                };
+                                users[leavingPlayerSeat.userId] = leavingPlayerInfo;
+                            }
+                        } else {
+                            const userData = await getUserByUsername(leavingPlayerUsername);
+                            if (userData) {
+                                leavingPlayerInfo = {
+                                    ...userData,
+                                    username: leavingPlayerUsername,
+                                    avatar: leavingPlayerSeat.avatar || userData.avatar || ''
+                                };
+                                users[leavingPlayerSeat.userId] = leavingPlayerInfo;
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`[${roomId}] Error obteniendo datos de usuario eliminado:`, error);
+                    }
+                } else {
+                    // Asegurar que tenga username y avatar
+                    leavingPlayerInfo.username = leavingPlayerUsername;
+                    leavingPlayerInfo.avatar = leavingPlayerSeat.avatar || leavingPlayerInfo.avatar || '';
+                }
+                
+                // Enviar userStateUpdated ANTES de gameEnded para que el cliente preserve la sesión
+                if (leavingPlayerInfo) {
+                    leavingPlayerSocket.emit('userStateUpdated', leavingPlayerInfo);
+                    console.log(`[${roomId}] userStateUpdated enviado al jugador eliminado ${leavingPlayerUsername} (credits: ${leavingPlayerInfo.credits} ${leavingPlayerInfo.currency})`);
+                }
+                // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+                
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
                 leavingPlayerSocket.emit('gameEnded', { 
                     reason: 'abandonment', 
@@ -1502,7 +1574,12 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                     message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
                     redirect: true,
                     penalty: bet,
-                    currency: roomCurrency
+                    currency: roomCurrency,
+                    // Incluir datos del usuario para preservar sesión
+                    username: leavingPlayerUsername,
+                    userId: leavingPlayerSeat.userId,
+                    avatar: leavingPlayerSeat.avatar || '',
+                    userCurrency: leavingPlayerInfo?.currency || 'EUR'
                 });
                 // Forzar que el socket salga de la sala inmediatamente
                 if (leavingPlayerSocket.currentRoomId === roomId) {
