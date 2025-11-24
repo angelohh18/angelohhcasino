@@ -313,13 +313,31 @@ function showPwaInstallModal() {
         currentUser.credits = userState.credits;
         currentUser.currency = userState.currency;
         
-        // ▼▼▼ CRÍTICO: Actualizar también sessionStorage para mantener consistencia ▼▼▼
+        // ▼▼▼ CRÍTICO: Actualizar también sessionStorage Y localStorage para mantener consistencia ▼▼▼
         if (userState.credits !== undefined) {
-            // Guardar créditos en sessionStorage para persistencia
+            // Guardar créditos en sessionStorage y localStorage para persistencia
             sessionStorage.setItem('userCredits', userState.credits.toString());
+            localStorage.setItem('userCredits', userState.credits.toString());
         }
         if (userState.currency) {
             sessionStorage.setItem('userCurrency', userState.currency);
+            localStorage.setItem('userCurrency', userState.currency);
+        }
+        // Preservar username y avatar si están incluidos
+        if (userState.username) {
+            sessionStorage.setItem('username', userState.username);
+            localStorage.setItem('username', userState.username);
+            currentUser.username = userState.username;
+        }
+        if (userState.avatar) {
+            sessionStorage.setItem('userAvatar', userState.avatar);
+            localStorage.setItem('userAvatar', userState.avatar);
+            currentUser.userAvatar = userState.avatar;
+            // Actualizar el avatar en la UI si existe
+            const userAvatarEl = document.getElementById('user-avatar');
+            if (userAvatarEl) {
+                userAvatarEl.src = userState.avatar;
+            }
         }
         // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
 
