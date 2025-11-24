@@ -9257,4 +9257,4 @@ server.listen(PORT, '0.0.0.0', async () => {
     }
   }, 60000); // Verificar cada minuto
   // ▲▲▲ FIN DE LA LIMPIEZA AUTOMÁTICA DEL CHAT ▲▲▲
-});
+}); // Fin del server.listen
