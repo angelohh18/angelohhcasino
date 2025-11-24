@@ -6055,6 +6055,33 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     const isLudoRoom = roomId && ludoRooms[roomId];
     const isLa51Room = roomId && la51Rooms[roomId];
     
+    // ▼▼▼ CRÍTICO: Si la sala no existe, verificar si ya fue penalizado antes de procesar abandono ▼▼▼
+    if (!isLudoRoom && !isLa51Room && roomId) {
+        const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+        if (userId) {
+            const globalPenaltyKey = `${roomId}_${userId}`;
+            const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey];
+            
+            if (alreadyPenalized) {
+                console.log(`[leaveGame] ${userId} intentó salir de sala ${roomId} que no existe, pero ya fue penalizado anteriormente. NO se procesa abandono.`);
+                // Limpiar estado del socket pero NO procesar abandono
+                if (roomId) {
+                    socket.leave(roomId);
+                    delete socket.currentRoomId;
+                }
+                return; // Salir sin procesar abandono
+            }
+        }
+        console.warn(`[leaveGame] Sala ${roomId} no encontrada en ludoRooms ni la51Rooms.`);
+        // Limpiar estado del socket
+        if (roomId) {
+            socket.leave(roomId);
+            delete socket.currentRoomId;
+        }
+        return; // Salir sin procesar abandono si la sala no existe
+    }
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+    
     // 1. (ORDEN CORREGIDO) Primero, ejecuta toda la lógica de estado del juego.
     // Esto asegura que el asiento se libere, se apliquen multas y el juego avance
     // antes de limpiar el estado del socket.
@@ -6065,8 +6092,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     } else if (isLa51Room) {
         // Es una sala de La 51 - usar handlePlayerDeparture
         handlePlayerDeparture(roomId, socket.id, io);
-    } else {
-        console.warn(`[leaveGame] Sala ${roomId} no encontrada en ludoRooms ni la51Rooms.`);
     }
 
     // 2. (ORDEN CORREGIDO) AHORA, con la lógica del juego ya resuelta,
