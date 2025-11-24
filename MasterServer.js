@@ -9057,7 +9057,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                           console.warn(`[${roomId}] (Rematch) Intento de re-asignación fallido. El asiento diagonal ${newIndexForP2} estaba ocupado.`);
                       }
                   } else {
-                       console.log(`[${roomId}] (Rematch) Jugadores ya están en diagonal (${index1} y ${index2}). No se requiere re-asignación.`);
+                      console.log(`[${roomId}] (Rematch) Jugadores ya están en diagonal (${index1} y ${index2}). No se requiere re-asignación.`);
                   }
               }
           }
@@ -9258,3 +9258,4 @@ server.listen(PORT, '0.0.0.0', async () => {
   }, 60000); // Verificar cada minuto
   // ▲▲▲ FIN DE LA LIMPIEZA AUTOMÁTICA DEL CHAT ▲▲▲
 }); // Fin del server.listen
+
