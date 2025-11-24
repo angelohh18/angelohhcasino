@@ -1396,33 +1396,47 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             }
         }
         
-        // Aplicar penalización (descontar la apuesta)
-        if (userInfo) {
-            const penaltyInUserCurrency = convertCurrency(bet, roomCurrencyForFault, userInfo.currency, exchangeRates);
-            userInfo.credits -= penaltyInUserCurrency;
-            
-            // Actualizar en BD o inMemoryUsers
-            await updateUserCredits(leavingPlayerSeat.userId, userInfo.credits, userInfo.currency);
-            
-            console.log(`[${roomId}] PENALIZACIÓN APLICADA (Abandono Voluntario): ${username} perdió ${bet.toFixed(2)} ${roomCurrencyForFault} (Equivalente a ${penaltyInUserCurrency.toFixed(2)} ${userInfo.currency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
-            
-            // Notificar al jugador que abandonó de su nuevo saldo
-            let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
-            if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
-                for (const [socketId, socket] of io.sockets.sockets.entries()) {
-                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-                    if (socketUserId === leavingPlayerSeat.userId) {
-                        leavingPlayerSocket = socket;
-                        break;
+        // ▼▼▼ CRÍTICO: Verificar si ya fue penalizado para evitar cobrar dos veces ▼▼▼
+        // Inicializar el objeto de penalizaciones si no existe
+        if (!room.penaltyApplied) {
+            room.penaltyApplied = {};
+        }
+        
+        // Solo aplicar penalización si NO fue aplicada anteriormente
+        if (!room.penaltyApplied[leavingPlayerSeat.userId]) {
+            // Aplicar penalización (descontar la apuesta)
+            if (userInfo) {
+                const penaltyInUserCurrency = convertCurrency(bet, roomCurrencyForFault, userInfo.currency, exchangeRates);
+                userInfo.credits -= penaltyInUserCurrency;
+                
+                // Actualizar en BD o inMemoryUsers
+                await updateUserCredits(leavingPlayerSeat.userId, userInfo.credits, userInfo.currency);
+                
+                // Marcar que la penalización fue aplicada
+                room.penaltyApplied[leavingPlayerSeat.userId] = true;
+                
+                console.log(`[${roomId}] PENALIZACIÓN APLICADA (Abandono Voluntario): ${username} perdió ${bet.toFixed(2)} ${roomCurrencyForFault} (Equivalente a ${penaltyInUserCurrency.toFixed(2)} ${userInfo.currency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
+                
+                // Notificar al jugador que abandonó de su nuevo saldo
+                let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+                if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === leavingPlayerSeat.userId) {
+                            leavingPlayerSocket = socket;
+                            break;
+                        }
                     }
                 }
-            }
-            if (leavingPlayerSocket) {
-                leavingPlayerSocket.emit('userStateUpdated', userInfo);
-                console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency})`);
+                if (leavingPlayerSocket) {
+                    leavingPlayerSocket.emit('userStateUpdated', userInfo);
+                    console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency})`);
+                }
+            } else {
+                console.warn(`[${roomId}] PENALIZACIÓN FALLIDA (Abandono Voluntario): No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
             }
         } else {
-            console.warn(`[${roomId}] PENALIZACIÓN FALLIDA (Abandono Voluntario): No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
+            console.log(`[${roomId}] ⚠️ PENALIZACIÓN YA APLICADA: ${username} ya fue penalizado anteriormente. NO se vuelve a descontar la apuesta.`);
         }
         // ▲▲▲ FIN DE LA PENALIZACIÓN ▲▲▲
         
@@ -5731,6 +5745,14 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
             const leavingPlayerSeat = room.seats[seatIndex];
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
+                // ▼▼▼ CRÍTICO: Si el jugador ya fue penalizado (abandono voluntario previo), eliminar INMEDIATAMENTE ▼▼▼
+                if (room.penaltyApplied && room.penaltyApplied[leavingPlayerSeat.userId]) {
+                    console.log(`[LUDO DISCONNECT] ${username} se desconectó pero ya fue penalizado anteriormente. Eliminando INMEDIATAMENTE sin esperar timeout.`);
+                    ludoHandlePlayerDeparture(roomId, socket.id, io, false);
+                    return; // Salir inmediatamente, no esperar timeout
+                }
+                // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+                
                 console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos de inactividad antes de eliminar.`);
                 
                 // Marcar como desconectado (pero NO eliminar aún)
