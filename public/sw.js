@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.9'; // Actualizado: Fix abandono - eliminar inmediatamente después de 2 minutos, mostrar modal a todos, pasar turno
+const CACHE_NAME = 'mutijuego-v1.12.10'; // Actualizado: Fix abandono - asiento NO se libera antes de 2 minutos, solo después del timeout
 const urlsToCache = [
   '/',
   '/index.html',

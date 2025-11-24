@@ -5501,8 +5501,9 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
             const leavingPlayerSeat = room.seats[seatIndex];
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
+                // ▼▼▼ CRÍTICO: NO liberar el asiento inmediatamente - esperar 2 minutos ▼▼▼
                 // Solo aplicar timeout de reconexión si el jugador está activo (no en espera)
-                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos para reconexión...`);
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando ${LUDO_RECONNECT_TIMEOUT_MS/1000} segundos para reconexión. ASIENTO NO SE LIBERA AÚN.`);
                 
                 // Inicializar reconnectSeats si no existe
                 if (!room.reconnectSeats) {
@@ -5517,7 +5518,10 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     timestamp: disconnectTimestamp
                 };
                 
-                console.log(`[LUDO DISCONNECT] ${username} se desconectó a las ${new Date(disconnectTimestamp).toISOString()}. Timeout de ${LUDO_RECONNECT_TIMEOUT_MS/1000} segundos iniciado.`);
+                // ▼▼▼ CRÍTICO: El asiento PERMANECE OCUPADO durante los 2 minutos ▼▼▼
+                // NO liberar el asiento aquí - solo después de los 2 minutos en el timeout
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó a las ${new Date(disconnectTimestamp).toISOString()}. Timeout de ${LUDO_RECONNECT_TIMEOUT_MS/1000} segundos iniciado. El asiento ${seatIndex} permanece reservado.`);
+                // ▲▲▲ FIN: ASIENTO NO SE LIBERA ANTES DE 2 MINUTOS ▲▲▲
                 
                 // Configurar timeout de 2 minutos antes de considerar abandono
                 const timeoutKey = `${roomId}_${userId}`;
@@ -5579,10 +5583,11 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             return;
                         }
                         
-                        // Verificar que el asiento todavía está ocupado por este jugador o está null
+                        // ▼▼▼ CRÍTICO: Verificar que el asiento todavía está ocupado por este jugador ▼▼▼
+                        // El asiento DEBE estar ocupado por este jugador durante los 2 minutos
                         const currentSeat = currentRoom.seats[leavingSeatIndex];
-                        if (currentSeat && currentSeat.userId !== userId) {
-                            console.warn(`[LUDO TIMEOUT] El asiento ${leavingSeatIndex} ya está ocupado por otro jugador (${currentSeat.userId}). El jugador ${userId} ya fue eliminado.`);
+                        if (!currentSeat) {
+                            console.warn(`[LUDO TIMEOUT] El asiento ${leavingSeatIndex} ya está libre. El jugador ${userId} ya fue eliminado antes de los 2 minutos. Esto NO debería pasar.`);
                             // Limpiar datos de reconexión pero no procesar abandono
                             delete currentRoom.reconnectSeats[userId];
                             if (Object.keys(currentRoom.reconnectSeats).length === 0) {
@@ -5593,6 +5598,23 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                                 delete currentRoom.abandonmentTimeouts[userId];
                             }
                             return;
+                        }
+                        if (currentSeat.userId !== userId) {
+                            console.warn(`[LUDO TIMEOUT] El asiento ${leavingSeatIndex} ya está ocupado por otro jugador (${currentSeat.userId}). El jugador ${userId} ya fue eliminado. Esto NO debería pasar.`);
+                            // Limpiar datos de reconexión pero no procesar abandono
+                            delete currentRoom.reconnectSeats[userId];
+                            if (Object.keys(currentRoom.reconnectSeats).length === 0) {
+                                delete currentRoom.reconnectSeats;
+                            }
+                            delete ludoReconnectTimeouts[timeoutKey];
+                            if (currentRoom.abandonmentTimeouts) {
+                                delete currentRoom.abandonmentTimeouts[userId];
+                            }
+                            return;
+                        }
+                        // Verificar que el asiento corresponde al jugador correcto
+                        if (currentSeat.userId === userId) {
+                            console.log(`[LUDO TIMEOUT] ✓ Verificación correcta: El asiento ${leavingSeatIndex} todavía está ocupado por ${userId}. Procediendo con eliminación.`);
                         }
                         // ▲▲▲ FIN DE LA VERIFICACIÓN CRÍTICA ▲▲▲
                         
