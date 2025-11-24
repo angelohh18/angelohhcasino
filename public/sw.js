@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.10'; // Actualizado: Fix abandono - asiento NO se libera antes de 2 minutos, solo después del timeout
+const CACHE_NAME = 'mutijuego-v1.12.11'; // Actualizado: Fix abandono - sincronización en tiempo real después de 2 minutos, modal de falta, asiento liberado
 const urlsToCache = [
   '/',
   '/index.html',
