@@ -6804,11 +6804,27 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       if (!room) {
           // La sala ya no existe (probablemente fue limpiada después de abandono)
           console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} que ya no existe.`);
-          socket.emit('gameEnded', { 
-              reason: 'room_not_found', 
-              message: 'La sala ya no existe. Puede que hayas sido eliminado por abandono.',
-              redirect: true
-          });
+          
+          // ▼▼▼ CRÍTICO: Verificar si ya fue penalizado antes de enviar gameEnded ▼▼▼
+          const globalPenaltyKey = `${roomId}_${userId}`;
+          const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey];
+          
+          if (alreadyPenalized) {
+              console.log(`[LUDO RECONNECT] ${userId} ya fue penalizado anteriormente. NO se vuelve a cobrar la apuesta.`);
+              socket.emit('gameEnded', { 
+                  reason: 'room_not_found', 
+                  message: 'La sala ya no existe. Ya fuiste penalizado por abandono anteriormente.',
+                  redirect: true,
+                  alreadyPenalized: true // Indicar que ya fue penalizado
+              });
+          } else {
+              socket.emit('gameEnded', { 
+                  reason: 'room_not_found', 
+                  message: 'La sala ya no existe. Puede que hayas sido eliminado por abandono.',
+                  redirect: true
+              });
+          }
+          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
           return;
       }
       
