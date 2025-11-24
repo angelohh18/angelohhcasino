@@ -268,12 +268,29 @@ function showPwaInstallModal() {
 
 // --- INICIO: SCRIPT DEL LOBBY ---
 (function(){
+    // ▼▼▼ CRÍTICO: Verificar y restaurar userId desde sessionStorage si existe ▼▼▼
+    const savedUserId = sessionStorage.getItem('userId');
+    const savedUsername = sessionStorage.getItem('username');
+    if (savedUsername && !savedUserId) {
+        sessionStorage.setItem('userId', 'user_' + savedUsername.toLowerCase());
+        console.log('[Lobby] userId restaurado desde username:', sessionStorage.getItem('userId'));
+    }
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+    
     // Notificar al servidor que estamos en el lobby de Ludo
     if (socket.connected) {
         socket.emit('enterLudoLobby');
+        // Si hay un usuario logueado, solicitar estado actualizado
+        if (savedUsername) {
+            socket.emit('userLoggedIn', { username: savedUsername, currency: sessionStorage.getItem('userCurrency') || 'USD' });
+        }
     } else {
         socket.on('connect', () => {
             socket.emit('enterLudoLobby');
+            // Si hay un usuario logueado, solicitar estado actualizado
+            if (savedUsername) {
+                socket.emit('userLoggedIn', { username: savedUsername, currency: sessionStorage.getItem('userCurrency') || 'USD' });
+            }
         });
     }
 
