@@ -9175,26 +9175,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     });
     // ▲▲▲ FIN SISTEMA DE REVANCHA ▲▲▲
 
-    // --- DESCONEXIÓN ---
-
-    socket.on('disconnect', () => {
-      console.log(`❌ Un jugador se ha desconectado: ${socket.id}`);
-
-      if (connectedUsers[socket.id]) {
-          console.log(`Usuario desconectado: ${connectedUsers[socket.id].name}`);
-          delete connectedUsers[socket.id];
-          broadcastUserListUpdate(io);
-      }
-
-      // ▼▼▼ CORRECCIÓN: NO llamar ludoHandlePlayerDeparture aquí - el evento disconnect principal ya maneja el timeout ▼▼▼
-      // El evento 'disconnect' principal (línea ~5412) ya maneja correctamente el timeout de 2 minutos
-      // No debemos procesar el abandono inmediatamente aquí
-      // ludoHandlePlayerDeparture solo debe usarse para casos intencionales (leaveGame, leaveLudoGame)
-      // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
-    });
-  // ▲▲▲ FIN HANDLERS DE SOCKET DE LUDO ▲▲▲
-
-}); // <<-- Este es el cierre del 'io.on connection'
+}); // Cierre del io.on('connection')
 
 // --- FUNCIÓN DE PING AUTOMÁTICO PARA MANTENER ACTIVO EL SERVICIO EN RENDER ---
 const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos en milisegundos
@@ -9276,4 +9257,4 @@ server.listen(PORT, '0.0.0.0', async () => {
     }
   }, 60000); // Verificar cada minuto
   // ▲▲▲ FIN DE LA LIMPIEZA AUTOMÁTICA DEL CHAT ▲▲▲
-});// Verificación de servidor - Tue Oct  7 13:42:08 WEST 2025
+});
