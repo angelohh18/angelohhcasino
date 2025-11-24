@@ -726,6 +726,9 @@ let ludoPeriodicCleanupInterval = null; // Intervalo para limpieza periódica (s
 const LUDO_INACTIVITY_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) de inactividad antes de eliminar por falta
 let ludoInactivityTimeouts = {}; // { `${roomId}_${playerId}`: timeoutId }
 let ludoDisconnectedPlayers = {}; // { `${roomId}_${userId}`: { disconnectedAt: timestamp, seatIndex: number } }
+// ▼▼▼ SISTEMA GLOBAL DE PENALIZACIONES: Rastrear penalizaciones aplicadas incluso si la sala ya no existe ▼▼▼
+let ludoGlobalPenaltyApplied = {}; // { `${roomId}_${userId}`: true } - Para rastrear penalizaciones incluso si la sala fue eliminada
+// ▲▲▲ FIN SISTEMA GLOBAL DE PENALIZACIONES ▲▲▲
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LUDO ▲▲▲
 
 // ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
@@ -1397,13 +1400,17 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         }
         
         // ▼▼▼ CRÍTICO: Verificar si ya fue penalizado para evitar cobrar dos veces ▼▼▼
+        // Verificar tanto en la sala como en el sistema global (por si la sala fue eliminada)
+        const globalPenaltyKey = `${roomId}_${leavingPlayerSeat.userId}`;
+        const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey] || (room.penaltyApplied && room.penaltyApplied[leavingPlayerSeat.userId]);
+        
         // Inicializar el objeto de penalizaciones si no existe
         if (!room.penaltyApplied) {
             room.penaltyApplied = {};
         }
         
-        // Solo aplicar penalización si NO fue aplicada anteriormente
-        if (!room.penaltyApplied[leavingPlayerSeat.userId]) {
+        // Solo aplicar penalización si NO fue aplicada anteriormente (ni en la sala ni globalmente)
+        if (!alreadyPenalized) {
             // Aplicar penalización (descontar la apuesta)
             if (userInfo) {
                 const penaltyInUserCurrency = convertCurrency(bet, roomCurrencyForFault, userInfo.currency, exchangeRates);
@@ -1412,8 +1419,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 // Actualizar en BD o inMemoryUsers
                 await updateUserCredits(leavingPlayerSeat.userId, userInfo.credits, userInfo.currency);
                 
-                // Marcar que la penalización fue aplicada
+                // Marcar que la penalización fue aplicada (tanto en la sala como globalmente)
                 room.penaltyApplied[leavingPlayerSeat.userId] = true;
+                ludoGlobalPenaltyApplied[globalPenaltyKey] = true;
                 
                 console.log(`[${roomId}] PENALIZACIÓN APLICADA (Abandono Voluntario): ${username} perdió ${bet.toFixed(2)} ${roomCurrencyForFault} (Equivalente a ${penaltyInUserCurrency.toFixed(2)} ${userInfo.currency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
                 
@@ -1436,7 +1444,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 console.warn(`[${roomId}] PENALIZACIÓN FALLIDA (Abandono Voluntario): No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
             }
         } else {
-            console.log(`[${roomId}] ⚠️ PENALIZACIÓN YA APLICADA: ${username} ya fue penalizado anteriormente. NO se vuelve a descontar la apuesta.`);
+            console.log(`[${roomId}] ⚠️ PENALIZACIÓN YA APLICADA: ${username} ya fue penalizado anteriormente (global: ${ludoGlobalPenaltyApplied[globalPenaltyKey]}, sala: ${room.penaltyApplied[leavingPlayerSeat.userId]}). NO se vuelve a descontar la apuesta.`);
         }
         // ▲▲▲ FIN DE LA PENALIZACIÓN ▲▲▲
         
