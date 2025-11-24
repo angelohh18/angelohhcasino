@@ -287,6 +287,16 @@ function showPwaInstallModal() {
         console.log('Estado de usuario actualizado:', userState);
         currentUser.credits = userState.credits;
         currentUser.currency = userState.currency;
+        
+        // ▼▼▼ CRÍTICO: Actualizar también sessionStorage para mantener consistencia ▼▼▼
+        if (userState.credits !== undefined) {
+            // Guardar créditos en sessionStorage para persistencia
+            sessionStorage.setItem('userCredits', userState.credits.toString());
+        }
+        if (userState.currency) {
+            sessionStorage.setItem('userCurrency', userState.currency);
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
 
         if (typeof updateLobbyCreditsDisplay === 'function') {
             updateLobbyCreditsDisplay();

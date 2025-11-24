@@ -1381,9 +1381,25 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io) {
                 console.log(`[${roomId}] Saldo anterior: ${(winnerInfo.credits - winningsInUserCurrency).toFixed(2)} ${winnerInfo.currency}. Saldo nuevo: ${winnerInfo.credits.toFixed(2)} ${winnerInfo.currency}.`);
 
                 // Notificar al ganador (si está conectado) de su nuevo saldo
-                const winnerSocket = io.sockets.sockets.get(winnerSeat.playerId);
+                // Buscar el socket por playerId primero, luego por userId si no se encuentra
+                let winnerSocket = io.sockets.sockets.get(winnerSeat.playerId);
+                
+                // Si no encontramos el socket por playerId, buscar por userId
+                if (!winnerSocket && winnerSeat.userId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === winnerSeat.userId) {
+                            winnerSocket = socket;
+                            break;
+                        }
+                    }
+                }
+                
                 if (winnerSocket) {
                     winnerSocket.emit('userStateUpdated', winnerInfo);
+                    console.log(`[${roomId}] userStateUpdated enviado al ganador ${winnerUsername} (credits: ${winnerInfo.credits} ${winnerInfo.currency})`);
+                } else {
+                    console.warn(`[${roomId}] No se encontró socket para notificar al ganador ${winnerUsername}. Puede que se haya desconectado.`);
                 }
             } else {
                 console.warn(`[${roomId}] PAGO FALLIDO (Abandono): No se encontró userInfo para ${winnerUsername} (ID: ${winnerSeat.userId}).`);

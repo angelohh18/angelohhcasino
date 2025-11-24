@@ -1411,14 +1411,26 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 1. Unirse a la sala
     // ▼▼▼ BLOQUE MODIFICADO ▼▼▼
-    const userId = sessionStorage.getItem('userId'); // <-- LÍNEA CAMBIADA
+    let userId = sessionStorage.getItem('userId');
+    
+    // Si no hay userId, intentar recuperarlo desde username
+    if (!userId) {
+        const username = sessionStorage.getItem('username');
+        if (username) {
+            userId = 'user_' + username.toLowerCase();
+            sessionStorage.setItem('userId', userId);
+            console.log('[joinLudoGame] userId restaurado desde username:', userId);
+        }
+    }
+    
     if (!userId) {
         alert('Error: No se encontró el ID de usuario. Volviendo al lobby.');
-        window.location.href = '/';
-    } else {
-        // Enviar el userId para la re-asociación
-        socket.emit('joinLudoGame', { roomId, userId }); 
+        window.location.href = '/ludo';
+        return;
     }
+    
+    // Enviar el userId para la re-asociación
+    socket.emit('joinLudoGame', { roomId, userId }); 
     // ▲▲▲ FIN DE LA MODIFICACIÓN ▲▲▲
     
     // 3. Listeners del Servidor para el juego
@@ -2057,7 +2069,20 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('gameEnded', (data) => {
         console.log('[gameEnded] El juego terminó:', data);
         if (data.redirect) {
+            // ▼▼▼ CRÍTICO: Preservar userId en sessionStorage antes de redirigir ▼▼▼
+            const userId = sessionStorage.getItem('userId');
+            if (!userId) {
+                // Intentar recuperar desde localStorage o currentUser
+                const username = sessionStorage.getItem('username');
+                if (username) {
+                    sessionStorage.setItem('userId', 'user_' + username.toLowerCase());
+                    console.log('[gameEnded] userId restaurado desde username:', sessionStorage.getItem('userId'));
+                }
+            }
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+            
             // Redirigir al lobby con mensaje apropiado
+            // IMPORTANTE: NO desconectar el socket, solo redirigir
             setTimeout(() => {
                 let message = data.message || 'El juego terminó.';
                 if (data.reason === 'abandonment') {
@@ -2072,6 +2097,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     message += `\n\nEl ganador fue: ${data.winner}`;
                 }
                 alert(message);
+                // Redirigir sin desconectar el socket
                 window.location.href = '/ludo';
             }, 1000);
         }

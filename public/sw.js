@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.11.8'; // Actualizado: Fix reconexión - manejar reconnect_sync en cliente para sincronizar sin animar
+const CACHE_NAME = 'mutijuego-v1.11.9'; // Actualizado: Fix abandono - preservar userId, no desconectar socket, buscar socket por userId para userStateUpdated
 const urlsToCache = [
   '/',
   '/index.html',
