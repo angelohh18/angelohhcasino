@@ -7134,10 +7134,22 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           return socket.emit('ludoError', { message: 'El juego no ha comenzado.' });
       }
     
-      const mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
+      // Buscar asiento por socket.id primero, luego por userId (para casos de reconexión)
+      const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+      let mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
+      
+      // Si no se encuentra por socket.id, buscar por userId (reconexión)
+      if (mySeatIndex === -1 && userId) {
+          mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
+          // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id
+          if (mySeatIndex !== -1) {
+              room.seats[mySeatIndex].playerId = socket.id;
+              console.log(`[${roomId}] Actualizado playerId del asiento ${mySeatIndex} a ${socket.id} para userId ${userId} (ludoRollDice)`);
+          }
+      }
+      
       if (mySeatIndex === -1) {
           // Buscar por userId para verificar si fue eliminado por abandono
-          const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
           if (userId && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
               const bet = parseFloat(room.settings.bet) || 0;
               const roomCurrency = room.settings.betCurrency || 'USD';

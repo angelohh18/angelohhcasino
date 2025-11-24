@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.11.5'; // Actualizado: Fix reconexión - buscar asiento por userId en ludoRollDice y ludoMovePiece
+const CACHE_NAME = 'mutijuego-v1.11.6'; // Actualizado: Fix reconexión - buscar asiento por userId en ludoRollDice también
 const urlsToCache = [
   '/',
   '/index.html',
