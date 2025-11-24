@@ -6690,12 +6690,32 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     
       const room = ludoRooms[roomId];
     
-      // ▼▼▼ CRÍTICO: Verificar reconexión PRIMERO, antes de cualquier otra verificación ▼▼▼
-      // Si el jugador está en reconnectSeats, procesar reconexión inmediatamente
+      // ▼▼▼ CRÍTICO: Verificar si el jugador fue eliminado por abandono ANTES de permitir reconexión ▼▼▼
+      // Si el abandono fue finalizado, NO permitir reconexión - SIMPLE Y DIRECTO
+      if (room && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero fue eliminado por abandono después de 2 minutos. NO se permite reconexión.`);
+          
+          const username = userId.replace('user_', '');
+          const bet = parseFloat(room.settings.bet) || 0;
+          const roomCurrency = room.settings.betCurrency || 'USD';
+          
+          socket.emit('gameEnded', { 
+              reason: 'abandonment', 
+              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+              redirect: true,
+              penalty: bet,
+              currency: roomCurrency
+          });
+          return; // NO permitir reconexión - SIMPLE Y DIRECTO
+      }
+      // ▲▲▲ FIN: BLOQUEO DE RECONEXIÓN DESPUÉS DE ABANDONO ▲▲▲
+    
+      // ▼▼▼ CRÍTICO: Verificar reconexión SOLO si NO fue eliminado por abandono ▼▼▼
+      // Si el jugador está en reconnectSeats (dentro de los 2 minutos), procesar reconexión
       const timeoutKey = `${roomId}_${userId}`;
       if (room && room.reconnectSeats && room.reconnectSeats[userId]) {
-          // El jugador está intentando reconectar, procesar reconexión INMEDIATAMENTE
-          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId}. Procesando reconexión...`);
+          // El jugador está intentando reconectar DENTRO de los 2 minutos, procesar reconexión INMEDIATAMENTE
+          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} DENTRO de los 2 minutos. Procesando reconexión...`);
           
           const reservedInfo = room.reconnectSeats[userId];
           const originalSeatIndex = reservedInfo.seatIndex;
