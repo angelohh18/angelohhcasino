@@ -6660,6 +6660,18 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           
           io.to(roomId).emit('playerJoined', sanitizedRoom);
           
+          // ▼▼▼ CRÍTICO: Emitir ludoGameStateUpdated para sincronizar completamente el estado del juego ▼▼▼
+          // Esto asegura que el jugador reconectado reciba el estado completo (fichas, turno, etc.)
+          if (room.state === 'playing' && room.gameState) {
+              console.log(`[${roomId}] Enviando ludoGameStateUpdated al jugador reconectado ${userId} para sincronizar estado completo.`);
+              socket.emit('ludoGameStateUpdated', {
+                  newGameState: room.gameState,
+                  seats: room.seats,
+                  moveInfo: { type: 'reconnect_sync' }
+              });
+          }
+          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+          
           // IMPORTANTE: Actualizar socket.currentRoomId para que el jugador pueda interactuar
           socket.currentRoomId = roomId;
           socket.join(roomId);
