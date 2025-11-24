@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.11.1'; // Actualizado: Fix crítico - ludoHandlePlayerDeparture verifica timeout antes de procesar abandono
+const CACHE_NAME = 'mutijuego-v1.11.2'; // Actualizado: Fix error de sintaxis - eliminar } extra en disconnect handler
 const urlsToCache = [
   '/',
   '/index.html',

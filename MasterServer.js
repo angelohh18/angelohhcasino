@@ -8828,7 +8828,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       // No debemos procesar el abandono inmediatamente aquí
       // ludoHandlePlayerDeparture solo debe usarse para casos intencionales (leaveGame, leaveLudoGame)
       // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
-      }
     });
   // ▲▲▲ FIN HANDLERS DE SOCKET DE LUDO ▲▲▲
 
