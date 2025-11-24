@@ -5483,7 +5483,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                 if (!room.abandonmentTimeouts) {
                     room.abandonmentTimeouts = {};
                 }
-                room.abandonmentTimeouts[userId] = setTimeout(() => {
+                room.abandonmentTimeouts[userId] = setTimeout(async () => {
                     // Si después de 2 minutos no se reconectó, entonces sí es abandono
                     const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
                     if (stillDisconnected) {
@@ -5564,7 +5564,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                             const commission = totalPot * 0.10;
                             const finalWinnings = totalPot - commission;
                             
-                            // Guardar comisión
+                            // Guardar comisión (roomCurrency ya está declarado arriba)
                             if (!room.commissionSaved) {
                                 const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
                                 await saveCommission(commissionInCOP, 'COP');
