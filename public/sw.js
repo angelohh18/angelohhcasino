@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.11.2'; // Actualizado: Fix error de sintaxis - eliminar } extra en disconnect handler
+const CACHE_NAME = 'mutijuego-v1.11.3'; // Actualizado: Fix reconexión - actualizar socket.currentRoomId y join room al reconectar
 const urlsToCache = [
   '/',
   '/index.html',

@@ -6622,9 +6622,17 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                   playerId: socket.id, // Actualizar con el nuevo socket.id
                   status: reservedInfo.seatData.status || 'playing' // Mantener el status original (playing, no waiting)
               };
-              console.log(`[${roomId}] ${userId} recuperó su asiento ${originalSeatIndex} al reconectarse. Status: ${room.seats[originalSeatIndex].status}`);
+              console.log(`[${roomId}] ${userId} recuperó su asiento ${originalSeatIndex} al reconectarse. Status: ${room.seats[originalSeatIndex].status}, playerId: ${socket.id}`);
           } else {
-              console.warn(`[${roomId}] El asiento ${originalSeatIndex} ya está ocupado. No se puede restaurar.`);
+              // Si el asiento está ocupado, verificar si es el mismo jugador con otro socket.id
+              const currentSeat = room.seats[originalSeatIndex];
+              if (currentSeat && currentSeat.userId === userId) {
+                  // Es el mismo jugador, solo actualizar el playerId
+                  currentSeat.playerId = socket.id;
+                  console.log(`[${roomId}] ${userId} actualizó su playerId a ${socket.id} en asiento ${originalSeatIndex}`);
+              } else {
+                  console.warn(`[${roomId}] El asiento ${originalSeatIndex} ya está ocupado por otro jugador. No se puede restaurar.`);
+              }
           }
           
           // Limpiar datos de reconexión
@@ -6651,6 +6659,10 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           });
           
           io.to(roomId).emit('playerJoined', sanitizedRoom);
+          
+          // IMPORTANTE: Actualizar socket.currentRoomId para que el jugador pueda interactuar
+          socket.currentRoomId = roomId;
+          socket.join(roomId);
           
           // IMPORTANTE: No continuar con la lógica de asignación de asientos, ya que el asiento fue restaurado
           return;
