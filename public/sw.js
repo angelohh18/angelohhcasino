@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.0'; // Actualizado: Fix abandono - restaurar userId en lobby, solicitar userLoggedIn al volver
+const CACHE_NAME = 'mutijuego-v1.12.1'; // Actualizado: Fix reconexión y sincronización - actualizar asientos cuando jugador abandona, notificar reconexión
 const urlsToCache = [
   '/',
   '/index.html',
