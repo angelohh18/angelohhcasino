@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.7'; // Actualizado: Fix lógica de reconexión - restaurar asiento correctamente antes de 2 minutos
+const CACHE_NAME = 'mutijuego-v1.10.8'; // Actualizado: Agregar logs para verificar tiempo exacto de timeout de abandono
 const urlsToCache = [
   '/',
   '/index.html',

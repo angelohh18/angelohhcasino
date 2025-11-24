@@ -5475,11 +5475,14 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                 }
                 
                 // Guardar información del asiento para reconexión
+                const disconnectTimestamp = Date.now();
                 room.reconnectSeats[userId] = {
                     seatIndex: seatIndex,
                     seatData: { ...leavingPlayerSeat },
-                    timestamp: Date.now()
+                    timestamp: disconnectTimestamp
                 };
+                
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó a las ${new Date(disconnectTimestamp).toISOString()}. Timeout de ${LUDO_RECONNECT_TIMEOUT_MS/1000} segundos iniciado.`);
                 
                 // Configurar timeout de 2 minutos antes de considerar abandono
                 const timeoutKey = `${roomId}_${userId}`;
@@ -5488,10 +5491,14 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     room.abandonmentTimeouts = {};
                 }
                 room.abandonmentTimeouts[userId] = setTimeout(async () => {
+                    // Verificar tiempo transcurrido
+                    const elapsedTime = Date.now() - disconnectTimestamp;
+                    const elapsedSeconds = Math.floor(elapsedTime / 1000);
+                    
                     // Si después de 2 minutos no se reconectó, entonces sí es abandono
                     const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
                     if (stillDisconnected) {
-                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó en 2 minutos. Eliminando por abandono.`);
+                        console.log(`[LUDO TIMEOUT] ${username} no se reconectó después de ${elapsedSeconds} segundos (${LUDO_RECONNECT_TIMEOUT_MS/1000}s esperados). Eliminando por abandono.`);
                         
                         // Obtener información del jugador antes de eliminarlo
                         const leavingSeatInfo = room.reconnectSeats[userId];
