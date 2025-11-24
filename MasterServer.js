@@ -8810,8 +8810,11 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           broadcastUserListUpdate(io);
       }
 
-      if (socket.currentRoomId) {
-          ludoHandlePlayerDeparture(socket.currentRoomId, socket.id, io);
+      // ▼▼▼ CORRECCIÓN: NO llamar ludoHandlePlayerDeparture aquí - el evento disconnect principal ya maneja el timeout ▼▼▼
+      // El evento 'disconnect' principal (línea ~5412) ya maneja correctamente el timeout de 2 minutos
+      // No debemos procesar el abandono inmediatamente aquí
+      // ludoHandlePlayerDeparture solo debe usarse para casos intencionales (leaveGame, leaveLudoGame)
+      // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
       }
     });
   // ▲▲▲ FIN HANDLERS DE SOCKET DE LUDO ▲▲▲
