@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.34'; // Actualizado: Fix - investigando error de sintaxis en Render
+const CACHE_NAME = 'mutijuego-v1.12.35'; // Actualizado: Fix - error de sintaxis resuelto
 const urlsToCache = [
   '/',
   '/index.html',
