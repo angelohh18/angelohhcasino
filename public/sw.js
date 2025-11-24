@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.10.6'; // Actualizado: Fix declaración duplicada de roomCurrency
+const CACHE_NAME = 'mutijuego-v1.10.7'; // Actualizado: Fix lógica de reconexión - restaurar asiento correctamente antes de 2 minutos
 const urlsToCache = [
   '/',
   '/index.html',
