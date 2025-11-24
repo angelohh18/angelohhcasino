@@ -5530,40 +5530,92 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                     const elapsedTime = Date.now() - disconnectTimestamp;
                     const elapsedSeconds = Math.floor(elapsedTime / 1000);
                     
-                    // Si después de 2 minutos no se reconectó, entonces sí es abandono
-                    const stillDisconnected = room.reconnectSeats && room.reconnectSeats[userId];
+                    // ▼▼▼ CRÍTICO: Verificar que la sala todavía existe y el jugador sigue desconectado ▼▼▼
+                    const currentRoom = ludoRooms[roomId];
+                    if (!currentRoom) {
+                        console.log(`[LUDO TIMEOUT] La sala ${roomId} ya no existe. Cancelando timeout.`);
+                        delete ludoReconnectTimeouts[timeoutKey];
+                        if (room.abandonmentTimeouts) {
+                            delete room.abandonmentTimeouts[userId];
+                        }
+                        return;
+                    }
+                    
+                    // Verificar si el jugador todavía está en reconnectSeats (no se reconectó)
+                    const stillDisconnected = currentRoom.reconnectSeats && currentRoom.reconnectSeats[userId];
                     if (stillDisconnected) {
                         console.log(`[LUDO TIMEOUT] ${username} no se reconectó después de ${elapsedSeconds} segundos (${LUDO_RECONNECT_TIMEOUT_MS/1000}s esperados). Eliminando por abandono.`);
                         
                         // Obtener información del jugador antes de eliminarlo
-                        const leavingSeatInfo = room.reconnectSeats[userId];
+                        const leavingSeatInfo = currentRoom.reconnectSeats[userId];
+                        if (!leavingSeatInfo) {
+                            console.error(`[LUDO TIMEOUT] Error: No se encontró leavingSeatInfo para ${userId} en sala ${roomId}`);
+                            delete ludoReconnectTimeouts[timeoutKey];
+                            if (currentRoom.abandonmentTimeouts) {
+                                delete currentRoom.abandonmentTimeouts[userId];
+                            }
+                            return;
+                        }
+                        
                         const leavingSeatIndex = leavingSeatInfo.seatIndex;
                         const leavingPlayerName = leavingSeatInfo.seatData.playerName;
                         const leavingPlayerColor = leavingSeatInfo.seatData.color;
                         
+                        // ▼▼▼ CRÍTICO: Verificar que el asiento todavía existe y corresponde al jugador ▼▼▼
+                        if (leavingSeatIndex < 0 || leavingSeatIndex >= currentRoom.seats.length) {
+                            console.error(`[LUDO TIMEOUT] Error: leavingSeatIndex ${leavingSeatIndex} es inválido para sala ${roomId}`);
+                            delete ludoReconnectTimeouts[timeoutKey];
+                            if (currentRoom.abandonmentTimeouts) {
+                                delete currentRoom.abandonmentTimeouts[userId];
+                            }
+                            return;
+                        }
+                        
+                        // Verificar que el asiento todavía está ocupado por este jugador o está null
+                        const currentSeat = currentRoom.seats[leavingSeatIndex];
+                        if (currentSeat && currentSeat.userId !== userId) {
+                            console.warn(`[LUDO TIMEOUT] El asiento ${leavingSeatIndex} ya está ocupado por otro jugador (${currentSeat.userId}). El jugador ${userId} ya fue eliminado.`);
+                            // Limpiar datos de reconexión pero no procesar abandono
+                            delete currentRoom.reconnectSeats[userId];
+                            if (Object.keys(currentRoom.reconnectSeats).length === 0) {
+                                delete currentRoom.reconnectSeats;
+                            }
+                            delete ludoReconnectTimeouts[timeoutKey];
+                            if (currentRoom.abandonmentTimeouts) {
+                                delete currentRoom.abandonmentTimeouts[userId];
+                            }
+                            return;
+                        }
+                        // ▲▲▲ FIN DE LA VERIFICACIÓN CRÍTICA ▲▲▲
+                        
                         // Limpiar datos de reconexión
-                        delete room.reconnectSeats[userId];
-                        if (Object.keys(room.reconnectSeats).length === 0) {
-                            delete room.reconnectSeats;
+                        delete currentRoom.reconnectSeats[userId];
+                        if (Object.keys(currentRoom.reconnectSeats).length === 0) {
+                            delete currentRoom.reconnectSeats;
                         }
                         
                         // ▼▼▼ CRÍTICO: Eliminar jugador INMEDIATAMENTE después de 2 minutos ▼▼▼
+                        console.log(`[LUDO TIMEOUT] Eliminando jugador ${leavingPlayerName} (userId: ${userId}) del asiento ${leavingSeatIndex} en sala ${roomId}`);
+                        
                         // Liberar el asiento INMEDIATAMENTE
-                        room.seats[leavingSeatIndex] = null;
+                        currentRoom.seats[leavingSeatIndex] = null;
+                        console.log(`[LUDO TIMEOUT] Asiento ${leavingSeatIndex} liberado. Estado actual:`, currentRoom.seats.map((s, i) => s ? `${i}:${s.playerName}` : `${i}:null`).join(', '));
                         
                         // Eliminar fichas del jugador que abandonó INMEDIATAMENTE
-                        if (room.gameState && room.gameState.pieces && room.gameState.pieces[leavingPlayerColor]) {
-                            delete room.gameState.pieces[leavingPlayerColor];
+                        if (currentRoom.gameState && currentRoom.gameState.pieces && currentRoom.gameState.pieces[leavingPlayerColor]) {
+                            delete currentRoom.gameState.pieces[leavingPlayerColor];
+                            console.log(`[LUDO TIMEOUT] Fichas del color ${leavingPlayerColor} eliminadas del juego.`);
                         }
                         
                         // Marcar abandono finalizado
-                        if (!room.abandonmentFinalized) {
-                            room.abandonmentFinalized = {};
+                        if (!currentRoom.abandonmentFinalized) {
+                            currentRoom.abandonmentFinalized = {};
                         }
-                        room.abandonmentFinalized[userId] = true;
+                        currentRoom.abandonmentFinalized[userId] = true;
+                        console.log(`[LUDO TIMEOUT] Abandono marcado como finalizado para ${userId}`);
                         
                         // ▼▼▼ CRÍTICO: Sincronizar estado INMEDIATAMENTE antes de mostrar modal ▼▼▼
-                        const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+                        const sanitizedRoom = ludoGetSanitizedRoomForClient(currentRoom);
                         
                         // Emitir actualización de asientos INMEDIATAMENTE para que todos vean que el jugador ya no está
                         io.to(roomId).emit('playerJoined', sanitizedRoom);
@@ -5616,23 +5668,25 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                         }
                         
                         // Verificar si queda solo un jugador (ganador)
-                        const remainingActivePlayers = room.seats.filter(s => s !== null && s.status === 'playing');
+                        const remainingActivePlayers = currentRoom.seats.filter(s => s !== null && s.status === 'playing');
+                        console.log(`[LUDO TIMEOUT] Jugadores activos restantes: ${remainingActivePlayers.length}`, remainingActivePlayers.map(s => s.playerName).join(', '));
+                        
                         if (remainingActivePlayers.length === 1) {
                             // Declarar victoria para el jugador restante
                             const winnerSeat = remainingActivePlayers[0];
                             const winnerName = winnerSeat.playerName;
                             console.log(`[${roomId}] ¡¡¡VICTORIA POR ABANDONO!!! Solo queda 1 jugador: ${winnerName}`);
                             
-                            room.state = 'post-game';
-                            const totalPot = room.gameState.pot;
+                            currentRoom.state = 'post-game';
+                            const totalPot = currentRoom.gameState.pot;
                             const commission = totalPot * 0.10;
                             const finalWinnings = totalPot - commission;
                             
                             // Guardar comisión (roomCurrency ya está declarado arriba)
-                            if (!room.commissionSaved) {
+                            if (!currentRoom.commissionSaved) {
                                 const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
                                 await saveCommission(commissionInCOP, 'COP');
-                                room.commissionSaved = true;
+                                currentRoom.commissionSaved = true;
                             }
                             
                             // Pagar al ganador
@@ -5667,14 +5721,28 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                                 winnerInfo.credits += winningsInUserCurrency;
                                 await updateUserCredits(winnerSeat.userId, winnerInfo.credits, winnerInfo.currency);
                                 
-                                const winnerSocket = io.sockets.sockets.get(winnerSeat.playerId);
+                                // Buscar socket del ganador por playerId o userId
+                                let winnerSocket = io.sockets.sockets.get(winnerSeat.playerId);
+                                if (!winnerSocket && winnerSeat.userId) {
+                                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                                        if (socketUserId === winnerSeat.userId) {
+                                            winnerSocket = socket;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
                                 if (winnerSocket) {
                                     winnerSocket.emit('userStateUpdated', winnerInfo);
+                                    console.log(`[LUDO TIMEOUT] userStateUpdated enviado al ganador ${winnerName}`);
+                                } else {
+                                    console.warn(`[LUDO TIMEOUT] No se encontró socket para notificar al ganador ${winnerName}`);
                                 }
                             }
                             
-                            const playersWhoPlayed = room.gameState.playersAtStart || [winnerSeat.playerName, leavingPlayerName];
-                            room.rematchData = {
+                            const playersWhoPlayed = currentRoom.gameState.playersAtStart || [winnerSeat.playerName, leavingPlayerName];
+                            currentRoom.rematchData = {
                                 winnerId: winnerSeat.playerId,
                                 winnerName: winnerName,
                                 winnerColor: winnerSeat.color,
@@ -5683,6 +5751,7 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                                 expectedPlayers: 1
                             };
                             
+                            console.log(`[LUDO TIMEOUT] Emitiendo ludoGameOver para ${winnerName} (victoria por abandono)`);
                             io.to(roomId).emit('playSound', 'victory');
                             io.to(roomId).emit('ludoGameOver', {
                                 winnerName: winnerName,
@@ -5692,16 +5761,18 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                                 totalPot: totalPot,
                                 commission: commission,
                                 finalWinnings: finalWinnings,
-                                rematchData: room.rematchData,
+                                rematchData: currentRoom.rematchData,
                                 abandonment: true
                             });
-                            room.allowRematchConfirmation = true;
+                            currentRoom.allowRematchConfirmation = true;
                         } else if (remainingActivePlayers.length > 1) {
                             // Si quedan más jugadores, pasar el turno si era el turno del que abandonó
-                            if (room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === leavingSeatIndex) {
+                            if (currentRoom.gameState && currentRoom.gameState.turn && currentRoom.gameState.turn.playerIndex === leavingSeatIndex) {
                                 console.log(`[${roomId}] Era el turno del jugador que abandonó. Pasando al siguiente...`);
-                                ludoPassTurn(room, io);
+                                ludoPassTurn(currentRoom, io);
                             }
+                        } else {
+                            console.warn(`[LUDO TIMEOUT] No quedan jugadores activos después del abandono de ${leavingPlayerName}`);
                         }
                         
                         // La sincronización ya se hizo arriba, no repetir aquí
@@ -5710,11 +5781,15 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
                         setTimeout(() => {
                             ludoCheckAndCleanRoom(roomId, io);
                         }, 5000);
+                    } else {
+                        console.log(`[LUDO TIMEOUT] ${username} se reconectó antes de que se ejecutara el timeout. No se procesa abandono.`);
                     }
                     
+                    // Limpiar referencias al timeout
                     delete ludoReconnectTimeouts[timeoutKey];
-                    if (room.abandonmentTimeouts) {
-                        delete room.abandonmentTimeouts[userId];
+                    const finalRoom = ludoRooms[roomId];
+                    if (finalRoom && finalRoom.abandonmentTimeouts) {
+                        delete finalRoom.abandonmentTimeouts[userId];
                     }
                 }, LUDO_RECONNECT_TIMEOUT_MS);
                 ludoReconnectTimeouts[timeoutKey] = room.abandonmentTimeouts[userId];

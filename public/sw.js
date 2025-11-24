@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.3'; // Actualizado: Fix reconexión PWA - usar localStorage como respaldo para userId cuando sessionStorage se pierde
+const CACHE_NAME = 'mutijuego-v1.12.4'; // Actualizado: Fix abandono - verificar sala y asiento antes de eliminar, logs detallados, usar currentRoom
 const urlsToCache = [
   '/',
   '/index.html',
