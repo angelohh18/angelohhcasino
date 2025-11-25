@@ -736,6 +736,7 @@ let ludoGlobalPenaltyApplied = {}; // { `${roomId}_${userId}`: true } - Para ras
 const LA51_INACTIVITY_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) de inactividad antes de eliminar por falta
 let la51InactivityTimeouts = {}; // { `${roomId}_${playerId}`: timeoutId }
 let la51DisconnectedPlayers = {}; // { `${roomId}_${userId}`: { disconnectedAt: timestamp, seatIndex: number, playerId: string } }
+let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: true } - Para rastrear jugadores eliminados por inactividad
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LA 51 ▲▲▲
 
 // ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
@@ -745,16 +746,27 @@ const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar
 
 // ▼▼▼ FUNCIÓN HELPER: Iniciar timeout de inactividad cuando le toca el turno a un jugador ▼▼▼
 function startLa51InactivityTimeout(room, playerId, io) {
-    if (!room || !playerId) return;
+    if (!room || !playerId) {
+        console.log(`[TIMEOUT] ⚠️ No se puede iniciar timeout: room=${!!room}, playerId=${playerId}`);
+        return;
+    }
     
     const roomId = room.roomId;
     const timeoutKey = `${roomId}_${playerId}`;
     const playerSeat = room.seats.find(s => s && s.playerId === playerId);
     
     // Solo iniciar timeout para jugadores humanos (no bots)
-    if (!playerSeat || playerSeat.isBot) {
+    if (!playerSeat) {
+        console.log(`[TIMEOUT] ⚠️ No se encontró asiento para playerId=${playerId} en roomId=${roomId}`);
         return;
     }
+    
+    if (playerSeat.isBot) {
+        console.log(`[TIMEOUT] ⚠️ No se inicia timeout para bot: ${playerSeat.playerName}`);
+        return;
+    }
+    
+    console.log(`[TIMEOUT] ✓ Iniciando timeout para ${playerSeat.playerName} (${playerId}) en roomId=${roomId}`);
     
     // Verificar si el jugador está desconectado
     const playerUserId = playerSeat?.userId;
@@ -795,6 +807,14 @@ function startLa51InactivityTimeout(room, playerId, io) {
         
         // Eliminar al jugador por inactividad (tratado como abandono voluntario)
         console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${playerSeat.playerName} (${playerId}) - Tratado como abandono voluntario`);
+        
+        // Marcar al jugador como eliminado por inactividad
+        if (playerUserId) {
+            const eliminatedKey = `${roomId}_${playerUserId}`;
+            la51EliminatedPlayers[eliminatedKey] = true;
+            console.log(`[${roomId}] ✓ Jugador ${playerSeat.playerName} (${playerUserId}) marcado como eliminado por inactividad`);
+        }
+        
         handlePlayerDeparture(roomId, playerId, io); // Sin parámetro = abandono voluntario
         
         // Limpiar el timeout y el estado de desconexión
@@ -5145,6 +5165,27 @@ io.on('connection', (socket) => {
 
         // El usuario ya debe existir en users desde userLoggedIn
 
+        // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO POR INACTIVIDAD ▼▼▼
+        const eliminatedKey = `${roomId}_${userId}`;
+        if (la51EliminatedPlayers[eliminatedKey]) {
+            console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Redirigiendo al lobby.`);
+            delete la51EliminatedPlayers[eliminatedKey];
+            
+            // Notificar al jugador que fue eliminado y redirigirlo al lobby
+            socket.emit('playerEliminatedByInactivity', {
+                message: 'Fuiste eliminado por inactividad. Serás redirigido al lobby.',
+                redirectToLobby: true
+            });
+            
+            // Emitir evento para redirigir al lobby (similar a Ludo)
+            socket.emit('redirectToLobby', {
+                reason: 'Fuiste eliminado por inactividad durante la partida.'
+            });
+            
+            return; // No permitir que se una a la sala
+        }
+        // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN POR INACTIVIDAD ▲▲▲
+        
         // ▼▼▼ LIMPIAR ESTADO DE DESCONEXIÓN: El jugador se está reconectando ▼▼▼
         const disconnectKey = `${roomId}_${userId}`;
         if (la51DisconnectedPlayers[disconnectKey]) {
