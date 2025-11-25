@@ -5285,9 +5285,6 @@ io.on('connection', (socket) => {
         return console.log('Acción de meld inválida: fuera de turno o jugador no encontrado.');
     }
 
-    // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está actuando ▼▼▼
-    cancelLa51InactivityTimeout(roomId, socket.id);
-    // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
 
     // V --- AÑADE ESTA VALIDACIÓN AQUÍ --- V
     if (!room.hasDrawn) {
