@@ -777,7 +777,11 @@ function startLa51InactivityTimeout(room, playerId, io) {
     if (la51InactivityTimeouts[timeoutKey]) {
         clearTimeout(la51InactivityTimeouts[timeoutKey]);
         delete la51InactivityTimeouts[timeoutKey];
+        console.log(`[${roomId}] [TIMEOUT] Timeout anterior cancelado para ${playerSeat.playerName} (${playerId})`);
     }
+    
+    // INICIAR TIMEOUT INMEDIATAMENTE - SIN IMPORTAR SI ESTÁ CONECTADO O DESCONECTADO
+    console.log(`[${roomId}] [TIMEOUT] 🚀 INICIANDO TIMEOUT INMEDIATAMENTE para ${playerSeat.playerName} (${playerId}) - Duración: ${LA51_INACTIVITY_TIMEOUT_MS}ms`);
     
     // Iniciar nuevo timeout de inactividad
     la51InactivityTimeouts[timeoutKey] = setTimeout(() => {
@@ -4425,8 +4429,9 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
         setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
     } else {
         // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (solo si NO es bot)
-        console.log(`[${room.roomId}] [TURN CHANGE] Jugador es humano, iniciando timeout de inactividad INMEDIATAMENTE...`);
-        startLa51InactivityTimeout(room, room.currentPlayerId, io);
+        console.log(`[${room.roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador es humano (${nextPlayer.playerName}), LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE...`);
+        const timeoutResult = startLa51InactivityTimeout(room, room.currentPlayerId, io);
+        console.log(`[${room.roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName} (${room.currentPlayerId})`);
     }
     // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 
