@@ -4576,6 +4576,12 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             broadcastUserListUpdate(io);
         }
         
+        // Asegurar que el socket NO tenga currentRoomId después de salir
+        if (leavingSocket) {
+            delete leavingSocket.currentRoomId;
+            console.log(`[Práctica] Asegurado que socket.currentRoomId está limpio para ${leavingPlayerId}`);
+        }
+        
         return; // Detiene la ejecución para no aplicar lógica de mesas reales
     }
     // ▲▲▲ FIN DEL BLOQUE MODIFICADO ▲▲▲
