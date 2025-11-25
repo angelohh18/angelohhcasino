@@ -3847,6 +3847,7 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
             if (!seat || seat.playerId === winnerSeat.playerId) return;
 
             const finalSeatState = room.seats.find(s => s && s.playerId === seat.playerId);
+            const penaltyInfo = room.penaltiesPaid && room.penaltiesPaid[seat.userId];
             let statusText = '';
             let amountPaid = 0;
             let baseText = 'Pagó apuesta';
@@ -3855,20 +3856,44 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
             let color = '#ffff00';
 
             if (!finalSeatState) {
-                reasonText = 'por abandonar';
-                baseText = 'Pagó apuesta'; // Solo apuesta, ya se descontó al iniciar
-                amountPaid = bet;
-                color = '#ffff00';
+                // Jugador abandonó
+                if (penaltyInfo) {
+                    reasonText = 'por abandonar (multa aplicada)';
+                    baseText = 'Pagó apuesta y multa';
+                    amountPaid = bet + penalty;
+                    color = '#ff4444';
+                } else {
+                    reasonText = 'por abandonar';
+                    baseText = 'Pagó apuesta';
+                    amountPaid = bet;
+                    color = '#ffff00';
+                }
             } else if (finalSeatState.active === false) {
-                reasonText = 'por falta';
-                baseText = 'Pagó apuesta y multa'; // Apuesta (ya descontada) + multa adicional
-                amountPaid = bet + penalty;
-                color = '#ff4444';
+                // Jugador eliminado por falta
+                if (penaltyInfo) {
+                    reasonText = `por falta: ${penaltyInfo.reason}`;
+                    baseText = 'Pagó apuesta y multa';
+                    amountPaid = bet + penalty;
+                    color = '#ff4444';
+                } else {
+                    reasonText = 'por falta';
+                    baseText = 'Pagó apuesta y multa';
+                    amountPaid = bet + penalty;
+                    color = '#ff4444';
+                }
             } else if (!finalSeatState.doneFirstMeld) {
-                reasonText = 'por no bajar';
-                baseText = 'Pagó apuesta y multa'; // Apuesta (ya descontada) + multa adicional
-                amountPaid = bet + penalty;
-                color = '#ff4444';
+                // Jugador no bajó los 51 puntos
+                if (penaltyInfo) {
+                    reasonText = `por no bajar (multa aplicada)`;
+                    baseText = 'Pagó apuesta y multa';
+                    amountPaid = bet + penalty;
+                    color = '#ff4444';
+                } else {
+                    reasonText = 'por no bajar';
+                    baseText = 'Pagó apuesta y multa';
+                    amountPaid = bet + penalty;
+                    color = '#ff4444';
+                }
             }
 
             statusText = `<span style="color:${color};">${baseText} ${reasonText}</span>`.trim();
