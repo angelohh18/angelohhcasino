@@ -746,41 +746,63 @@ const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar
 
 // ▼▼▼ FUNCIÓN HELPER SIMPLIFICADA: Iniciar timeout de inactividad cuando le toca el turno a un jugador ▼▼▼
 function startLa51InactivityTimeout(room, playerId, io) {
-    if (!room || !playerId) return;
+    if (!room || !playerId) {
+        console.log(`[TIMEOUT] ❌ No se puede iniciar: room=${!!room}, playerId=${playerId}`);
+        return;
+    }
     
     const roomId = room.roomId;
     const timeoutKey = `${roomId}_${playerId}`;
     const playerSeat = room.seats.find(s => s && s.playerId === playerId);
     
     // Solo iniciar timeout para jugadores humanos (no bots)
-    if (!playerSeat || playerSeat.isBot) return;
+    if (!playerSeat) {
+        console.log(`[${roomId}] [TIMEOUT] ❌ No se encontró asiento para playerId=${playerId}`);
+        return;
+    }
+    
+    if (playerSeat.isBot) {
+        console.log(`[${roomId}] [TIMEOUT] ⏭️ Saltando timeout para bot: ${playerSeat.playerName}`);
+        return;
+    }
     
     // Cancelar timeout anterior si existe
     if (la51InactivityTimeouts[timeoutKey]) {
         clearTimeout(la51InactivityTimeouts[timeoutKey]);
         delete la51InactivityTimeouts[timeoutKey];
+        console.log(`[${roomId}] [TIMEOUT] ♻️ Timeout anterior cancelado para ${playerSeat.playerName}`);
     }
     
     // Iniciar timeout INMEDIATAMENTE cuando le toca el turno
-    console.log(`[${roomId}] ⏰ Iniciando timeout de inactividad para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+    console.log(`[${roomId}] [TIMEOUT] ✅ INICIANDO timeout INMEDIATAMENTE para ${playerSeat.playerName} (${playerId}). Duración: ${LA51_INACTIVITY_TIMEOUT_MS/1000}s`);
     
     la51InactivityTimeouts[timeoutKey] = setTimeout(() => {
+        console.log(`[${roomId}] [TIMEOUT] ⏰ TIMEOUT EXPIRADO para ${playerSeat.playerName} (${playerId})`);
+        
         const currentRoom = la51Rooms[roomId];
         
         // Verificar que el turno todavía es de este jugador y que está activo
-        if (!currentRoom || currentRoom.currentPlayerId !== playerId) {
+        if (!currentRoom) {
+            console.log(`[${roomId}] [TIMEOUT] ❌ Sala no existe, cancelando eliminación`);
+            delete la51InactivityTimeouts[timeoutKey];
+            return;
+        }
+        
+        if (currentRoom.currentPlayerId !== playerId) {
+            console.log(`[${roomId}] [TIMEOUT] ❌ Turno ya cambió (ahora es ${currentRoom.currentPlayerId}), cancelando eliminación`);
             delete la51InactivityTimeouts[timeoutKey];
             return;
         }
         
         const currentSeat = currentRoom.seats.find(s => s && s.playerId === playerId);
         if (!currentSeat || currentSeat.active === false) {
+            console.log(`[${roomId}] [TIMEOUT] ❌ Jugador ya no está activo, cancelando eliminación`);
             delete la51InactivityTimeouts[timeoutKey];
             return;
         }
         
         // Eliminar al jugador por inactividad (igual que abandono voluntario)
-        console.log(`[${roomId}] 🚨 Eliminando ${playerSeat.playerName} por inactividad (2 minutos sin acción).`);
+        console.log(`[${roomId}] [TIMEOUT] 🚨 ELIMINANDO ${playerSeat.playerName} por inactividad (2 minutos sin acción)`);
         
         if (playerSeat.userId) {
             const eliminatedKey = `${roomId}_${playerSeat.userId}`;
@@ -790,6 +812,8 @@ function startLa51InactivityTimeout(room, playerId, io) {
         handlePlayerDeparture(roomId, playerId, io);
         delete la51InactivityTimeouts[timeoutKey];
     }, LA51_INACTIVITY_TIMEOUT_MS);
+    
+    console.log(`[${roomId}] [TIMEOUT] ✅ Timeout configurado correctamente. Key: ${timeoutKey}`);
 }
 
 // ▼▼▼ FUNCIÓN HELPER: Cancelar timeout de inactividad cuando el jugador actúa ▼▼▼
