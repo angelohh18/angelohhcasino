@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.46'; // Actualizado: Corrección final de estructura y comentarios
+const CACHE_NAME = 'mutijuego-v1.12.47'; // Actualizado: Fix llave de cierre faltante en ludoPassTurn
 const urlsToCache = [
   '/',
   '/index.html',

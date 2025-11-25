@@ -1932,6 +1932,7 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         newGameState: room.gameState
     });
 }
+}
 
 // === handleParchisRoll ===
 async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
@@ -9218,4 +9219,3 @@ server.listen(PORT, '0.0.0.0', async () => {
     }
   }, 60000);
 }); // Fin del server.listen
-
