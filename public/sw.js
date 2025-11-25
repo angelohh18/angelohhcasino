@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.52'; // Actualizado: Mejora lógica de falta en Ludo y animaciones visuales mejoradas
+const CACHE_NAME = 'mutijuego-v1.12.53'; // Actualizado: Fix lógica de falta - verificar con nueva posición si la ficha que se movió es la que podía matar
 const urlsToCache = [
   '/',
   '/index.html',

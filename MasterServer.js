@@ -8123,7 +8123,7 @@ socket.on('accionDescartar', async (data) => {
 
 
           if (validMove && pieceToMove && pieceToMove.state === 'active') {
-               // ▼▼▼ INICIO: VERIFICACIÓN "MATAR ES OBLIGATORIO" (LÓGICA MEJORADA v4) ▼▼▼
+               // ▼▼▼ INICIO: VERIFICACIÓN "MATAR ES OBLIGATORIO" (LÓGICA MEJORADA v5 - SOLO LUDO) ▼▼▼
               if (gameType !== 'parchis') {
                   const initialPossibleMoves = gameStateRefForTurnStart.turn.possibleMoves || [];
                   const potentialKillMovesAtTurnStart = initialPossibleMoves.filter(move =>
@@ -8144,12 +8144,26 @@ socket.on('accionDescartar', async (data) => {
                       if (remainingDice.length > 0) {
                           console.log(`[${roomId}] Verificando si aún se puede matar con dados restantes: [${remainingDice.join(', ')}] hacia [${targetKillPositions.join(', ')}]`);
 
-                          // ▼▼▼ NUEVA LÓGICA: Verificar primero con la ficha original que podía matar ▼▼▼
+                          // ▼▼▼ LÓGICA CORREGIDA: Verificar si la ficha que se movió ES la que podía matar ▼▼▼
                           const originalKillingPiece = potentialKillMovesAtTurnStart[0];
                           const originalKillingPieceCurrent = activePiecesNow.find(p => p.id === originalKillingPiece.pieceId);
                           
-                          if (originalKillingPieceCurrent && originalKillingPieceCurrent.id !== pieceId) {
-                              // Verificar si con el dado restante se puede matar usando la ficha original
+                          // CASO 1: La ficha que se movió ES la misma que podía matar
+                          if (originalKillingPieceCurrent && originalKillingPieceCurrent.id === pieceId) {
+                              // Verificar si con el dado restante se puede matar desde la NUEVA posición (después del movimiento)
+                              const newPositionAfterMove = validMove.targetPosition;
+                              for (const die of remainingDice) {
+                                  const simulatedPath = ludoCalculatePath(playerColor, newPositionAfterMove, die, boardRules, room.gameState.pieces, gameType);
+                                  if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
+                                      killStillPossible = true;
+                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${pieceId} (en nueva posición ${newPositionAfterMove}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
+                                      break;
+                                  }
+                              }
+                          }
+                          // CASO 2: La ficha que se movió NO es la que podía matar
+                          else if (originalKillingPieceCurrent && originalKillingPieceCurrent.id !== pieceId) {
+                              // Verificar si con el dado restante se puede matar usando la ficha original (que no se movió)
                               for (const die of remainingDice) {
                                   const simulatedPath = ludoCalculatePath(playerColor, originalKillingPieceCurrent.position, die, boardRules, room.gameState.pieces, gameType);
                                   if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
@@ -8159,7 +8173,7 @@ socket.on('accionDescartar', async (data) => {
                                   }
                               }
                           }
-                          // ▲▲▲ FIN NUEVA LÓGICA ▲▲▲
+                          // ▲▲▲ FIN LÓGICA CORREGIDA ▲▲▲
 
                           // Verificar con otras fichas si aún no se puede matar
                           if (!killStillPossible) {
@@ -8237,7 +8251,7 @@ socket.on('accionDescartar', async (data) => {
                       }
                   }
               }
-               // ▲▲▲ FIN: VERIFICACIÓN "MATAR ES OBLIGATORIO" (LÓGICA MEJORADA v4) ▲▲▲
+               // ▲▲▲ FIN: VERIFICACIÓN "MATAR ES OBLIGATORIO" (LÓGICA MEJORADA v5 - SOLO LUDO) ▲▲▲
 
                // ▼▼▼ Esta línea ya existe (aprox. 1053) ▼▼▼
               const startPosition = pieceToMove.position; // Guarda la posición ANTES de mover
