@@ -268,12 +268,37 @@ function showPwaInstallModal() {
 
 // --- INICIO: SCRIPT DEL LOBBY ---
 (function(){
+    // ▼▼▼ CRÍTICO: Verificar y restaurar userId desde sessionStorage o localStorage (para PWA) ▼▼▼
+    let savedUserId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+    let savedUsername = sessionStorage.getItem('username') || localStorage.getItem('username');
+    
+    if (savedUsername && !savedUserId) {
+        savedUserId = 'user_' + savedUsername.toLowerCase();
+        // Guardar en ambos para persistencia
+        sessionStorage.setItem('userId', savedUserId);
+        localStorage.setItem('userId', savedUserId);
+        console.log('[Lobby] userId restaurado desde username:', savedUserId);
+    } else if (savedUserId) {
+        // Asegurarse de que esté en ambos lugares
+        sessionStorage.setItem('userId', savedUserId);
+        localStorage.setItem('userId', savedUserId);
+    }
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+    
     // Notificar al servidor que estamos en el lobby de Ludo
     if (socket.connected) {
         socket.emit('enterLudoLobby');
+        // Si hay un usuario logueado, solicitar estado actualizado
+        if (savedUsername) {
+            socket.emit('userLoggedIn', { username: savedUsername, currency: sessionStorage.getItem('userCurrency') || 'USD' });
+        }
     } else {
         socket.on('connect', () => {
             socket.emit('enterLudoLobby');
+            // Si hay un usuario logueado, solicitar estado actualizado
+            if (savedUsername) {
+                socket.emit('userLoggedIn', { username: savedUsername, currency: sessionStorage.getItem('userCurrency') || 'USD' });
+            }
         });
     }
 
@@ -287,6 +312,34 @@ function showPwaInstallModal() {
         console.log('Estado de usuario actualizado:', userState);
         currentUser.credits = userState.credits;
         currentUser.currency = userState.currency;
+        
+        // ▼▼▼ CRÍTICO: Actualizar también sessionStorage Y localStorage para mantener consistencia ▼▼▼
+        if (userState.credits !== undefined) {
+            // Guardar créditos en sessionStorage y localStorage para persistencia
+            sessionStorage.setItem('userCredits', userState.credits.toString());
+            localStorage.setItem('userCredits', userState.credits.toString());
+        }
+        if (userState.currency) {
+            sessionStorage.setItem('userCurrency', userState.currency);
+            localStorage.setItem('userCurrency', userState.currency);
+        }
+        // Preservar username y avatar si están incluidos
+        if (userState.username) {
+            sessionStorage.setItem('username', userState.username);
+            localStorage.setItem('username', userState.username);
+            currentUser.username = userState.username;
+        }
+        if (userState.avatar) {
+            sessionStorage.setItem('userAvatar', userState.avatar);
+            localStorage.setItem('userAvatar', userState.avatar);
+            currentUser.userAvatar = userState.avatar;
+            // Actualizar el avatar en la UI si existe
+            const userAvatarEl = document.getElementById('user-avatar');
+            if (userAvatarEl) {
+                userAvatarEl.src = userState.avatar;
+            }
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
 
         if (typeof updateLobbyCreditsDisplay === 'function') {
             updateLobbyCreditsDisplay();
@@ -369,6 +422,11 @@ function showPwaInstallModal() {
 
     socket.on('ludoLobbyChatUpdate', (newMessage) => {
         addLobbyChatMessage(newMessage);
+    });
+    
+    socket.on('ludoLobbyChatCleared', () => {
+        console.log('Chat del lobby de Ludo limpiado automáticamente después de 10 minutos de inactividad');
+        renderLobbyChat([]); // Limpiar el chat visualmente
     });
     // ▲▲▲ FIN DE LOS LISTENERS DEL CHAT DE LUDO ▲▲▲
 
@@ -1416,10 +1474,18 @@ function showRoomsOverview() {
         }, 0);
         window.addEventListener('resize', scaleAndCenterLobby);
 
-        sessionStorage.setItem('userId', currentUser.userId);
+        // ▼▼▼ CRÍTICO: Guardar en sessionStorage Y localStorage para persistencia en PWA ▼▼▼
+        const userId = currentUser.userId;
+        sessionStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId); // Respaldo para PWA
         sessionStorage.setItem('username', user.name);
+        localStorage.setItem('username', user.name); // Respaldo para PWA
         sessionStorage.setItem('userAvatar', user.avatar || '');
+        localStorage.setItem('userAvatar', user.avatar || ''); // Respaldo para PWA
         sessionStorage.setItem('userCurrency', user.currency || 'USD');
+        localStorage.setItem('userCurrency', user.currency || 'USD'); // Respaldo para PWA
+        console.log('[completeLogin] userId guardado en sessionStorage y localStorage:', userId);
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     }
 
 
@@ -1939,6 +2005,209 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     });
+    
+    // ▼▼▼ FIX CRÍTICO: Prevenir cierre del modal en móviles/PWA - Solución agresiva con bandera global ▼▼▼
+    const createRoomModal = document.getElementById('create-room-modal');
+    if (createRoomModal) {
+        // Bandera global para prevenir cierre durante interacción
+        let isInteractingWithInput = false;
+        let preventCloseTimeout = null;
+        
+        const modalContent = createRoomModal.querySelector('.modal-content');
+        const betInput = document.getElementById('bet-input');
+        
+        // Función para forzar que el modal permanezca abierto
+        const forceModalOpen = () => {
+            if (createRoomModal) {
+                createRoomModal.style.display = 'flex';
+                createRoomModal.style.setProperty('display', 'flex', 'important');
+                createRoomModal.removeAttribute('data-forced-hidden');
+            }
+        };
+        
+        // Interceptar TODOS los intentos de cerrar el modal
+        const originalForceHide = window.forceHideCreateRoomModal;
+        window.forceHideCreateRoomModal = function() {
+            // Solo bloquear si estamos interactuando con inputs Y no se permite el cierre
+            if (isInteractingWithInput && !allowClose) {
+                console.log('[Modal Protection] Bloqueado cierre del modal durante interacción con input');
+                forceModalOpen();
+                return;
+            }
+            // Si se permite el cierre, resetear la bandera
+            if (allowClose) {
+                allowClose = false;
+            }
+            if (originalForceHide) {
+                originalForceHide();
+            }
+        };
+        
+        // Bandera para permitir cierre intencional por botones
+        let allowClose = false;
+        
+        // Interceptar cambios directos en el display del modal
+        const modalObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const display = createRoomModal.style.display;
+                    // Solo bloquear el cierre si estamos interactuando con inputs Y no se permite el cierre
+                    if (isInteractingWithInput && !allowClose && (display === 'none' || !display || display === '')) {
+                        console.log('[Modal Protection] Detectado intento de cierre, forzando apertura');
+                        forceModalOpen();
+                    } else if (allowClose) {
+                        // Si se permite el cierre, resetear la bandera
+                        allowClose = false;
+                    }
+                }
+            });
+        });
+        modalObserver.observe(createRoomModal, { attributes: true, attributeFilter: ['style'] });
+        
+        if (modalContent) {
+            // NO bloquear eventos en botones - solo en inputs/selects
+            // Los botones deben funcionar normalmente
+            
+            // Protección específica para el input de apuesta
+            if (betInput) {
+                const setInteractionFlag = (value) => {
+                    isInteractingWithInput = value;
+                    if (value) {
+                        forceModalOpen();
+                        // Limpiar timeout anterior si existe
+                        if (preventCloseTimeout) {
+                            clearTimeout(preventCloseTimeout);
+                        }
+                        // Mantener la bandera activa por 2 segundos después de la última interacción
+                        preventCloseTimeout = setTimeout(() => {
+                            isInteractingWithInput = false;
+                        }, 2000);
+                    }
+                };
+                
+                ['focus', 'click', 'touchstart', 'touchend', 'input', 'keydown', 'keyup'].forEach(eventType => {
+                    betInput.addEventListener(eventType, (e) => {
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        setInteractionFlag(true);
+                        forceModalOpen();
+                        return false;
+                    }, { passive: false, capture: true });
+                });
+                
+                betInput.addEventListener('blur', (e) => {
+                    e.stopPropagation();
+                    // Mantener la bandera activa un poco más después del blur
+                    setTimeout(() => {
+                        isInteractingWithInput = false;
+                    }, 500);
+                }, { passive: true });
+            }
+            
+            // Prevenir propagación SOLO en inputs y selects (NO en botones)
+            const allInputs = modalContent.querySelectorAll('input:not([type="button"]):not([type="submit"]), select, textarea');
+            allInputs.forEach(input => {
+                ['click', 'touchstart', 'touchend', 'focus'].forEach(eventType => {
+                    input.addEventListener(eventType, (e) => {
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        if (input === betInput || input.tagName === 'INPUT') {
+                            isInteractingWithInput = true;
+                            if (preventCloseTimeout) {
+                                clearTimeout(preventCloseTimeout);
+                            }
+                            preventCloseTimeout = setTimeout(() => {
+                                isInteractingWithInput = false;
+                            }, 2000);
+                        }
+                        forceModalOpen();
+                        return false;
+                    }, { passive: false, capture: true });
+                });
+            });
+            
+            // Permitir que los botones funcionen normalmente - NO bloquear sus eventos
+            const buttons = modalContent.querySelectorAll('button');
+            buttons.forEach(button => {
+                // Asegurar que los botones puedan cerrar el modal
+                button.addEventListener('click', (e) => {
+                    // Desactivar la bandera de protección cuando se hace clic en un botón
+                    isInteractingWithInput = false;
+                    allowClose = true; // Permitir que el modal se cierre
+                    if (preventCloseTimeout) {
+                        clearTimeout(preventCloseTimeout);
+                    }
+                    // NO bloquear la propagación - permitir que el evento continúe normalmente
+                }, { passive: true });
+                
+                // También para eventos touch
+                button.addEventListener('touchstart', (e) => {
+                    isInteractingWithInput = false;
+                    allowClose = true;
+                    if (preventCloseTimeout) {
+                        clearTimeout(preventCloseTimeout);
+                    }
+                }, { passive: true });
+            });
+        }
+        
+        // Solo cerrar cuando se hace clic DIRECTAMENTE en el overlay (fuera del modal-content)
+        // NO usar capture: true aquí para permitir que los botones funcionen
+        createRoomModal.addEventListener('click', (e) => {
+            // Si el clic fue en un botón, permitir que funcione normalmente
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                // Los botones pueden cerrar el modal normalmente
+                isInteractingWithInput = false;
+                if (preventCloseTimeout) {
+                    clearTimeout(preventCloseTimeout);
+                }
+                return; // Permitir que el evento continúe normalmente
+            }
+            
+            // Verificar que el clic fue EXACTAMENTE en el overlay, no en ningún hijo
+            if (e.target === createRoomModal && !modalContent.contains(e.target) && !isInteractingWithInput) {
+                createRoomModal.style.display = 'none';
+                if (typeof originalForceHide === 'function') {
+                    originalForceHide();
+                }
+                createRoomModal.setAttribute('data-forced-hidden', 'true');
+            } else if (isInteractingWithInput && e.target !== createRoomModal) {
+                // Solo prevenir cierre si NO es un botón y estamos interactuando con un input
+                e.stopPropagation();
+                forceModalOpen();
+            }
+        });
+        
+        // Prevenir cierre en eventos touch en el overlay
+        createRoomModal.addEventListener('touchstart', (e) => {
+            // Si el touch fue en un botón, permitir que funcione normalmente
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                isInteractingWithInput = false;
+                if (preventCloseTimeout) {
+                    clearTimeout(preventCloseTimeout);
+                }
+                return; // Permitir que el evento continúe normalmente
+            }
+            
+            if (e.target === createRoomModal && !modalContent.contains(e.target) && !isInteractingWithInput) {
+                // Solo permitir cerrar si no hay interacción activa
+                setTimeout(() => {
+                    if (e.target === createRoomModal && !isInteractingWithInput) {
+                        createRoomModal.style.display = 'none';
+                        if (typeof originalForceHide === 'function') {
+                            originalForceHide();
+                        }
+                        createRoomModal.setAttribute('data-forced-hidden', 'true');
+                    }
+                }, 200);
+            } else if (isInteractingWithInput && e.target !== createRoomModal) {
+                // Solo prevenir cierre si NO es un botón y estamos interactuando con un input
+                e.stopPropagation();
+                forceModalOpen();
+            }
+        }, { passive: false });
+    }
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
 });
 

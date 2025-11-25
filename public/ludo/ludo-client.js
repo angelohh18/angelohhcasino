@@ -1274,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetLeft = (cellRect.left + cellRect.width / 2) - containerRect.left;
             const targetTop = (cellRect.top + cellRect.height / 2) - containerRect.top;
 
-            // APLICAR LA NUEVA POSICIÓN
+            // Mover la ficha usando left y top (método original que funcionaba bien)
             pieceToAnimate.style.left = `${targetLeft}px`;
             pieceToAnimate.style.top = `${targetTop}px`;
             
@@ -1410,15 +1410,35 @@ document.addEventListener('DOMContentLoaded', function() {
     // ▲▲▲ FIN DE LAS NUEVAS FUNCIONES ▲▲▲
     
     // 1. Unirse a la sala
-    // ▼▼▼ BLOQUE MODIFICADO ▼▼▼
-    const userId = sessionStorage.getItem('userId'); // <-- LÍNEA CAMBIADA
+    // ▼▼▼ BLOQUE MODIFICADO - Usar localStorage como respaldo para PWA ▼▼▼
+    let userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+    
+    // Si no hay userId, intentar recuperarlo desde username (sessionStorage o localStorage)
+    if (!userId) {
+        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
+        if (username) {
+            userId = 'user_' + username.toLowerCase();
+            // Guardar en ambos para persistencia en PWA
+            sessionStorage.setItem('userId', userId);
+            localStorage.setItem('userId', userId);
+            console.log('[joinLudoGame] userId restaurado desde username:', userId);
+        }
+    } else {
+        // Si encontramos userId, asegurarnos de que esté en ambos lugares
+        sessionStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId);
+    }
+    
     if (!userId) {
         alert('Error: No se encontró el ID de usuario. Volviendo al lobby.');
-        window.location.href = '/';
-    } else {
-        // Enviar el userId para la re-asociación
-        socket.emit('joinLudoGame', { roomId, userId }); 
+        window.location.href = '/ludo';
+        return;
     }
+    
+    console.log('[joinLudoGame] Usando userId:', userId, 'para reconectar a roomId:', roomId);
+    
+    // Enviar el userId para la re-asociación
+    socket.emit('joinLudoGame', { roomId, userId }); 
     // ▲▲▲ FIN DE LA MODIFICACIÓN ▲▲▲
     
     // 3. Listeners del Servidor para el juego
@@ -1940,6 +1960,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (data.type === 'abandon') {
+            console.log('🚨 [FALTA POR ABANDONO] Mostrando modal inmediatamente');
             isFoulPenaltyVisualizing = false;
             penalizedPieceIdDuringFoul = null;
             foulKillingPosition = -1;
@@ -1953,7 +1974,11 @@ document.addEventListener('DOMContentLoaded', function() {
             detailsEl.innerHTML = `El jugador <strong>${data.playerName}</strong> ha abandonado la partida.<br>
                                Será eliminado y se le cobrará la apuesta de <strong>${data.bet} ${data.currency}</strong>.`;
 
+            // ▼▼▼ CRÍTICO: Mostrar modal INMEDIATAMENTE sin delays ▼▼▼
             modal.style.display = 'flex';
+            modal.style.zIndex = '10000'; // Asegurar que esté por encima de todo
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+            
             acceptBtn.textContent = 'Aceptar';
             acceptBtn.onclick = () => {
                 modal.style.display = 'none';
@@ -2053,6 +2078,172 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // ▲▲▲ FIN DEL LISTENER MODIFICADO ▲▲▲
 
+    // ▼▼▼ FIX: Listener para cuando el juego termina por abandono - redirigir al jugador que abandonó ▼▼▼
+    socket.on('gameEnded', (data) => {
+        console.log('[gameEnded] El juego terminó:', data);
+        if (data.redirect) {
+            // ▼▼▼ CRÍTICO: Preservar userId, username, avatar y currency en sessionStorage Y localStorage antes de redirigir (para PWA) ▼▼▼
+            // Priorizar los datos enviados por el servidor si están disponibles
+            let userId = data.userId || sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            let username = data.username || sessionStorage.getItem('username') || localStorage.getItem('username');
+            let userAvatar = data.avatar || sessionStorage.getItem('userAvatar') || localStorage.getItem('userAvatar');
+            let userCurrency = data.userCurrency || sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency');
+            
+            // Si no hay username, intentar recuperarlo desde userId
+            if (!username && userId) {
+                username = userId.replace('user_', '');
+            }
+            
+            // Si no hay userId, intentar recuperarlo desde username
+            if (!userId && username) {
+                userId = 'user_' + username.toLowerCase();
+            }
+            
+            // Guardar en ambos lugares para persistencia en PWA
+            if (userId) {
+                sessionStorage.setItem('userId', userId);
+                localStorage.setItem('userId', userId);
+            }
+            if (username) {
+                sessionStorage.setItem('username', username);
+                localStorage.setItem('username', username);
+            }
+            if (userAvatar) {
+                sessionStorage.setItem('userAvatar', userAvatar);
+                localStorage.setItem('userAvatar', userAvatar);
+            }
+            if (userCurrency) {
+                sessionStorage.setItem('userCurrency', userCurrency);
+                localStorage.setItem('userCurrency', userCurrency);
+            }
+            
+            console.log('[gameEnded] Datos preservados antes de redirigir - userId:', userId, 'username:', username, 'avatar:', userAvatar, 'currency:', userCurrency);
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+            
+            // Redirigir al lobby con mensaje apropiado
+            // IMPORTANTE: NO desconectar el socket, solo redirigir
+            setTimeout(() => {
+                let message = data.message || 'El juego terminó.';
+                if (data.reason === 'abandonment') {
+                    message = `Has sido eliminado por abandono.`;
+                    if (data.penalty && data.currency) {
+                        message += `\n\nSe te ha descontado la apuesta de ${data.penalty} ${data.currency}.`;
+                    }
+                } else if (data.reason === 'room_not_found') {
+                    message = data.message || 'La sala ya no existe. Puede que hayas sido eliminado por abandono.';
+                }
+                if (data.winner) {
+                    message += `\n\nEl ganador fue: ${data.winner}`;
+                }
+                alert(message);
+                // Redirigir sin desconectar el socket
+                window.location.href = '/ludo';
+            }, 1000);
+        }
+    });
+    
+    // Listener para errores de sala
+    socket.on('ludoError', (data) => {
+        console.log('[ludoError]', data);
+        if (data.message && (data.message.includes('no existe') || data.message.includes('no encontrada'))) {
+            setTimeout(() => {
+                alert('La sala ya no existe. Puede que hayas sido eliminado por abandono.');
+                window.location.href = '/ludo';
+            }, 1000);
+        }
+    });
+    
+    socket.on('joinRoomFailed', (data) => {
+        console.log('[joinRoomFailed]', data);
+        if (data.message && (data.message.includes('no existe') || data.message.includes('no encontrada'))) {
+            setTimeout(() => {
+                alert('La sala ya no existe. Puede que hayas sido eliminado por abandono.');
+                window.location.href = '/ludo';
+            }, 1000);
+        }
+    });
+    
+    // Listener para cuando un jugador se desconecta temporalmente
+    socket.on('playerDisconnected', (data) => {
+        console.log('[playerDisconnected]', data);
+        if (data && data.message) {
+            // ▼▼▼ FIX: Usar window.showToast o alert como fallback ▼▼▼
+            if (typeof window.showToast === 'function') {
+                window.showToast(data.message, 3000);
+            } else if (typeof showToast === 'function') {
+                showToast(data.message, 3000);
+            } else {
+                console.log('[playerDisconnected]', data.message);
+            }
+            // ▲▲▲ FIN DEL FIX ▲▲▲
+        }
+    });
+    
+    // Listener para cuando un jugador se reconecta
+    socket.on('playerReconnected', (data) => {
+        console.log('[playerReconnected]', data);
+        if (data && data.message) {
+            // ▼▼▼ FIX: Usar window.showToast o alert como fallback ▼▼▼
+            if (typeof window.showToast === 'function') {
+                window.showToast(data.message, 3000);
+            } else if (typeof showToast === 'function') {
+                showToast(data.message, 3000);
+            } else {
+                console.log('[playerReconnected]', data.message);
+            }
+            // ▲▲▲ FIN DEL FIX ▲▲▲
+        }
+        // ▼▼▼ CRÍTICO: Sincronizar estado cuando un jugador se reconecta ▼▼▼
+        // Solicitar actualización del estado del juego
+        if (gameState && gameState.roomId) {
+            socket.emit('requestGameState', { roomId: gameState.roomId });
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+    });
+    
+    socket.on('playerLeft', (roomData) => {
+        console.log('[playerLeft] Un jugador ha salido:', roomData);
+        
+        // ▼▼▼ CRÍTICO: Actualizar asientos cuando un jugador abandona y notificar ▼▼▼
+        if (roomData && roomData.seats && gameState) {
+            console.log('[playerLeft] Actualizando asientos después de que un jugador abandonó');
+            
+            // Contar jugadores antes y después para detectar si alguien abandonó
+            const playersBefore = gameState.seats.filter(s => s !== null).length;
+            gameState.seats = roomData.seats;
+            const playersAfter = gameState.seats.filter(s => s !== null).length;
+            
+            // Si hay menos jugadores, alguien abandonó
+            if (playersAfter < playersBefore) {
+                const notificationMessage = 'Un jugador ha abandonado la partida.';
+                if (typeof window.showToast === 'function') {
+                    window.showToast(notificationMessage, 5000);
+                } else if (typeof showToast === 'function') {
+                    showToast(notificationMessage, 5000);
+                } else {
+                    console.log('[playerLeft]', notificationMessage);
+                }
+            }
+            
+            // Re-renderizar el tablero para reflejar los cambios
+            renderLudoBoard(gameState);
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+        
+        // Si el estado del juego es post-game y no somos el ganador, verificar si debemos salir
+        if (gameState && gameState.state === 'post-game') {
+            const mySeat = gameState.seats.find(s => s && s.playerId === socket.id);
+            // Si no tenemos asiento o el asiento está null, redirigir al lobby
+            if (!mySeat) {
+                console.log('[playerLeft] No tenemos asiento, redirigiendo al lobby');
+                setTimeout(() => {
+                    window.location.href = '/ludo';
+                }, 2000);
+            }
+        }
+    });
+    // ▲▲▲ FIN DEL FIX ▲▲▲
+    
     // ▼▼▼ REEMPLAZA TU LISTENER 'ludoGameStateUpdated' COMPLETO CON ESTE ▼▼▼
     socket.on('ludoGameStateUpdated', async (data) => { // Añade async
         
@@ -2077,6 +2268,66 @@ document.addEventListener('DOMContentLoaded', function() {
         const newGameState = data.newGameState;
         const moveInfo = data.moveInfo;
 
+        // ▼▼▼ FIX: Manejar caso de abandono - redirigir al jugador que abandonó ▼▼▼
+        if (moveInfo && moveInfo.type === 'game_over_abandonment') {
+            console.log('[ludoGameStateUpdated] Juego terminó por abandono. Jugador que abandonó:', moveInfo.leavingPlayer);
+            // Verificar si somos el jugador que abandonó
+            const mySeat = gameState.seats.find(s => s && s.playerId === socket.id);
+            if (mySeat && mySeat.playerName === moveInfo.leavingPlayer) {
+                // Somos el jugador que abandonó, redirigir al lobby después de un breve delay
+                setTimeout(() => {
+                    alert(`Has abandonado la partida. El ganador fue: ${moveInfo.winner}`);
+                    window.location.href = '/ludo';
+                }, 2000);
+                return; // No procesar más actualizaciones
+            }
+        }
+        // ▲▲▲ FIN DEL FIX ▲▲▲
+        
+        // ▼▼▼ CRÍTICO: Manejar caso de jugador abandonado - actualizar asientos y notificar ▼▼▼
+        if (moveInfo && moveInfo.type === 'player_abandoned') {
+            console.log('[ludoGameStateUpdated] Un jugador abandonó:', moveInfo.playerName);
+            // Actualizar asientos si se proporcionan
+            if (data.seats) {
+                gameState.seats = data.seats;
+                renderLudoBoard(gameState);
+                console.log('[ludoGameStateUpdated] Asientos actualizados después de abandono');
+            }
+            
+            // ▼▼▼ CRÍTICO: Mostrar notificación al jugador que quedó en la mesa ▼▼▼
+            const notificationMessage = `El jugador ${moveInfo.playerName} ha abandonado la partida.`;
+            if (typeof window.showToast === 'function') {
+                window.showToast(notificationMessage, 5000);
+            } else if (typeof showToast === 'function') {
+                showToast(notificationMessage, 5000);
+            } else {
+                console.log('[ludoGameStateUpdated]', notificationMessage);
+            }
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+        }
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+        
+        // ▼▼▼ FIX: Manejar caso de reconexión - sincronizar estado sin animar ▼▼▼
+        if (moveInfo && moveInfo.type === 'reconnect_sync') {
+            console.log('[ludoGameStateUpdated] Sincronización de reconexión. Actualizando estado completo sin animar.');
+            // Sincronizar estado completo sin animar movimientos
+            gameState.gameState = newGameState;
+            if (data.seats) {
+                gameState.seats = data.seats;
+                renderLudoBoard(gameState);
+            }
+            // Renderizar fichas en su posición actual
+            renderBasePieces(gameState.gameState.pieces);
+            renderActivePieces(gameState.gameState.pieces);
+            // Actualizar UI del turno
+            updateTurnUI();
+            updateClickablePieces();
+            // Resolver la promesa inmediatamente (sin esperar animaciones)
+            updateResolver();
+            return; // No procesar más (no animar movimientos)
+        }
+        // ▲▲▲ FIN DEL FIX ▲▲▲
+        
         // 4. ¿Hubo un movimiento de ficha activa con ruta? -> Animar
         if (moveInfo && moveInfo.type === 'move_active_piece' && moveInfo.movePath && moveInfo.movePath.length > 0) {
              await animatePieceStep(moveInfo.pieceId, moveInfo.movePath); // Espera a que termine la animación
@@ -2505,8 +2756,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Botón "Sí" (volver al lobby)
         btnConfirmLeaveYes.addEventListener('click', () => {
-            // (Opcional: podrías emitir un socket.emit('leaveRoom', { roomId }); aquí)
-            window.location.href = '/ludo'; // Redirige al lobby de Ludo
+            // ▼▼▼ CRÍTICO: Emitir leaveGame ANTES de redirigir para eliminar al jugador inmediatamente ▼▼▼
+            if (gameState && gameState.roomId) {
+                console.log('[btnConfirmLeaveYes] Emitiendo leaveGame para eliminar jugador inmediatamente de sala:', gameState.roomId);
+                socket.emit('leaveGame', { roomId: gameState.roomId });
+            }
+            // Cerrar modal
+            confirmLeaveModal.style.display = 'none';
+            // Pequeño delay para asegurar que el servidor procese el leaveGame antes de redirigir
+            setTimeout(() => {
+                window.location.href = '/ludo';
+            }, 200);
+            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
         });
     }
 
@@ -2631,7 +2892,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función global para volver al lobby
     window.goBackToLobby = function() {
-        window.location.href = '/ludo';
+        // ▼▼▼ CRÍTICO: Emitir leaveGame antes de redirigir para liberar el asiento correctamente ▼▼▼
+        if (gameState && gameState.roomId) {
+            console.log('[goBackToLobby] Emitiendo leaveGame para liberar asiento en sala:', gameState.roomId);
+            socket.emit('leaveGame', { roomId: gameState.roomId });
+        }
+        // Pequeño delay para asegurar que el servidor procese el leaveGame antes de redirigir
+        setTimeout(() => {
+            window.location.href = '/ludo';
+        }, 100);
+        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     };
     
     // Función para configurar la pantalla de revancha

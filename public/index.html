@@ -1225,9 +1225,22 @@
                         navigator.serviceWorker.addEventListener('message', (event) => {
                             if (event.data && event.data.type === 'SW_UPDATED') {
                                 console.log('Service Worker:', event.data.message);
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 500);
+                                // ▼▼▼ FIX: NO recargar si estamos en una partida activa ▼▼▼
+                                const currentPath = window.location.pathname;
+                                const isInActiveGame = currentPath.includes('/ludo-game') || 
+                                                      currentPath.includes('/la51game') ||
+                                                      currentPath.includes('/ludo-game') ||
+                                                      currentPath.includes('/la51-game');
+                                
+                                // Solo recargar si NO estamos en una partida activa
+                                if (!isInActiveGame && event.data.action !== 'notify') {
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 500);
+                                } else {
+                                    console.log('Service Worker: Actualización disponible, pero no recargando porque estamos en una partida activa.');
+                                }
+                                // ▲▲▲ FIN DEL FIX ▲▲▲
                             }
                         });
                         

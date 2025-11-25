@@ -341,6 +341,11 @@ function showPwaInstallModal() {
     socket.on('la51LobbyChatUpdate', (newMessage) => {
         addLobbyChatMessage(newMessage);
     });
+    
+    socket.on('la51LobbyChatCleared', () => {
+        console.log('Chat del lobby de La 51 limpiado automáticamente después de 10 minutos de inactividad');
+        renderLobbyChat([]); // Limpiar el chat visualmente
+    });
     // ▲▲▲ FIN DE LOS LISTENERS DEL CHAT DE LA 51 ▲▲▲
 
     socket.on('exchangeRatesUpdate', (rates) => {

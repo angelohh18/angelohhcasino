@@ -930,6 +930,23 @@ html {
         width: 100%;
         box-sizing: border-box;
         min-height: 44px; /* Tamaño mínimo táctil recomendado */
+        touch-action: manipulation; /* Prevenir gestos de zoom/doble toque */
+        -webkit-tap-highlight-color: transparent; /* Eliminar highlight en iOS */
+        -webkit-touch-callout: none; /* Deshabilitar menú contextual en iOS */
+        user-select: text; /* Permitir selección de texto */
+    }
+    
+    /* Prevenir que el input cierre el modal en móviles */
+    #create-room-modal .modal-content input:focus,
+    #create-room-modal .modal-content select:focus {
+        outline: 2px solid #c5a56a;
+        outline-offset: 2px;
+    }
+    
+    /* Asegurar que el modal no se cierre cuando el teclado virtual aparece */
+    #create-room-modal .modal-content {
+        touch-action: pan-y; /* Permitir scroll vertical pero prevenir gestos */
+        -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
     }
     
     /* Mejoras específicas para select en móviles */
