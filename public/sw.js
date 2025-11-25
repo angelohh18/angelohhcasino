@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.38'; // Actualizado: Fix limpieza de caché y estructura de código
+const CACHE_NAME = 'mutijuego-v1.12.39'; // Actualizado: Fix llave de cierre en ludoMovePiece
 const urlsToCache = [
   '/',
   '/index.html',
