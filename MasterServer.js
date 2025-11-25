@@ -746,6 +746,8 @@ const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar
 
 // ▼▼▼ FUNCIÓN HELPER: Iniciar timeout de inactividad cuando le toca el turno a un jugador ▼▼▼
 function startLa51InactivityTimeout(room, playerId, io) {
+    console.log(`[TIMEOUT] 🚀🚀🚀 FUNCIÓN LLAMADA: startLa51InactivityTimeout(roomId=${room?.roomId}, playerId=${playerId})`);
+    
     if (!room || !playerId) {
         console.log(`[TIMEOUT] ⚠️ No se puede iniciar timeout: room=${!!room}, playerId=${playerId}`);
         return;
@@ -766,7 +768,7 @@ function startLa51InactivityTimeout(room, playerId, io) {
         return;
     }
     
-    console.log(`[TIMEOUT] ✓ Iniciando timeout para ${playerSeat.playerName} (${playerId}) en roomId=${roomId}`);
+    console.log(`[TIMEOUT] ✓ Iniciando timeout para ${playerSeat.playerName} (${playerId}) en roomId=${roomId} - JUGADOR CONECTADO: ${!!io.sockets.sockets.get(playerId)}`);
     
     // Verificar si el jugador está desconectado
     const playerUserId = playerSeat?.userId;
@@ -4620,7 +4622,7 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                             // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (solo si NO es bot)
                             console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador abandonó, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
                             startLa51InactivityTimeout(room, room.currentPlayerId, io);
-                            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
+                            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName} (${room.currentPlayerId})`);
                         }
                         // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
                         
