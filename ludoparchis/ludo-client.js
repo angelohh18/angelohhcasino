@@ -997,7 +997,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const pieceRect = pieceElement.getBoundingClientRect();
             popup.style.position = 'absolute';
             popup.style.left = `${pieceRect.left + pieceRect.width / 2 - boardRect.left}px`;
-            popup.style.top = `${pieceRect.top - boardRect.top - 60}px`; // 60px por encima de la pieza para no taparla
+            popup.style.top = `${pieceRect.top - boardRect.top + pieceRect.height + 30}px`; // 30px por debajo de la pieza para no taparla
             popup.style.transform = 'translateX(-50%)';
             popup.style.zIndex = '100';
             popup.style.whiteSpace = 'nowrap';
@@ -1010,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', function() {
              popup.style.position = 'fixed';
              const rect = pieceElement.getBoundingClientRect();
              popup.style.left = `${rect.left + rect.width / 2}px`;
-             popup.style.top = `${rect.top - 60}px`; // 60px por encima de la pieza para no taparla
+             popup.style.top = `${rect.top + rect.height + 30}px`; // 30px por debajo de la pieza para no taparla
              popup.style.transform = 'translateX(-50%)';
              popup.style.zIndex = '100';
              console.log("Popup añadido al body como fallback.");

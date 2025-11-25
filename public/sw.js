@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.50'; // Actualizado: Modal centrado, popup de dados más arriba de la ficha
+const CACHE_NAME = 'mutijuego-v1.12.51'; // Actualizado: Popup de dados 30px por debajo de la ficha
 const urlsToCache = [
   '/',
   '/index.html',

@@ -1109,7 +1109,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 1. Posición base (en el centro de la pieza)
         let popupLeft = (pieceRect.left + pieceRect.width / 2) - boardRect.left;
-        let popupTop = (pieceRect.top - boardRect.top) - 60; // 60px por encima de la pieza para no taparla
+        let popupTop = (pieceRect.top - boardRect.top) + pieceRect.height + 30; // 30px por debajo de la pieza para no taparla
 
         // 2. Crear y añadir el popup al DOM para medir su tamaño real
         boardContainer.appendChild(popup);
