@@ -4422,6 +4422,16 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     if (room && room.isPractice) {
         console.log(`[Práctica] El jugador humano ha salido. Eliminando la mesa de práctica ${roomId} (SIN multa).`);
         
+        // Limpiar timeout de inactividad si existe
+        cancelLa51InactivityTimeout(roomId, leavingPlayerId);
+        
+        // Limpiar socket.currentRoomId del jugador que sale
+        const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+        if (leavingSocket && leavingSocket.currentRoomId === roomId) {
+            delete leavingSocket.currentRoomId;
+            console.log(`[Práctica] Limpiado socket.currentRoomId para ${leavingPlayerId}`);
+        }
+        
         // Si está en partida activa, eliminar al jugador pero SIN multa
         if (room.state === 'playing') {
             const seatIndex = room.seats.findIndex(s => s && s.playerId === leavingPlayerId);
@@ -4490,8 +4500,28 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             }
         }
         
+        // Limpiar todos los timeouts relacionados con esta sala
+        Object.keys(la51InactivityTimeouts).forEach(key => {
+            if (key.startsWith(`${roomId}_`)) {
+                clearTimeout(la51InactivityTimeouts[key]);
+                delete la51InactivityTimeouts[key];
+            }
+        });
+        
         delete la51Rooms[roomId]; // Elimina la sala del servidor
         broadcastRoomListUpdate(io); // Notifica a todos para que desaparezca del lobby
+        
+        // Actualizar estado del usuario en connectedUsers
+        if (connectedUsers[leavingPlayerId]) {
+            const currentLobby = connectedUsers[leavingPlayerId].currentLobby;
+            if (currentLobby) {
+                connectedUsers[leavingPlayerId].status = `En el lobby de ${currentLobby}`;
+            } else {
+                connectedUsers[leavingPlayerId].status = 'En el Lobby';
+            }
+            broadcastUserListUpdate(io);
+        }
+        
         return; // Detiene la ejecución para no aplicar lógica de mesas reales
     }
     // ▲▲▲ FIN DEL BLOQUE MODIFICADO ▲▲▲
