@@ -386,19 +386,17 @@ function showPwaInstallModal() {
             showToast(data.reason, 5000);
         }
         
-        // Limpiar estado del juego
+        // Limpiar estado del juego SIN emitir leaveGame (el jugador ya no está en la sala)
         resetClientGameState();
-        if (currentGameSettings && currentGameSettings.roomId) {
-            socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
-        }
         currentGameSettings = null;
         
-        // Redirigir al lobby después de un breve delay para que el usuario vea el mensaje
-        setTimeout(() => {
-            showLobbyView();
-            // Notificar al servidor que estamos de vuelta en el lobby
+        // Redirigir al lobby inmediatamente (sin delay) para evitar problemas de sesión
+        showLobbyView();
+        
+        // Notificar al servidor que estamos de vuelta en el lobby (sin cerrar sesión)
+        if (socket.connected) {
             socket.emit('enterLa51Lobby');
-        }, 2000);
+        }
     });
     // ▲▲▲ FIN HANDLER REDIRECCIÓN AL LOBBY ▲▲▲
 

@@ -829,6 +829,9 @@ function startLa51InactivityTimeout(room, playerId, io) {
     } else {
         console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     }
+    
+    // Log adicional para depuración
+    console.log(`[${roomId}] [TIMEOUT] ✅ Timeout configurado correctamente para ${playerSeat.playerName} (${playerId}) - Timeout ID: ${timeoutKey}`);
 }
 // ▲▲▲ FIN FUNCIÓN HELPER ▲▲▲
 
@@ -4404,10 +4407,14 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 
     // Si el siguiente jugador es un bot, se vuelve a llamar a la función botPlay
     const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
+    console.log(`[${room.roomId}] [TURN CHANGE] Turno cambiado a ${nextPlayer.playerName} (${room.currentPlayerId}). Es bot: ${nextPlayerSeat?.isBot || false}`);
+    
     if (nextPlayerSeat && nextPlayerSeat.isBot) {
+        console.log(`[${room.roomId}] [TURN CHANGE] Jugador es bot, iniciando botPlay...`);
         setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
     } else {
         // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout de 2 minutos para el nuevo jugador (solo si NO es bot) ▼▼▼
+        console.log(`[${room.roomId}] [TURN CHANGE] Jugador es humano, iniciando timeout de inactividad...`);
         startLa51InactivityTimeout(room, room.currentPlayerId, io);
         // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
     }
@@ -5171,16 +5178,19 @@ io.on('connection', (socket) => {
             console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Redirigiendo al lobby.`);
             delete la51EliminatedPlayers[eliminatedKey];
             
-            // Notificar al jugador que fue eliminado y redirigirlo al lobby
+            // NO emitir leaveGame aquí porque el jugador ya no está en la sala
+            // Solo notificar y redirigir al lobby sin cerrar la sesión
             socket.emit('playerEliminatedByInactivity', {
                 message: 'Fuiste eliminado por inactividad. Serás redirigido al lobby.',
                 redirectToLobby: true
             });
             
-            // Emitir evento para redirigir al lobby (similar a Ludo)
-            socket.emit('redirectToLobby', {
-                reason: 'Fuiste eliminado por inactividad durante la partida.'
-            });
+            // Emitir evento para redirigir al lobby (similar a Ludo) - SIN cerrar sesión
+            setTimeout(() => {
+                socket.emit('redirectToLobby', {
+                    reason: 'Fuiste eliminado por inactividad durante la partida.'
+                });
+            }, 1000);
             
             return; // No permitir que se una a la sala
         }
