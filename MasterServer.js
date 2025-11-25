@@ -9175,8 +9175,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
     // ▲▲▲ FIN SISTEMA DE REVANCHA ▲▲▲
 }); // Cierre del io.on('connection')
 
-} // <--- LLAVE DE CIERRE AÑADIDA
-
 // --- FUNCIÓN DE PING AUTOMÁTICO PARA MANTENER ACTIVO EL SERVICIO EN RENDER ---
 const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos en milisegundos
 
