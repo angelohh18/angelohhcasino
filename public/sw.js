@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.48'; // Actualizado: Fix doble cobro - apuesta se descuenta solo al iniciar, no al abandonar
+const CACHE_NAME = 'mutijuego-v1.12.49'; // Actualizado: Mejorar mensaje y posicionamiento del modal de abandono
 const urlsToCache = [
   '/',
   '/index.html',

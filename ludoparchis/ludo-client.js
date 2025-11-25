@@ -1745,9 +1745,18 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.querySelector('.content').style.borderColor = '#ff9800';
 
             detailsEl.innerHTML = `El jugador <strong>${data.playerName}</strong> ha abandonado la partida.<br>
-                               Será eliminado y se le cobrará la apuesta de <strong>${data.bet} ${data.currency}</strong>.`;
+                               Será eliminado y se le cobrará la apuesta.`;
 
+            // Posicionar el modal arriba del tablero sin tapar las fichas
             modal.style.display = 'flex';
+            modal.style.alignItems = 'flex-start';
+            modal.style.paddingTop = '10vh';
+            const contentDiv = modal.querySelector('.content');
+            if (contentDiv) {
+                contentDiv.style.margin = '0 auto';
+                contentDiv.style.position = 'relative';
+                contentDiv.style.top = '0';
+            }
             acceptBtn.textContent = 'Aceptar';
             acceptBtn.onclick = () => {
                 modal.style.display = 'none';

@@ -1435,7 +1435,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         
         // Emitir notificación de falta por abandono
         io.to(roomId).emit('playSound', 'fault');
-        io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName, bet: 0, currency: roomCurrencyForFault, message: 'Abandono detectado. La apuesta ya fue descontada al iniciar la partida.' });
+        io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName });
         
         if (room.gameState && room.gameState.pieces && room.gameState.pieces[playerColor]) {
             delete room.gameState.pieces[playerColor];
