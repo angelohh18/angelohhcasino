@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.36'; // Actualizado: Nueva versión PWA
+const CACHE_NAME = 'mutijuego-v1.12.37'; // Actualizado: Fix servidor - versión PWA actualizada
 const urlsToCache = [
   '/',
   '/index.html',
