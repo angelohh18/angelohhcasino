@@ -4001,20 +4001,14 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         seatedPlayers.forEach(p => { playerHandCounts[p.playerId] = room.playerHands[p.playerId]?.length || 0; });
 
         // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout INMEDIATAMENTE cuando cambia el turno (ANTES de emitir turnChanged) ▼▼▼
-        // Cancelar timeout anterior si existe
-        const previousTimeoutKey = `${roomId}_${faultingPlayerId}`;
-        if (la51InactivityTimeouts[previousTimeoutKey]) {
-            clearTimeout(la51InactivityTimeouts[previousTimeoutKey]);
-            delete la51InactivityTimeouts[previousTimeoutKey];
-            console.log(`[${roomId}] Timeout de inactividad cancelado para el jugador anterior (${faultingPlayerId})`);
-        }
+        cancelLa51InactivityTimeout(roomId, faultingPlayerId);
         
         const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
         if (nextPlayerSeat && nextPlayerSeat.isBot) {
             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
         } else {
             // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (solo si NO es bot)
-            console.log(`[${roomId}] [TURN CHANGE] Jugador eliminado, iniciando timeout INMEDIATAMENTE para ${nextPlayer.playerName}...`);
+            console.log(`[${roomId}] [TURN CHANGE] ⚡ Jugador eliminado, iniciando timeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
             startLa51InactivityTimeout(room, room.currentPlayerId, io);
         }
         // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
@@ -4375,15 +4369,9 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
     room.currentPlayerId = nextPlayer.playerId;
 
     // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout INMEDIATAMENTE cuando cambia el turno (ANTES de emitir turnChanged) ▼▼▼
-    // Cancelar timeout anterior si existe
-    const previousTimeoutKey = `${room.roomId}_${discardingPlayerId}`;
-    if (la51InactivityTimeouts[previousTimeoutKey]) {
-        clearTimeout(la51InactivityTimeouts[previousTimeoutKey]);
-        delete la51InactivityTimeouts[previousTimeoutKey];
-        console.log(`[${room.roomId}] Timeout de inactividad cancelado para el jugador anterior (${discardingPlayerId})`);
-    }
+    // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout INMEDIATAMENTE cuando cambia el turno (ANTES de emitir turnChanged) ▼▼▼
+    cancelLa51InactivityTimeout(room.roomId, discardingPlayerId);
     
-    // Si el siguiente jugador es un bot, se vuelve a llamar a la función botPlay
     const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
     console.log(`[${room.roomId}] [TURN CHANGE] Turno cambiado a ${nextPlayer.playerName} (${room.currentPlayerId}). Es bot: ${nextPlayerSeat?.isBot || false}`);
     
@@ -4392,9 +4380,8 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
         setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
     } else {
         // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (solo si NO es bot)
-        console.log(`[${room.roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador es humano (${nextPlayer.playerName}), LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE...`);
-        const timeoutResult = startLa51InactivityTimeout(room, room.currentPlayerId, io);
-        console.log(`[${room.roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName} (${room.currentPlayerId})`);
+        console.log(`[${room.roomId}] [TURN CHANGE] ⚡ Iniciando timeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
+        startLa51InactivityTimeout(room, room.currentPlayerId, io);
     }
     // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 
@@ -4568,22 +4555,15 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                         room.currentPlayerId = nextPlayer.playerId;
                         
                         // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout INMEDIATAMENTE cuando cambia el turno (ANTES de emitir turnChanged) ▼▼▼
-                        // Cancelar timeout anterior si existe
-                        const previousTimeoutKey = `${roomId}_${leavingPlayerId}`;
-                        if (la51InactivityTimeouts[previousTimeoutKey]) {
-                            clearTimeout(la51InactivityTimeouts[previousTimeoutKey]);
-                            delete la51InactivityTimeouts[previousTimeoutKey];
-                            console.log(`[${roomId}] Timeout de inactividad cancelado para el jugador anterior (${leavingPlayerId})`);
-                        }
+                        cancelLa51InactivityTimeout(roomId, leavingPlayerId);
                         
                         const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
                         if (nextPlayerSeat && nextPlayerSeat.isBot) {
                             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
                         } else {
                             // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (solo si NO es bot)
-                            console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador abandonó, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
+                            console.log(`[${roomId}] [TURN CHANGE] ⚡ Jugador abandonó, iniciando timeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
                             startLa51InactivityTimeout(room, room.currentPlayerId, io);
-                            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName} (${room.currentPlayerId})`);
                         }
                         // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
                         
