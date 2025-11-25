@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.49'; // Actualizado: Mejorar mensaje y posicionamiento del modal de abandono
+const CACHE_NAME = 'mutijuego-v1.12.50'; // Actualizado: Modal centrado, popup de dados más arriba de la ficha
 const urlsToCache = [
   '/',
   '/index.html',

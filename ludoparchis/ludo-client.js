@@ -994,9 +994,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (parentCell) {
             const cellRect = parentCell.getBoundingClientRect();
+            const pieceRect = pieceElement.getBoundingClientRect();
             popup.style.position = 'absolute';
-            popup.style.left = `${cellRect.left + cellRect.width / 2 - boardRect.left}px`;
-            popup.style.top = `${cellRect.top - boardRect.top - 10}px`;
+            popup.style.left = `${pieceRect.left + pieceRect.width / 2 - boardRect.left}px`;
+            popup.style.top = `${pieceRect.top - boardRect.top - 60}px`; // 60px por encima de la pieza para no taparla
             popup.style.transform = 'translateX(-50%)';
             popup.style.zIndex = '100';
             popup.style.whiteSpace = 'nowrap';
@@ -1009,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', function() {
              popup.style.position = 'fixed';
              const rect = pieceElement.getBoundingClientRect();
              popup.style.left = `${rect.left + rect.width / 2}px`;
-             popup.style.top = `${rect.top - 30}px`;
+             popup.style.top = `${rect.top - 60}px`; // 60px por encima de la pieza para no taparla
              popup.style.transform = 'translateX(-50%)';
              popup.style.zIndex = '100';
              console.log("Popup añadido al body como fallback.");
@@ -1747,16 +1748,7 @@ document.addEventListener('DOMContentLoaded', function() {
             detailsEl.innerHTML = `El jugador <strong>${data.playerName}</strong> ha abandonado la partida.<br>
                                Será eliminado y se le cobrará la apuesta.`;
 
-            // Posicionar el modal arriba del tablero sin tapar las fichas
             modal.style.display = 'flex';
-            modal.style.alignItems = 'flex-start';
-            modal.style.paddingTop = '10vh';
-            const contentDiv = modal.querySelector('.content');
-            if (contentDiv) {
-                contentDiv.style.margin = '0 auto';
-                contentDiv.style.position = 'relative';
-                contentDiv.style.top = '0';
-            }
             acceptBtn.textContent = 'Aceptar';
             acceptBtn.onclick = () => {
                 modal.style.display = 'none';

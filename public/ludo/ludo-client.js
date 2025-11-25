@@ -1109,7 +1109,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 1. Posición base (en el centro de la pieza)
         let popupLeft = (pieceRect.left + pieceRect.width / 2) - boardRect.left;
-        let popupTop = (pieceRect.top - boardRect.top) - 10; // 10px por encima de la pieza
+        let popupTop = (pieceRect.top - boardRect.top) - 60; // 60px por encima de la pieza para no taparla
 
         // 2. Crear y añadir el popup al DOM para medir su tamaño real
         boardContainer.appendChild(popup);
@@ -1975,17 +1975,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                Será eliminado y se le cobrará la apuesta.`;
 
             // ▼▼▼ CRÍTICO: Mostrar modal INMEDIATAMENTE sin delays ▼▼▼
-            // Posicionar el modal arriba del tablero sin tapar las fichas
             modal.style.display = 'flex';
-            modal.style.alignItems = 'flex-start';
-            modal.style.paddingTop = '10vh';
             modal.style.zIndex = '10000'; // Asegurar que esté por encima de todo
-            const contentDiv = modal.querySelector('.content');
-            if (contentDiv) {
-                contentDiv.style.margin = '0 auto';
-                contentDiv.style.position = 'relative';
-                contentDiv.style.top = '0';
-            }
             // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
             
             acceptBtn.textContent = 'Aceptar';
