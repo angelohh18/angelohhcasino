@@ -762,8 +762,8 @@ function startLa51InactivityTimeout(room, playerId, io) {
         delete la51InactivityTimeouts[timeoutKey];
     }
     
-    // Iniciar timeout cuando le toca el turno
-    console.log(`[${roomId}] ⏰ Iniciando timeout de inactividad para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+    // Iniciar timeout INMEDIATAMENTE cuando le toca el turno
+    console.log(`[${roomId}] ⏰ [TIMEOUT INICIADO INMEDIATAMENTE] Iniciando timeout de inactividad para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     
     la51InactivityTimeouts[timeoutKey] = setTimeout(() => {
         const currentRoom = la51Rooms[roomId];
@@ -4023,8 +4023,10 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         if (nextPlayerSeat && nextPlayerSeat.isBot) {
             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
         } else {
-            // Iniciar timeout de inactividad para el nuevo jugador (solo si NO es bot)
+            // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
+            console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador eliminado, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
             startLa51InactivityTimeout(room, room.currentPlayerId, io);
+            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
         }
 
         io.to(roomId).emit('turnChanged', {
@@ -4389,8 +4391,10 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
         console.log(`[${room.roomId}] [TURN CHANGE] Jugador es bot, iniciando botPlay...`);
         setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
     } else {
-        // Iniciar timeout de inactividad para el nuevo jugador (solo si NO es bot)
+        // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
+        console.log(`[${room.roomId}] [TURN CHANGE] ⚡⚡⚡ LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
         startLa51InactivityTimeout(room, room.currentPlayerId, io);
+        console.log(`[${room.roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
     }
 
     io.to(room.roomId).emit('turnChanged', {
@@ -4455,12 +4459,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                             if (nextPlayer) {
                                 room.currentPlayerId = nextPlayer.playerId;
                                 
-                                // Iniciar timeout de inactividad para el nuevo jugador (solo si NO es bot)
+                                // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
                                 const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
                                 if (nextPlayerSeat && nextPlayerSeat.isBot) {
                                     setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
                                 } else {
+                                    console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador abandonó, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
                                     startLa51InactivityTimeout(room, room.currentPlayerId, io);
+                                    console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
                                 }
                                 
                                 io.to(roomId).emit('turnChanged', {
@@ -5362,8 +5368,10 @@ io.on('connection', (socket) => {
         if (startingPlayerSeat && startingPlayerSeat.isBot) {
             setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
         } else {
-            // Iniciar timeout de inactividad para el primer jugador (solo si NO es bot)
+            // Iniciar timeout INMEDIATAMENTE para el primer jugador (ANTES de emitir gameStarted)
+            console.log(`[${roomId}] [START GAME] ⚡⚡⚡ Iniciando juego, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${startingPlayerSeat?.playerName} (${startingPlayerId})...`);
             startLa51InactivityTimeout(room, startingPlayerId, io);
+            console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
         }
 
         const playerHandCounts = {};
