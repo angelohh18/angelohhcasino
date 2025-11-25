@@ -4513,12 +4513,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     
     const leavingPlayerSeat = { ...room.seats[seatIndex] };
     const playerName = leavingPlayerSeat.playerName;
+    const wasActive = leavingPlayerSeat.active === true && leavingPlayerSeat.status !== 'waiting';
 
     room.seats[seatIndex] = null;
+    leavingPlayerSeat.active = false; // Marcar como inactivo
 
     if (room.state === 'playing') {
         // VALIDACIÓN CLAVE: Solo aplicamos lógica de abandono si el jugador estaba ACTIVO.
-        if (leavingPlayerSeat.status !== 'waiting') {
+        if (wasActive) {
             // --- JUGADOR ACTIVO: Se aplica multa y se gestiona el turno (igual que abandono voluntario) ---
             const abandonmentReason = `${playerName} ha abandonado la partida.`;
             console.log(`Jugador activo ${playerName} ha abandonado. Se aplica multa.`);
@@ -4575,6 +4577,11 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                         const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
                         if (nextPlayerSeat && nextPlayerSeat.isBot) {
                             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
+                        } else {
+                            // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
+                            console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador abandonó, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
+                            startLa51InactivityTimeout(room, room.currentPlayerId, io);
+                            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
                         }
                         
                         io.to(roomId).emit('turnChanged', {
@@ -6065,8 +6072,8 @@ socket.on('accionDescartar', async (data) => {
             handlePlayerDeparture(roomId, socket.id, io);
             
         } else if (seatIndex !== -1 && la51Room.state === 'playing') {
-            // Durante partida activa: NO hacer nada. El timeout se iniciará cuando le toque el turno
-            console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante partida activa. El timeout se iniciará cuando le toque el turno.`);
+            // Durante partida activa: NO hacer nada. El timeout ya está activo si es su turno
+            console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante partida activa. El timeout de inactividad ya está activo si es su turno.`);
         } else {
             // Se desconectó del lobby de La 51 sin estar en una sala
             console.log(`[Lobby Disconnect] ${username} se fue del lobby de La 51.`);
