@@ -8933,15 +8933,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
         return socket.emit('rematchError', { message: 'No hay suficientes jugadores confirmados.' });
       }
     
-      // ▼▼▼ ¡MODIFICACIÓN CLAVE! Mover y añadir logs ▼▼▼
       console.log(`[${roomId}] Iniciando revancha por ${room.rematchData.winnerName}. Estado ANTES: ${room.state}`);
-      room.state = 'playing'; // <-- ASEGÚRATE DE QUE ESTÉ AQUÍ Y SEA 'playing'
+      room.state = 'playing';
       console.log(`[${roomId}] Estado DESPUÉS: ${room.state}`);
-      // ▲▲▲ FIN MODIFICACIÓN ▲▲▲
     
-      delete room.allowRematchConfirmation; // Limpia la bandera
+      delete room.allowRematchConfirmation;
     
-      // ▼▼▼ DÉBITO DE CRÉDITOS Y ACTUALIZACIÓN DEL BOTE (CORREGIDO) ▼▼▼
+      // ▼▼▼ DÉBITO DE CRÉDITOS Y ACTUALIZACIÓN DEL BOTE ▼▼▼
       const roomBet = parseFloat(room.settings.bet) || 0;
       const roomCurrency = room.settings.betCurrency || 'USD';
       const initialConfirmedPlayerNames = [...(room.rematchData?.confirmedPlayers || [])];
@@ -8950,7 +8948,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
 
       console.log(`[REMATCH START] Validando y debitando ${roomBet} ${roomCurrency} a jugadores confirmados: [${initialConfirmedPlayerNames.join(', ')}]`);
 
-      // --- FASE 1: VALIDAR CRÉDITOS DE TODOS LOS JUGADORES ---
       const failedPlayers = [];
       const playersToCharge = [];
 
@@ -8984,22 +8981,13 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
           return socket.emit('rematchError', { message: errorMsg });
       }
 
-      // --- FASE 2: COBRAR Y ACTUALIZAR ESTADO ---
       let totalPot = 0;
       for (const { seat, userInfo, playerName } of playersToCharge) {
           const totalCostInUserCurrency = convertCurrency(roomBet, roomCurrency, userInfo.currency, exchangeRates);
-
-          // 1. Restar créditos
           userInfo.credits -= totalCostInUserCurrency;
-
-          // 2. Persistir el cambio de créditos
           await updateUserCredits(seat.userId, userInfo.credits, userInfo.currency);
-          console.log(`[${roomId}] COBRO REVANCHA: ${playerName} pagó ${totalCostInUserCurrency.toFixed(2)} ${userInfo.currency} (Equivalente a ${roomBet.toFixed(2)} ${roomCurrency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
-
-          // 3. Sumar al bote (convertido a la moneda de la sala)
+          console.log(`[${roomId}] COBRO REVANCHA: ${playerName} pagó ${totalCostInUserCurrency.toFixed(2)} ${userInfo.currency}.`);
           totalPot += roomBet;
-
-          // 4. Notificar al jugador su nuevo saldo
           const playerSocket = io.sockets.sockets.get(seat.playerId);
           if (playerSocket) {
               playerSocket.emit('userStateUpdated', userInfo);
@@ -9007,7 +8995,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       }
 
       console.log(`[REMATCH START] Débito completado. Nuevo bote: ${totalPot} ${roomCurrency}`);
-      // ▲▲▲ FIN DÉBITO (CORREGIDO) ▲▲▲
     
       // ▼▼▼ AÑADE ESTE BLOQUE COMPLETO ▼▼▼
 
@@ -9063,13 +9050,34 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       } else {
           console.log(`[${roomId}] (Rematch) Modo Parejas: Se mantienen los asientos fijos. Los huecos libres podrán ser llenados por nuevos jugadores.`);
       }
-      // --- FIN: LÓGICA DE RE-ASIGNACIÓN DIAGONAL ---
-      // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
+      // Lógica de reasignación diagonal
+      if (!isGroupsMode) {
+          if (confirmedPlayerNames.length === 2) {
+              console.log(`[${roomId}] (Rematch) Detectados 2 jugadores. Verificando asientos...`);
+              const player1Seat = room.seats.find(s => s && s.playerName === confirmedPlayerNames[0]);
+              const player2Seat = room.seats.find(s => s && s.playerName === confirmedPlayerNames[1]);
 
-      // ▼▼▼ REINICIAR JUEGO CON MISMA CONFIGURACIÓN ▼▼▼
+              if (player1Seat && player2Seat) {
+                  const index1 = room.seats.indexOf(player1Seat);
+                  const index2 = room.seats.indexOf(player2Seat);
+                  const diff = Math.abs(index1 - index2);
+
+                  if (diff === 1 || diff === 3) {
+                      console.log(`[${roomId}] (Rematch) Jugadores adyacentes. Re-asignando...`);
+                      const newIndexForP2 = (index1 + 2) % 4;
+                      if (room.seats[newIndexForP2] === null) {
+                          const player2Data = { ...player2Seat };
+                          player2Data.color = room.settings.colorMap[newIndexForP2]; 
+                          room.seats[newIndexForP2] = player2Data;
+                          room.seats[index2] = null;
+                      }
+                  }
+              }
+          }
+      }
+
+      // Reiniciar juego
       const pieceCount = room.settings.pieceCount || 4;
-    
-      // Reinicializar fichas
       let initialPieces = {};
       const allColorsForPieces = ['yellow', 'green', 'red', 'blue'];
       allColorsForPieces.forEach(color => {
@@ -9077,12 +9085,10 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
         for (let i = 0; i < pieceCount; i++) {
           let pieceState = 'base';
           let piecePosition = -1;
-        
           if (room.settings.autoExit === 'auto') {
             pieceState = 'active';
             piecePosition = room.gameState.board.start[color];
           }
-        
           initialPieces[color].push({
             id: `${color}-${i + 1}`,
             color: color,
@@ -9092,9 +9098,8 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
         }
       });
     
-      // Reinicializar estado del juego
       room.state = 'playing';
-      room.gameState.pot = totalPot; // Usar totalPot calculado con todas las apuestas
+      room.gameState.pot = totalPot;
       room.gameState.turn = {
         playerIndex: -1,
         canRoll: true,
@@ -9104,93 +9109,56 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
         isMoving: false
       };
       room.gameState.pieces = initialPieces;
-    
-      // ▼▼▼ INICIO DEL BLOQUE REEMPLAZADO ▼▼▼
-
-      // ▼▼▼ INICIO DE LA MODIFICACIÓN (Lógica de Estado de Espera) ▼▼▼
 
       console.log(`[${roomId}] Jugadores confirmados que jugarán: [${confirmedPlayerNames.join(', ')}]`);
 
-      // Resetear estado de los jugadores PARA LA REVANCHA
-      room.seats.forEach((seat, index) => { // <-- Añadido 'index'
+      room.seats.forEach((seat, index) => {
         if (seat) {
           if (confirmedPlayerNames.includes(seat.playerName) && room.seats[index] !== null) {
-              // SÍ confirmó y pagó: Juega la partida en SU MISMO ASIENTO
               seat.status = 'playing';
-              console.log(`   - ${seat.playerName} (Asiento ${index}) confirmado. Mantiene posición.`);
           } else {
-              // NO confirmó/pagó: liberamos el asiento completamente
-              console.log(`   - ${seat.playerName} (Asiento ${index}) NO confirmó/pagó. Liberando asiento.`);
               room.seats[index] = null;
           }
         }
       });
-      // Log de confirmación
-      console.log(`[${roomId}] Estado de asientos reseteado para la revancha (con lógica de espera).`);
 
-      // ▲▲▲ FIN DE LA MODIFICACIÓN ▲▲▲
-  // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
-
-      // ▼▼▼ ¡AÑADE ESTE BLOQUE AQUÍ! ▼▼▼
-      // Asignar el primer turno al ganador (nuevo anfitrión)
       const winnerSeatIndex = room.seats.findIndex(s => s && s.playerId === room.rematchData.winnerId);
       if (winnerSeatIndex !== -1) {
           room.gameState.turn.playerIndex = winnerSeatIndex;
-          room.gameState.turn.canRoll = true; // El ganador puede lanzar primero
-          console.log(`[${roomId}] Revancha: Primer turno asignado a ${room.rematchData.winnerName} (Asiento ${winnerSeatIndex})`);
-      } else {
-          // Fallback si el ganador no se encuentra (no debería pasar)
-          room.gameState.turn.playerIndex = 0; // Por defecto, asiento 0
           room.gameState.turn.canRoll = true;
-          console.warn(`[${roomId}] Revancha: No se encontró al ganador en los asientos. Asignando turno a asiento 0.`);
+      } else {
+          room.gameState.turn.playerIndex = 0;
+          room.gameState.turn.canRoll = true;
       }
-      // ▲▲▲ FIN DEL BLOQUE ▲▲▲
 
-      delete room.rematchData; // Limpiar datos de revancha (esta línea ya existe)
-
-      // ▼▼▼ ¡AÑADE ESTE NUEVO EVENTO ANTES DE 'rematchStarted'! ▼▼▼
-      console.log(`[${roomId}] Emitiendo ludoResetBoard a todos los clientes.`);
+      delete room.rematchData;
       io.to(roomId).emit('ludoResetBoard');
-      // ▲▲▲ FIN NUEVO EVENTO ▲▲▲
 
-      // Notificar inicio de revancha (AHORA con state: 'playing' y turno asignado)
       io.to(roomId).emit('rematchStarted', {
         message: 'Nueva partida iniciada',
-        gameState: room.gameState, // Ahora incluye el turno inicial correcto y el bote correcto
+        gameState: room.gameState,
         seats: room.seats
       });
       
-      // Notificar actualización del bote a todos
       io.to(roomId).emit('potUpdated', { 
         newPotValue: totalPot, 
         isPenalty: false 
       });
       
       console.log(`[${roomId}] Revancha iniciada. Bote: ${totalPot} ${roomCurrency}`);
-    
-      // Actualizar lista de salas
       broadcastLudoRoomListUpdate(io);
     });
-    // ▲▲▲ FIN SISTEMA DE REVANCHA ▲▲▲
 
-}); // Cierre del io.on('connection') <--- ¡ESTE ES EL CIERRE QUE FALTABA O ESTABA MAL UBICADO!
+}); // Cierre del io.on('connection')
 
-// --- FUNCIÓN DE PING AUTOMÁTICO PARA MANTENER ACTIVO EL SERVICIO EN RENDER ---
-const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos en milisegundos
+// --- FUNCIÓN DE PING AUTOMÁTICO ---
+const PING_INTERVAL_MS = 5 * 60 * 1000;
 
 const selfPing = () => {
-    // Render proporciona la URL externa de tu servicio en esta variable de entorno.
     const url = process.env.RENDER_EXTERNAL_URL;
-
-    if (!url) {
-        return;
-    }
-
-    // Usamos el módulo 'https' de Node.js para hacer la solicitud.
+    if (!url) return;
     const https = require('https');
-
     console.log(`Ping automático iniciado a: ${url}`);
-
     https.get(url, (res) => {
         if (res.statusCode === 200) {
             console.log(`Ping exitoso a ${url}. Estado: ${res.statusCode}.`);
@@ -9202,11 +9170,9 @@ const selfPing = () => {
     });
 };
 
-// Programamos la función para que se ejecute cada 5 minutos.
-// El primer ping se hará 30 segundos después de que el servidor arranque.
 setTimeout(() => {
     setInterval(selfPing, PING_INTERVAL_MS);
-}, 30000); // 30 segundos de espera inicial
+}, 30000);
 
 server.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
@@ -9234,26 +9200,20 @@ server.listen(PORT, '0.0.0.0', async () => {
     }
   }
   
-  // ▼▼▼ LIMPIEZA AUTOMÁTICA DEL CHAT CADA 10 MINUTOS ▼▼▼
   setInterval(() => {
     const now = Date.now();
-    
-    // Limpiar chat de Ludo si han pasado 10 minutos desde el último mensaje
     if (ludoChatLastMessageTime > 0 && (now - ludoChatLastMessageTime) >= CHAT_CLEANUP_INTERVAL_MS) {
-      console.log('[Chat Ludo] Limpiando chat después de 10 minutos de inactividad');
+      console.log('[Chat Ludo] Limpiando chat');
       ludoLobbyChatHistory = [];
       ludoChatLastMessageTime = 0;
       io.emit('ludoLobbyChatCleared');
     }
-    
-    // Limpiar chat de La 51 si han pasado 10 minutos desde el último mensaje
     if (la51ChatLastMessageTime > 0 && (now - la51ChatLastMessageTime) >= CHAT_CLEANUP_INTERVAL_MS) {
-      console.log('[Chat La 51] Limpiando chat después de 10 minutos de inactividad');
+      console.log('[Chat La 51] Limpiando chat');
       la51LobbyChatHistory = [];
       la51ChatLastMessageTime = 0;
       io.emit('la51LobbyChatCleared');
     }
-  }, 60000); // Verificar cada minuto
-  // ▲▲▲ FIN DE LA LIMPIEZA AUTOMÁTICA DEL CHAT ▲▲▲
+  }, 60000);
 }); // Fin del server.listen
 
