@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.55'; // Actualizado: Fix - En mesas de práctica NO se aplica multa por abandono, solo en mesas reales
+const CACHE_NAME = 'mutijuego-v1.12.56'; // Actualizado: Fix - Abandono por inactividad se maneja igual que abandono voluntario
 const urlsToCache = [
   '/',
   '/index.html',

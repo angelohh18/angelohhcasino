@@ -4343,9 +4343,9 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
                 return;
             }
             
-            // Eliminar al jugador por inactividad
-            console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${nextPlayer.playerName} (${room.currentPlayerId})`);
-            handlePlayerDeparture(roomId, room.currentPlayerId, io, true); // true = abandono por inactividad
+            // Eliminar al jugador por inactividad (tratado como abandono voluntario)
+            console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${nextPlayer.playerName} (${room.currentPlayerId}) - Tratado como abandono voluntario`);
+            handlePlayerDeparture(roomId, room.currentPlayerId, io); // Sin parámetro = abandono voluntario
             
             // Limpiar el timeout
             delete la51InactivityTimeouts[timeoutKey];
@@ -4360,7 +4360,7 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA ▼▼▼
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
-async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityAbandonment = false) {
+async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     const room = la51Rooms[roomId];
 
     // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está saliendo ▼▼▼
@@ -4441,7 +4441,7 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityAb
 
     if (!room) return;
 
-    console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}. ${isInactivityAbandonment ? '(ABANDONO POR INACTIVIDAD - SE APLICA MULTA)' : ''}`);
+    console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}.`);
 
     if (room.spectators) {
         room.spectators = room.spectators.filter(s => s.id !== leavingPlayerId);
@@ -4461,13 +4461,10 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityAb
 
     if (room.state === 'playing') {
         // VALIDACIÓN CLAVE: Solo aplicamos lógica de abandono si el jugador estaba ACTIVO.
-        // O si es abandono por inactividad (aplica tanto para práctica como reales)
-        if (leavingPlayerSeat.status !== 'waiting' || isInactivityAbandonment) {
-            // --- JUGADOR ACTIVO: Se aplica multa y se gestiona el turno ---
-            const abandonmentReason = isInactivityAbandonment 
-                ? `${playerName} ha sido eliminado por inactividad (2 minutos sin acción).`
-                : `${playerName} ha abandonado la partida.`;
-            console.log(`Jugador activo ${playerName} ha abandonado. Se aplica multa. ${isInactivityAbandonment ? '(Por inactividad)' : ''}`);
+        if (leavingPlayerSeat.status !== 'waiting') {
+            // --- JUGADOR ACTIVO: Se aplica multa y se gestiona el turno (igual que abandono voluntario) ---
+            const abandonmentReason = `${playerName} ha abandonado la partida.`;
+            console.log(`Jugador activo ${playerName} ha abandonado. Se aplica multa.`);
 
             const reason = abandonmentReason;
             io.to(roomId).emit('playerEliminated', {
@@ -5313,9 +5310,9 @@ io.on('connection', (socket) => {
                     return;
                 }
                 
-                // Eliminar al jugador por inactividad
-                console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${startingPlayerSeat.playerName} (${startingPlayerId})`);
-                handlePlayerDeparture(roomId, startingPlayerId, io, true); // true = abandono por inactividad
+                // Eliminar al jugador por inactividad (tratado como abandono voluntario)
+                console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${startingPlayerSeat.playerName} (${startingPlayerId}) - Tratado como abandono voluntario`);
+                handlePlayerDeparture(roomId, startingPlayerId, io); // Sin parámetro = abandono voluntario
                 
                 // Limpiar el timeout
                 delete la51InactivityTimeouts[timeoutKey];
