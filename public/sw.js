@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.53'; // Actualizado: Fix lógica de falta - verificar con nueva posición si la ficha que se movió es la que podía matar
+const CACHE_NAME = 'mutijuego-v1.12.54'; // Actualizado: Sistema de timeout de inactividad de 2 minutos para La 51 (práctica y reales) con multa por abandono
 const urlsToCache = [
   '/',
   '/index.html',
