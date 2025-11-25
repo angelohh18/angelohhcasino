@@ -4543,10 +4543,19 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                     await updateUserCredits(leavingPlayerSeat.userId, playerInfo.credits, playerInfo.currency);
                     // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
 
-                    room.pot = (room.pot || 0) + penalty;
+                    // Sumar la multa al bote (en la moneda de la mesa)
+                    const currentPot = room.pot || 0;
+                    room.pot = currentPot + penalty;
+                    
+                    console.log(`[${roomId}] 💰 Multa aplicada: ${penalty} ${room.settings.betCurrency} a ${playerName}. Bote actualizado: ${currentPot} → ${room.pot}`);
+                    
                     io.to(leavingPlayerId).emit('userStateUpdated', playerInfo);
                     io.to(room.roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: true });
+                } else {
+                    console.log(`[${roomId}] ⚠️ No se aplicó multa: penalty=${penalty}, playerInfo=${!!playerInfo}`);
                 }
+            } else {
+                console.log(`[${roomId}] ⚠️ No se aplicó multa: leavingPlayerSeat=${!!leavingPlayerSeat}, userId=${leavingPlayerSeat?.userId}`);
             }
 
             const activePlayers = room.seats.filter(s => s && s.active !== false);
