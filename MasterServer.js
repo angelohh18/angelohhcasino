@@ -9172,7 +9172,8 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       broadcastLudoRoomListUpdate(io);
     });
     // ▲▲▲ FIN SISTEMA DE REVANCHA ▲▲▲
-}); // Cierre del io.on('connection')
+
+}); // Cierre del io.on('connection') <--- ¡ESTE ES EL CIERRE QUE FALTABA O ESTABA MAL UBICADO!
 
 // --- FUNCIÓN DE PING AUTOMÁTICO PARA MANTENER ACTIVO EL SERVICIO EN RENDER ---
 const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos en milisegundos
