@@ -3876,7 +3876,21 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
         });
     }
 
+    // Calcular desglose del bote
+    const totalBets = (room.initialSeats?.length || 0) * bet;
+    const totalPenalties = Object.values(room.penaltiesPaid || {}).reduce((sum, p) => sum + p.amount, 0);
+    const totalContributions = totalBets + totalPenalties;
+    
+    let potBreakdown = '';
+    if (totalPenalties > 0) {
+        potBreakdown = `<p style="font-size: 0.9rem; color: #c5a56a;"><strong>Desglose del Bote:</strong></p>
+                        <p style="font-size: 0.9rem; margin-left: 10px;">• Apuestas iniciales: ${totalBets.toFixed(2)} ${currencySymbol}</p>
+                        <p style="font-size: 0.9rem; margin-left: 10px; color: #ff4444;">• Multas aplicadas: +${totalPenalties.toFixed(2)} ${currencySymbol}</p>
+                        <p style="font-size: 0.9rem; margin-left: 10px;"><strong>Total recaudado: ${totalContributions.toFixed(2)} ${currencySymbol}</strong></p>`;
+    }
+    
     let winningsSummary = `<div style="border-top: 1px solid #c5a56a; margin-top: 15px; padding-top: 10px; text-align: left;">
+                            ${potBreakdown}
                             <p><strong>Bote Total Recaudado:</strong> ${totalPot.toFixed(2)} ${currencySymbol}</p>
                             <p><strong>Comisión Admin (10%):</strong> -${commissionInRoomCurrency.toFixed(2)} ${currencySymbol}</p>
                             <p style="color: #6bff6b; font-size: 1.2rem;"><strong>GANANCIA NETA: ${netWinnings.toFixed(2)} ${currencySymbol}</strong></p>
@@ -3966,7 +3980,16 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
             // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
 
             room.pot = (room.pot || 0) + penalty;
-            console.log(`Jugador ${playerSeat.playerName} paga multa de ${penalty}. Nuevo bote: ${room.pot}`);
+            
+            // Rastrear la multa pagada
+            if (!room.penaltiesPaid) room.penaltiesPaid = {};
+            room.penaltiesPaid[playerSeat.userId] = {
+                playerName: playerSeat.playerName,
+                amount: penalty,
+                reason: finalFaultData?.reason || 'Falta cometida'
+            };
+            
+            console.log(`[${roomId}] 💰 Multa aplicada: ${penalty} ${room.settings.betCurrency} a ${playerSeat.playerName}. Bote actualizado: ${(room.pot - penalty)} → ${room.pot}`);
             io.to(faultingPlayerId).emit('userStateUpdated', playerInfo);
             io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: true });
         }
@@ -4576,6 +4599,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                     // Sumar la multa al bote (en la moneda de la mesa)
                     const currentPot = room.pot || 0;
                     room.pot = currentPot + penalty;
+                    
+                    // Rastrear la multa pagada
+                    if (!room.penaltiesPaid) room.penaltiesPaid = {};
+                    room.penaltiesPaid[leavingPlayerSeat.userId] = {
+                        playerName: playerName,
+                        amount: penalty,
+                        reason: 'Abandono por inactividad'
+                    };
                     
                     console.log(`[${roomId}] 💰 Multa aplicada: ${penalty} ${room.settings.betCurrency} a ${playerName}. Bote actualizado: ${currentPot} → ${room.pot}`);
                     
@@ -5362,7 +5393,8 @@ io.on('connection', (socket) => {
         room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
         room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
         room.melds = [];
-        room.pot = 0; // <<-- AÑADE ESTA LÍNEA para inicializar el bote
+        room.pot = 0; // Inicializar el bote
+        room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
         
         room.seats.forEach(async (seat) => {
             if (seat) {
