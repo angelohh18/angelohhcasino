@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.40'; // Actualizado: Eliminar llave de cierre extra en ludoMovePiece
+const CACHE_NAME = 'mutijuego-v1.12.41'; // Actualizado: Verificación de estructura de código
 const urlsToCache = [
   '/',
   '/index.html',
