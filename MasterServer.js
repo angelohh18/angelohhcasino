@@ -4372,14 +4372,72 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityAb
     }
     // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
 
-    // ▼▼▼ AÑADE ESTE BLOQUE COMPLETO AQUÍ ▼▼▼
+    // ▼▼▼ BLOQUE MODIFICADO: En práctica NO se aplica multa, pero sí se procesa el abandono ▼▼▼
     if (room && room.isPractice) {
-        console.log(`[Práctica] El jugador humano ha salido. Eliminando la mesa de práctica ${roomId}.`);
+        console.log(`[Práctica] El jugador humano ha salido. Eliminando la mesa de práctica ${roomId} (SIN multa).`);
+        
+        // Si está en partida activa, eliminar al jugador pero SIN multa
+        if (room.state === 'playing') {
+            const seatIndex = room.seats.findIndex(s => s && s.playerId === leavingPlayerId);
+            if (seatIndex !== -1) {
+                const leavingPlayerSeat = room.seats[seatIndex];
+                if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
+                    // Eliminar al jugador pero SIN aplicar multa
+                    room.seats[seatIndex] = null;
+                    leavingPlayerSeat.active = false;
+                    
+                    const activePlayers = room.seats.filter(s => s && s.active !== false);
+                    if (activePlayers.length === 1) {
+                        // Solo queda un jugador, terminar partida
+                        await endGameAndCalculateScores(room, activePlayers[0], io, { name: leavingPlayerSeat.playerName });
+                    } else if (activePlayers.length > 1) {
+                        // Pasar turno si era su turno
+                        if (room.currentPlayerId === leavingPlayerId) {
+                            resetTurnState(room);
+                            const seatedPlayers = room.seats.filter(s => s !== null);
+                            let oldPlayerIndex = -1;
+                            if (room.initialSeats) {
+                                oldPlayerIndex = room.initialSeats.findIndex(s => s && s.playerId === leavingPlayerId);
+                            }
+                            let nextPlayerIndex = oldPlayerIndex !== -1 ? oldPlayerIndex : 0;
+                            let attempts = 0;
+                            let nextPlayer = null;
+                            while (!nextPlayer && attempts < room.seats.length * 2) {
+                                nextPlayerIndex = (nextPlayerIndex + 1) % room.seats.length;
+                                const potentialNextPlayerSeat = room.seats[nextPlayerIndex];
+                                if (potentialNextPlayerSeat && potentialNextPlayerSeat.active) {
+                                    nextPlayer = potentialNextPlayerSeat;
+                                }
+                                attempts++;
+                            }
+                            if (nextPlayer) {
+                                room.currentPlayerId = nextPlayer.playerId;
+                                io.to(roomId).emit('turnChanged', {
+                                    discardedCard: null,
+                                    discardingPlayerId: leavingPlayerId,
+                                    newDiscardPile: room.discardPile,
+                                    nextPlayerId: room.currentPlayerId,
+                                    playerHandCounts: getSanitizedRoomForClient(room).playerHandCounts,
+                                    newMelds: room.melds
+                                });
+                            }
+                        }
+                    }
+                    
+                    io.to(roomId).emit('playerEliminated', {
+                        playerId: leavingPlayerId,
+                        playerName: leavingPlayerSeat.playerName,
+                        reason: `${leavingPlayerSeat.playerName} ha abandonado la partida (Práctica - SIN multa).`
+                    });
+                }
+            }
+        }
+        
         delete la51Rooms[roomId]; // Elimina la sala del servidor
         broadcastRoomListUpdate(io); // Notifica a todos para que desaparezca del lobby
         return; // Detiene la ejecución para no aplicar lógica de mesas reales
     }
-    // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
+    // ▲▲▲ FIN DEL BLOQUE MODIFICADO ▲▲▲
 
     if (!room) return;
 

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.54'; // Actualizado: Sistema de timeout de inactividad de 2 minutos para La 51 (práctica y reales) con multa por abandono
+const CACHE_NAME = 'mutijuego-v1.12.55'; // Actualizado: Fix - En mesas de práctica NO se aplica multa por abandono, solo en mesas reales
 const urlsToCache = [
   '/',
   '/index.html',
