@@ -5448,6 +5448,10 @@ io.on('connection', (socket) => {
             }
         });
         
+        // Emitir bote inicial a todos los jugadores después de que todas las apuestas se hayan sumado
+        io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
+        console.log(`[${roomId}] 💰 Bote inicial: ${room.pot} ${room.settings.betCurrency} (${seatedPlayers.length} apuestas de ${room.settings.bet} cada una)`);
+        
         const newDeck = buildDeck();
         shuffle(newDeck);
         
