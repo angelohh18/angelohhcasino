@@ -5175,6 +5175,24 @@ io.on('connection', (socket) => {
     // --- FIN: LÓGICA PARA EL PANEL DE ADMIN ---
 
   socket.on('createRoom', (settings) => {
+    // ▼▼▼ LIMPIAR ESTADO PREVIO SI EXISTE ▼▼▼
+    // Si el socket está en otra sala, limpiarla primero
+    if (socket.currentRoomId) {
+        const oldRoomId = socket.currentRoomId;
+        const oldRoom = la51Rooms[oldRoomId];
+        
+        if (oldRoom) {
+            console.log(`[createRoom] Limpiando sala anterior ${oldRoomId} antes de crear nueva mesa.`);
+            // Si la sala anterior existe, salir de ella
+            socket.leave(oldRoomId);
+        }
+        
+        // Limpiar currentRoomId
+        delete socket.currentRoomId;
+        console.log(`[createRoom] Limpiado socket.currentRoomId anterior: ${oldRoomId}`);
+    }
+    // ▲▲▲ FIN DE LIMPIEZA PREVIA ▲▲▲
+    
     const roomId = generateRoomId();
 
     // --- INICIO DE LA CORRECCIÓN ---
