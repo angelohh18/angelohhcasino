@@ -8781,7 +8781,6 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
         socket.emit('ludoError', { message: 'Error interno al mover la ficha.' });
       }
     
-    }); // Cierre de la función async (data) => { ... }
     }); // ▲▲▲ FIN DEL LISTENER DE MOVIMIENTO ▲▲▲
 
     socket.on('sendLudoGameChat', (data) => {
