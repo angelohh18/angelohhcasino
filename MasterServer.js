@@ -5176,20 +5176,33 @@ io.on('connection', (socket) => {
 
   socket.on('createRoom', (settings) => {
     // ▼▼▼ LIMPIAR ESTADO PREVIO SI EXISTE ▼▼▼
-    // Si el socket está en otra sala, limpiarla primero
+    // Si el socket está en otra sala, limpiarla primero (incluso si la sala ya no existe)
     if (socket.currentRoomId) {
         const oldRoomId = socket.currentRoomId;
-        const oldRoom = la51Rooms[oldRoomId];
+        console.log(`[createRoom] Limpiando estado previo: sala ${oldRoomId}`);
         
-        if (oldRoom) {
-            console.log(`[createRoom] Limpiando sala anterior ${oldRoomId} antes de crear nueva mesa.`);
-            // Si la sala anterior existe, salir de ella
-            socket.leave(oldRoomId);
-        }
+        // Salir de la sala Socket.IO (aunque la sala ya no exista en la51Rooms)
+        socket.leave(oldRoomId);
         
         // Limpiar currentRoomId
         delete socket.currentRoomId;
-        console.log(`[createRoom] Limpiado socket.currentRoomId anterior: ${oldRoomId}`);
+        console.log(`[createRoom] Estado previo limpiado.`);
+    }
+    
+    // Limpiar cualquier referencia residual a salas de práctica
+    const allRoomIds = Object.keys(la51Rooms);
+    for (const existingRoomId of allRoomIds) {
+        const existingRoom = la51Rooms[existingRoomId];
+        if (existingRoom && existingRoom.isPractice) {
+            const seatIndex = existingRoom.seats.findIndex(s => s && s.playerId === socket.id);
+            if (seatIndex !== -1) {
+                console.log(`[createRoom] Encontrado socket en sala de práctica ${existingRoomId}, limpiando...`);
+                socket.leave(existingRoomId);
+                if (socket.currentRoomId === existingRoomId) {
+                    delete socket.currentRoomId;
+                }
+            }
+        }
     }
     // ▲▲▲ FIN DE LIMPIEZA PREVIA ▲▲▲
     
@@ -5204,9 +5217,16 @@ io.on('connection', (socket) => {
     socket.userId = userId;
 
     const playerInfo = users[userId];
-    const roomBet = settings.bet;
-    const roomPenalty = settings.penalty;
-    const roomCurrency = settings.betCurrency;
+    
+    // Validar que playerInfo existe
+    if (!playerInfo) {
+        console.error(`[createRoom] ERROR: playerInfo no encontrado para userId: ${userId}`);
+        return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
+    }
+    
+    const roomBet = settings.bet || 0;
+    const roomPenalty = settings.penalty || 0;
+    const roomCurrency = settings.betCurrency || 'USD';
 
     // Calculamos el coste TOTAL (apuesta + multa) en la moneda de la mesa.
     const totalRequirementInRoomCurrency = roomBet + roomPenalty;
@@ -5214,7 +5234,7 @@ io.on('connection', (socket) => {
     // Convertimos el coste TOTAL a la moneda del jugador.
     const requiredAmountInPlayerCurrency = convertCurrency(totalRequirementInRoomCurrency, roomCurrency, playerInfo.currency, exchangeRates);
 
-    if (!playerInfo || playerInfo.credits < requiredAmountInPlayerCurrency) {
+    if (playerInfo.credits < requiredAmountInPlayerCurrency) {
         const friendlyRequired = requiredAmountInPlayerCurrency.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const friendlyBet = roomBet.toLocaleString('es-ES');
         const friendlyPenalty = roomPenalty.toLocaleString('es-ES');
@@ -6446,7 +6466,7 @@ socket.on('accionDescartar', async (data) => {
     const isLudoRoom = roomId && ludoRooms[roomId];
     const isLa51Room = roomId && la51Rooms[roomId];
     
-    // ▼▼▼ CRÍTICO: Si la sala no existe, verificar si ya fue penalizado antes de procesar abandono ▼▼▼
+    // ▼▼▼ CRÍTICO: Si la sala no existe, limpiar estado y salir ▼▼▼
     if (!isLudoRoom && !isLa51Room && roomId) {
         const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
         if (userId) {
@@ -6455,20 +6475,27 @@ socket.on('accionDescartar', async (data) => {
             
             if (alreadyPenalized) {
                 console.log(`[leaveGame] ${userId} intentó salir de sala ${roomId} que no existe, pero ya fue penalizado anteriormente. NO se procesa abandono.`);
-                // Limpiar estado del socket pero NO procesar abandono
-                if (roomId) {
-                    socket.leave(roomId);
-                    delete socket.currentRoomId;
-                }
-                return; // Salir sin procesar abandono
             }
         }
-        console.warn(`[leaveGame] Sala ${roomId} no encontrada en ludoRooms ni la51Rooms.`);
-        // Limpiar estado del socket
+        console.warn(`[leaveGame] Sala ${roomId} no encontrada en ludoRooms ni la51Rooms. Limpiando estado del socket.`);
+        
+        // Limpiar estado del socket completamente
         if (roomId) {
             socket.leave(roomId);
-            delete socket.currentRoomId;
         }
+        delete socket.currentRoomId;
+        
+        // Actualizar estado del usuario
+        if (connectedUsers[socket.id]) {
+            const currentLobby = connectedUsers[socket.id].currentLobby;
+            if (currentLobby) {
+                connectedUsers[socket.id].status = `En el lobby de ${currentLobby}`;
+            } else {
+                connectedUsers[socket.id].status = 'En el Lobby';
+            }
+            broadcastUserListUpdate(io);
+        }
+        
         return; // Salir sin procesar abandono si la sala no existe
     }
     // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
@@ -9606,4 +9633,5 @@ server.listen(PORT, '0.0.0.0', async () => {
       io.emit('la51LobbyChatCleared');
     }
   }, 60000);
+}); // Fin del server.listen
 }); // Fin del server.listen
