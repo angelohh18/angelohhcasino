@@ -3765,15 +3765,22 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
             let amountPaid = 0;
             let baseText = 'Pagó apuesta';
             let reasonText = '';
-            amountPaid = bet;
+            amountPaid = bet; // La apuesta se descontó al iniciar
             let color = '#ffff00';
 
-            if (!finalSeatState) reasonText = 'por abandonar';
-            else if (finalSeatState.active === false) reasonText = 'por falta';
-            else if (!finalSeatState.doneFirstMeld) reasonText = 'por no bajar';
-            
-            if (reasonText) {
-                baseText = 'Pagó apuesta y multa';
+            if (!finalSeatState) {
+                reasonText = 'por abandonar';
+                baseText = 'Pagó apuesta'; // Solo apuesta, ya se descontó al iniciar
+                amountPaid = bet;
+                color = '#ffff00';
+            } else if (finalSeatState.active === false) {
+                reasonText = 'por falta';
+                baseText = 'Pagó apuesta y multa'; // Apuesta (ya descontada) + multa adicional
+                amountPaid = bet + penalty;
+                color = '#ff4444';
+            } else if (!finalSeatState.doneFirstMeld) {
+                reasonText = 'por no bajar';
+                baseText = 'Pagó apuesta y multa'; // Apuesta (ya descontada) + multa adicional
                 amountPaid = bet + penalty;
                 color = '#ff4444';
             }
