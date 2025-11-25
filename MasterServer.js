@@ -5729,39 +5729,9 @@ socket.on('accionDescartar', async (data) => {
         return;
     }
 
-    // 3. Resetear y cambiar turno.
-    console.log(`[DEBUG] Reseteando estado del turno...`);
-    resetTurnState(room);
-    const seatedPlayers = room.seats.filter(s => s !== null);
-    const currentPlayerIndex = seatedPlayers.findIndex(p => p.playerId === socket.id);
-    let nextPlayerIndex = (currentPlayerIndex + 1) % seatedPlayers.length;
-    console.log(`[DEBUG] Current player index: ${currentPlayerIndex}, Next player index: ${nextPlayerIndex}`);
-    while (!seatedPlayers[nextPlayerIndex] || seatedPlayers[nextPlayerIndex].active === false) {
-        nextPlayerIndex = (nextPlayerIndex + 1) % seatedPlayers.length;
-    }
-    room.currentPlayerId = seatedPlayers[nextPlayerIndex].playerId;
-    console.log(`[DEBUG] Nuevo current player: ${room.currentPlayerId}`);
-
-    // 4. Notificar a TODOS.
-    const playerHandCounts = {};
-    seatedPlayers.forEach(p => { playerHandCounts[p.playerId] = room.playerHands[p.playerId]?.length || 0; });
-
-    console.log(`[DEBUG] Enviando turnChanged a todos los jugadores...`);
-    io.to(roomId).emit('turnChanged', {
-        discardedCard: card,
-        discardingPlayerId: socket.id,
-        newDiscardPile: room.discardPile,
-        nextPlayerId: room.currentPlayerId,
-        playerHandCounts: playerHandCounts,
-        newMelds: room.melds
-    });
-    console.log(`[DEBUG] turnChanged enviado exitosamente`);
-
-    // 5. Activar bot si es su turno.
-    const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
-    if (nextPlayerSeat && nextPlayerSeat.isBot) {
-        setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
-    }
+    // 3. Cambiar turno usando la función helper (esto iniciará el timeout automáticamente)
+    console.log(`[DEBUG] Cambiando turno usando advanceTurnAfterAction...`);
+    await advanceTurnAfterAction(room, socket.id, card, io);
 });
 
 
