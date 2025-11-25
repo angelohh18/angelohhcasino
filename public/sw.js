@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.37'; // Actualizado: Fix servidor - versión PWA actualizada
+const CACHE_NAME = 'mutijuego-v1.12.38'; // Actualizado: Fix limpieza de caché y estructura de código
 const urlsToCache = [
   '/',
   '/index.html',
@@ -25,16 +25,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all([
       // Limpiar caches antiguos primero
-      caches.keys().then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME) {
-              console.log('Service Worker: Eliminando cache antiguo:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      }),
+      (function() {
+        return caches.keys().then(cacheNames => {
+          return Promise.all(
+            cacheNames.map(cacheName => {
+              if (cacheName !== CACHE_NAME) {
+                console.log('Service Worker: Eliminando cache antiguo:', cacheName);
+                return caches.delete(cacheName);
+              }
+              return Promise.resolve(); // Asegura que se retorna algo si no se elimina
+            })
+          );
+        });
+      })(), // Función auto-ejecutable que devuelve la promesa
       // Cachear nuevos archivos
     caches.open(CACHE_NAME)
       .then((cache) => {
