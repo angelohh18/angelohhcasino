@@ -4618,8 +4618,9 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
                         } else {
                             // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (solo si NO es bot)
-                            console.log(`[${roomId}] [TURN CHANGE] Jugador abandonó, iniciando timeout INMEDIATAMENTE para ${nextPlayer.playerName}...`);
+                            console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador abandonó, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
                             startLa51InactivityTimeout(room, room.currentPlayerId, io);
+                            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
                         }
                         // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
                         
@@ -5426,12 +5427,14 @@ io.on('connection', (socket) => {
         room.deck = newDeck;
         room.currentPlayerId = startingPlayerId;
 
-        // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout de 2 minutos para el primer jugador (solo si NO es bot) ▼▼▼
+        // ▼▼▼ TIMEOUT DE INACTIVIDAD: Iniciar timeout INMEDIATAMENTE para el primer jugador (solo si NO es bot) ▼▼▼
         const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
         if (startingPlayerSeat && startingPlayerSeat.isBot) {
             setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
         } else {
+            console.log(`[${roomId}] [START GAME] ⚡⚡⚡ Iniciando juego, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${startingPlayerSeat?.playerName} (${startingPlayerId})...`);
             startLa51InactivityTimeout(room, startingPlayerId, io);
+            console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
         }
         // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 
