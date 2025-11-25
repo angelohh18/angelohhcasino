@@ -1409,48 +1409,33 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             room.penaltyApplied = {};
         }
         
-        // Solo aplicar penalización si NO fue aplicada anteriormente (ni en la sala ni globalmente)
-        if (!alreadyPenalized) {
-            // Aplicar penalización (descontar la apuesta)
-            if (userInfo) {
-                const penaltyInUserCurrency = convertCurrency(bet, roomCurrencyForFault, userInfo.currency, exchangeRates);
-                userInfo.credits -= penaltyInUserCurrency;
-                
-                // Actualizar en BD o inMemoryUsers
-                await updateUserCredits(leavingPlayerSeat.userId, userInfo.credits, userInfo.currency);
-                
-                // Marcar que la penalización fue aplicada (tanto en la sala como globalmente)
-                room.penaltyApplied[leavingPlayerSeat.userId] = true;
-                ludoGlobalPenaltyApplied[globalPenaltyKey] = true;
-                
-                console.log(`[${roomId}] PENALIZACIÓN APLICADA (Abandono Voluntario): ${username} perdió ${bet.toFixed(2)} ${roomCurrencyForFault} (Equivalente a ${penaltyInUserCurrency.toFixed(2)} ${userInfo.currency}). Saldo nuevo: ${userInfo.credits.toFixed(2)} ${userInfo.currency}.`);
-                
-                // Notificar al jugador que abandonó de su nuevo saldo
-                let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
-                if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
-                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
-                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-                        if (socketUserId === leavingPlayerSeat.userId) {
-                            leavingPlayerSocket = socket;
-                            break;
-                        }
+        // ▼▼▼ CORRECCIÓN: NO DESCONTAR LA APUESTA AL ABANDONAR (YA SE DESCONTÓ AL INICIAR) ▼▼▼
+        // La apuesta ya se descontó al iniciar la partida en ludoStartGame, por lo que NO se debe descontar de nuevo al abandonar
+        // Solo notificar al jugador que abandonó (sin descontar créditos)
+        if (userInfo) {
+            // Notificar al jugador que abandonó de su saldo actual (sin cambios)
+            let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                    if (socketUserId === leavingPlayerSeat.userId) {
+                        leavingPlayerSocket = socket;
+                        break;
                     }
                 }
-                if (leavingPlayerSocket) {
-                    leavingPlayerSocket.emit('userStateUpdated', userInfo);
-                    console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency})`);
-                }
-            } else {
-                console.warn(`[${roomId}] PENALIZACIÓN FALLIDA (Abandono Voluntario): No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
+            }
+            if (leavingPlayerSocket) {
+                leavingPlayerSocket.emit('userStateUpdated', userInfo);
+                console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency}) - SIN DESCONTAR APUESTA (ya se descontó al iniciar)`);
             }
         } else {
-            console.log(`[${roomId}] ⚠️ PENALIZACIÓN YA APLICADA: ${username} ya fue penalizado anteriormente (global: ${ludoGlobalPenaltyApplied[globalPenaltyKey]}, sala: ${room.penaltyApplied[leavingPlayerSeat.userId]}). NO se vuelve a descontar la apuesta.`);
+            console.warn(`[${roomId}] No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
         }
-        // ▲▲▲ FIN DE LA PENALIZACIÓN ▲▲▲
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         
         // Emitir notificación de falta por abandono
         io.to(roomId).emit('playSound', 'fault');
-        io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName, bet: bet.toLocaleString('es-ES'), currency: roomCurrencyForFault });
+        io.to(roomId).emit('ludoFoulPenalty', { type: 'abandon', playerName: playerName, bet: 0, currency: roomCurrencyForFault, message: 'Abandono detectado. La apuesta ya fue descontada al iniciar la partida.' });
         
         if (room.gameState && room.gameState.pieces && room.gameState.pieces[playerColor]) {
             delete room.gameState.pieces[playerColor];
@@ -1673,9 +1658,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 leavingPlayerSocket.emit('gameEnded', { 
                     reason: 'abandonment', 
                     winner: winnerName,
-                    message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+                    message: `Has sido eliminado por abandono. La apuesta ya fue descontada al iniciar la partida.`,
                     redirect: true,
-                    penalty: bet,
+                    penalty: 0,
                     currency: roomCurrency,
                     // Incluir datos del usuario para preservar sesión
                     username: leavingPlayerUsername,
