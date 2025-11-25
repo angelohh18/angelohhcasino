@@ -367,6 +367,41 @@ function showPwaInstallModal() {
         showToast(`Error: ${message}`, 4000);
     });
 
+    // ▼▼▼ HANDLER: Jugador eliminado por inactividad - mostrar mensaje y redirigir al lobby ▼▼▼
+    socket.on('playerEliminatedByInactivity', (data) => {
+        console.log('Jugador eliminado por inactividad:', data);
+        if (data.message) {
+            showToast(data.message, 5000);
+        }
+        // El evento redirectToLobby se encargará de la redirección
+    });
+    // ▲▲▲ FIN HANDLER ELIMINACIÓN POR INACTIVIDAD ▲▲▲
+
+    // ▼▼▼ HANDLER: Redirigir al lobby cuando el jugador fue eliminado por inactividad ▼▼▼
+    socket.on('redirectToLobby', (data) => {
+        console.log('Redirigiendo al lobby:', data);
+        
+        // Mostrar mensaje si existe
+        if (data.reason) {
+            showToast(data.reason, 5000);
+        }
+        
+        // Limpiar estado del juego
+        resetClientGameState();
+        if (currentGameSettings && currentGameSettings.roomId) {
+            socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+        }
+        currentGameSettings = null;
+        
+        // Redirigir al lobby después de un breve delay para que el usuario vea el mensaje
+        setTimeout(() => {
+            showLobbyView();
+            // Notificar al servidor que estamos de vuelta en el lobby
+            socket.emit('enterLa51Lobby');
+        }, 2000);
+    });
+    // ▲▲▲ FIN HANDLER REDIRECCIÓN AL LOBBY ▲▲▲
+
     // ▼▼▼ AÑADE ESTE LISTENER COMPLETO ▼▼▼
     socket.on('potUpdated', (data) => {
         const potContainer = document.getElementById('game-pot-container');
@@ -1840,6 +1875,29 @@ function showRoomsOverview() {
             faultInfo = { reason: data.reason };
         }
         // --- FIN DE LA CORRECCIÓN ---
+
+        // ▼▼▼ VERIFICAR SI EL JUGADOR ELIMINADO ES EL USUARIO ACTUAL ▼▼▼
+        const isCurrentPlayer = data.playerId === socket.id;
+        if (isCurrentPlayer) {
+            console.log('⚠️ El jugador actual fue eliminado. Redirigiendo al lobby...');
+            // Limpiar estado del juego
+            resetClientGameState();
+            if (currentGameSettings && currentGameSettings.roomId) {
+                socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+            }
+            currentGameSettings = null;
+            
+            // Mostrar mensaje de eliminación
+            showEliminationMessage(data.playerName, faultInfo);
+            
+            // Redirigir al lobby después de un breve delay
+            setTimeout(() => {
+                showLobbyView();
+                socket.emit('enterLa51Lobby');
+            }, 3000);
+            return; // Salir temprano para no procesar más
+        }
+        // ▲▲▲ FIN VERIFICACIÓN JUGADOR ACTUAL ▲▲▲
 
         showEliminationMessage(data.playerName, faultInfo); // Ahora 'faultInfo' nunca será undefined
 
