@@ -4556,6 +4556,12 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             }
         });
         
+        // Asegurar que el socket salga de la sala de Socket.IO
+        if (leavingSocket) {
+            leavingSocket.leave(roomId);
+            console.log(`[Práctica] Socket ${leavingPlayerId} salió de la sala Socket.IO: ${roomId}`);
+        }
+        
         delete la51Rooms[roomId]; // Elimina la sala del servidor
         broadcastRoomListUpdate(io); // Notifica a todos para que desaparezca del lobby
         
