@@ -5538,14 +5538,6 @@ socket.on('accionDescartar', async (data) => {
     }
 });
 
-initLudoEngine(io.of('/ludo'), {
-  userDirectory: inMemoryUsers,
-  exchangeRates,
-  commissionLog
-});
-
-// Pequeña corrección en getSuitIcon para que funcione en el servidor
-function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'♦'; if(s==='clubs')return'♣'; if(s==='spades')return'♠'; return ''; }
 
   // ▼▼▼ LISTENER drawFromDeck CON SINCRONIZACIÓN MEJORADA ▼▼▼
   socket.on('drawFromDeck', async (roomId) => { // <-- Se añade 'async'
@@ -9149,7 +9141,16 @@ function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'
       broadcastLudoRoomListUpdate(io);
     });
 
-}); // Cierre del io.on('connection')
+}); // Cierre del io.on('connection') <--- ASEGÚRATE DE QUE ESTE CIERRE ESTÉ PRESENTE
+
+initLudoEngine(io.of('/ludo'), {
+  userDirectory: inMemoryUsers,
+  exchangeRates,
+  commissionLog
+});
+
+// Pequeña corrección en getSuitIcon para que funcione en el servidor
+function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'♦'; if(s==='clubs')return'♣'; if(s==='spades')return'♠'; return ''; }
 
 // --- FUNCIÓN DE PING AUTOMÁTICO ---
 const PING_INTERVAL_MS = 5 * 60 * 1000;
