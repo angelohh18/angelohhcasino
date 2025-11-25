@@ -9141,18 +9141,19 @@ socket.on('accionDescartar', async (data) => {
       broadcastLudoRoomListUpdate(io);
     });
 
-}); // Cierre del io.on('connection') <--- ASEGÚRATE DE QUE ESTE CIERRE ESTÉ PRESENTE
+}); // <--- ESTA LLAVE CIERRA TODO EL BLOQUE io.on('connection'). ¡ES CRÍTICA!
 
+// --- INICIALIZACIÓN DEL MOTOR DE LUDO ---
 initLudoEngine(io.of('/ludo'), {
   userDirectory: inMemoryUsers,
   exchangeRates,
   commissionLog
 });
 
-// Pequeña corrección en getSuitIcon para que funcione en el servidor
+// Helper para iconos
 function getSuitIcon(s) { if(s==='hearts')return'♥'; if(s==='diamonds')return'♦'; if(s==='clubs')return'♣'; if(s==='spades')return'♠'; return ''; }
 
-// --- FUNCIÓN DE PING AUTOMÁTICO ---
+// --- PING AUTOMÁTICO ---
 const PING_INTERVAL_MS = 5 * 60 * 1000;
 
 const selfPing = () => {
@@ -9175,6 +9176,7 @@ setTimeout(() => {
     setInterval(selfPing, PING_INTERVAL_MS);
 }, 30000);
 
+// --- SERVIDOR ESCUCHANDO ---
 server.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
   if (DISABLE_DB) {
@@ -9183,7 +9185,6 @@ server.listen(PORT, '0.0.0.0', async () => {
     console.log('✅ Base de datos PostgreSQL habilitada.');
   }
   
-  // Verificar estructura de la tabla users
   if (!DISABLE_DB) {
     try {
       const result = await pool.query(`

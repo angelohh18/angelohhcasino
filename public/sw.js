@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.45'; // Actualizado: Reorganización de initLudoEngine y estructura final
+const CACHE_NAME = 'mutijuego-v1.12.46'; // Actualizado: Corrección final de estructura y comentarios
 const urlsToCache = [
   '/',
   '/index.html',
