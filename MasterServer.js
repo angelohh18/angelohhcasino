@@ -5216,11 +5216,34 @@ io.on('connection', (socket) => {
 
     socket.userId = userId;
 
-    const playerInfo = users[userId];
+    // Intentar obtener playerInfo de múltiples fuentes
+    let playerInfo = users[userId];
+    
+    // Si no se encuentra con userId, intentar con username directamente
+    if (!playerInfo && settings.username) {
+        const usernameKey = settings.username.toLowerCase();
+        playerInfo = users[usernameKey];
+        if (playerInfo) {
+            // Si se encontró con username, actualizar la referencia con userId
+            users[userId] = playerInfo;
+        }
+    }
+    
+    // Si aún no se encuentra, intentar obtener desde connectedUsers
+    if (!playerInfo && connectedUsers[socket.id]) {
+        const connectedUser = connectedUsers[socket.id];
+        const connectedUsername = connectedUser.username?.toLowerCase();
+        if (connectedUsername) {
+            const connectedUserId = 'user_' + connectedUsername;
+            playerInfo = users[connectedUserId] || users[connectedUsername];
+        }
+    }
     
     // Validar que playerInfo existe
     if (!playerInfo) {
-        console.error(`[createRoom] ERROR: playerInfo no encontrado para userId: ${userId}`);
+        console.error(`[createRoom] ERROR: playerInfo no encontrado para userId: ${userId}, username: ${settings.username}`);
+        console.error(`[createRoom] Usuarios disponibles: ${Object.keys(users).join(', ')}`);
+        console.error(`[createRoom] connectedUsers[socket.id]:`, connectedUsers[socket.id]);
         return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
     }
     
