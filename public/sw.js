@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.51'; // Actualizado: Popup de dados 30px por debajo de la ficha
+const CACHE_NAME = 'mutijuego-v1.12.52'; // Actualizado: Mejora lógica de falta en Ludo y animaciones visuales mejoradas
 const urlsToCache = [
   '/',
   '/index.html',

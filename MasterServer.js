@@ -8144,32 +8144,52 @@ socket.on('accionDescartar', async (data) => {
                       if (remainingDice.length > 0) {
                           console.log(`[${roomId}] Verificando si aún se puede matar con dados restantes: [${remainingDice.join(', ')}] hacia [${targetKillPositions.join(', ')}]`);
 
-                          for (const piece of activePiecesNow) {
-                              if (piece.id === pieceId) {
-                                  console.log(`[${roomId}] Regla 1: Excluyendo ${piece.id} de verificación de matanza.`);
-                                  continue;
-                              }
-
+                          // ▼▼▼ NUEVA LÓGICA: Verificar primero con la ficha original que podía matar ▼▼▼
+                          const originalKillingPiece = potentialKillMovesAtTurnStart[0];
+                          const originalKillingPieceCurrent = activePiecesNow.find(p => p.id === originalKillingPiece.pieceId);
+                          
+                          if (originalKillingPieceCurrent && originalKillingPieceCurrent.id !== pieceId) {
+                              // Verificar si con el dado restante se puede matar usando la ficha original
                               for (const die of remainingDice) {
-                                  const simulatedPath = ludoCalculatePath(playerColor, piece.position, die, boardRules, room.gameState.pieces, gameType);
+                                  const simulatedPath = ludoCalculatePath(playerColor, originalKillingPieceCurrent.position, die, boardRules, room.gameState.pieces, gameType);
                                   if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
                                       killStillPossible = true;
-                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
+                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${originalKillingPieceCurrent.id} (en ${originalKillingPieceCurrent.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
                                       break;
                                   }
                               }
-                              if (killStillPossible) break;
+                          }
+                          // ▲▲▲ FIN NUEVA LÓGICA ▲▲▲
 
-                              if (remainingDice.length === 2 && !killStillPossible) {
-                                  const sumDie = remainingDice[0] + remainingDice[1];
-                                  const simulatedSumPath = ludoCalculatePath(playerColor, piece.position, sumDie, boardRules, room.gameState.pieces, gameType);
-                                  if (simulatedSumPath.finalPosition !== null && targetKillPositions.includes(simulatedSumPath.finalPosition)) {
-                                      killStillPossible = true;
-                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedSumPath.finalPosition} con la suma ${sumDie}.`);
-                                      break;
+                          // Verificar con otras fichas si aún no se puede matar
+                          if (!killStillPossible) {
+                              for (const piece of activePiecesNow) {
+                                  if (piece.id === pieceId) {
+                                      console.log(`[${roomId}] Regla 1: Excluyendo ${piece.id} de verificación de matanza.`);
+                                      continue;
                                   }
+
+                                  for (const die of remainingDice) {
+                                      const simulatedPath = ludoCalculatePath(playerColor, piece.position, die, boardRules, room.gameState.pieces, gameType);
+                                      if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
+                                          killStillPossible = true;
+                                          console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
+                                          break;
+                                      }
+                                  }
+                                  if (killStillPossible) break;
+
+                                  if (remainingDice.length === 2 && !killStillPossible) {
+                                      const sumDie = remainingDice[0] + remainingDice[1];
+                                      const simulatedSumPath = ludoCalculatePath(playerColor, piece.position, sumDie, boardRules, room.gameState.pieces, gameType);
+                                      if (simulatedSumPath.finalPosition !== null && targetKillPositions.includes(simulatedSumPath.finalPosition)) {
+                                          killStillPossible = true;
+                                          console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedSumPath.finalPosition} con la suma ${sumDie}.`);
+                                          break;
+                                      }
+                                  }
+                                  if (killStillPossible) break;
                               }
-                              if (killStillPossible) break;
                           }
                       } else {
                           console.log(`[${roomId}] No quedan dados y no se realizó la matanza obligatoria.`);

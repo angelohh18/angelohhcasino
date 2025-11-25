@@ -2026,16 +2026,37 @@ document.addEventListener('DOMContentLoaded', function() {
             isFoulPenaltyVisualizing = true;
 
             const targetCellElement = document.querySelector(`[data-cell="${targetKillPosition}"]`);
+            const killingCellElement = document.querySelector(`[data-cell="${killingPiecePosition}"]`);
+            const killingPieceElement = document.getElementById(killingPieceId);
+            const targetPieceElement = document.getElementById(targetPieceId);
 
-            console.log(`[FALTA VISUAL] Aplicando resaltados LIME...`);
+            console.log(`[FALTA VISUAL] Aplicando resaltados NARANJA (ficha que podía matar) y VERDE (objetivo)...`);
             if (gameState && gameState.gameState) {
                 renderActivePieces(gameState.gameState.pieces);
             }
-            if (targetCellElement) targetCellElement.classList.add('target-kill-highlight');
+            
+            // Animación NARANJA FLUORESCENTE para la ficha y casilla que podía matar
+            if (killingPieceElement) {
+                killingPieceElement.classList.add('penalty-highlight-orange');
+            }
+            if (killingCellElement) {
+                killingCellElement.classList.add('killing-piece-highlight');
+            }
+            
+            // Animación VERDE FLUORESCENTE para la ficha y casilla objetivo
+            if (targetPieceElement) {
+                targetPieceElement.classList.add('target-piece-highlight-green');
+            }
+            if (targetCellElement) {
+                targetCellElement.classList.add('target-kill-highlight');
+            }
 
             setTimeout(() => {
-                console.log("[FALTA VISUAL] Terminó resaltado de 5s.");
+                console.log("[FALTA VISUAL] Terminó resaltado de 6s.");
                 if (targetCellElement) targetCellElement.classList.remove('target-kill-highlight');
+                if (killingCellElement) killingCellElement.classList.remove('killing-piece-highlight');
+                if (killingPieceElement) killingPieceElement.classList.remove('penalty-highlight-orange');
+                if (targetPieceElement) targetPieceElement.classList.remove('target-piece-highlight-green');
 
                 if (modal && detailsEl && acceptBtn) {
                     console.log("[FALTA VISUAL] Mostrando modal.");
@@ -2073,7 +2094,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         updateTurnUI();
                     }
                 }
-            }, 5000);
+            }, 6000);
         }
     });
     // ▲▲▲ FIN DEL LISTENER MODIFICADO ▲▲▲
@@ -3083,8 +3104,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.dice-choice-popup').forEach(p => p.remove());
 
         // 6. Limpiar resaltados de falta si existen
-        document.querySelectorAll('.penalty-highlight-lime, .target-kill-highlight, .cell.target-kill-highlight').forEach(el => {
-            el.classList.remove('penalty-highlight-lime', 'target-kill-highlight');
+        document.querySelectorAll('.penalty-highlight-lime, .penalty-highlight-orange, .target-piece-highlight-green, .target-kill-highlight, .killing-piece-highlight, .cell.target-kill-highlight, .cell.killing-piece-highlight').forEach(el => {
+            el.classList.remove('penalty-highlight-lime', 'penalty-highlight-orange', 'target-piece-highlight-green', 'target-kill-highlight', 'killing-piece-highlight');
             el.style.animation = '';
             el.style.outline = '';
             el.style.boxShadow = '';

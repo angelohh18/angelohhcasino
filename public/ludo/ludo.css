@@ -1401,29 +1401,96 @@ body.game-active {
     }
 }
 
-/* Resaltado Casilla Objetivo (también con LIMA) */
+/* Resaltado Casilla Objetivo (VERDE FLUORESCENTE) */
 .cell.target-kill-highlight,
 polygon.target-kill-highlight,
 rect.target-kill-highlight {
-    stroke: var(--lime-glow) !important;
+    stroke: #00ff00 !important; /* Verde fluorescente */
     stroke-width: 3px !important;
-    animation: pulseBorderLime 0.5s 10 ease-in-out !important; /* 10 pulsos = 5 segundos */
+    animation: pulseBorderGreen 0.5s 12 ease-in-out !important; /* 12 pulsos = 6 segundos */
 }
 .cell.target-kill-highlight {
-     outline: 2px solid var(--lime-glow) !important;
+     outline: 2px solid #00ff00 !important;
      outline-offset: -2px !important;
-     animation: pulseBorderLimeDiv 0.5s 10 ease-in-out !important; /* 10 pulsos = 5 segundos */
-     background-color: rgba(173, 255, 47, 0.1) !important; /* Fondo lima suave */
+     animation: pulseBorderGreenDiv 0.5s 12 ease-in-out !important; /* 12 pulsos = 6 segundos */
+     background-color: rgba(0, 255, 0, 0.15) !important; /* Fondo verde fluorescente */
 }
 
-/* Keyframes para borde LIMA */
-@keyframes pulseBorderLime {
+/* Resaltado Ficha Objetivo (VERDE FLUORESCENTE) */
+.ludo-piece.target-piece-highlight-green {
+    outline: 4px solid #00ff00 !important;
+    outline-offset: 3px;
+    animation: pulseGreenGlow 0.5s 12 ease-in-out !important; /* 12 pulsos = 6 segundos */
+    z-index: 100;
+    box-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00 !important;
+}
+
+/* Resaltado Ficha que Podía Matar (NARANJA FLUORESCENTE) */
+.ludo-piece.penalty-highlight-orange {
+    outline: 4px solid #ff4500 !important; /* Naranja fluorescente */
+    outline-offset: 3px;
+    animation: pulseOrangeGlow 0.5s 12 ease-in-out !important; /* 12 pulsos = 6 segundos */
+    z-index: 100;
+    box-shadow: 0 0 20px #ff4500, 0 0 40px #ff4500 !important;
+}
+
+/* Resaltado Casilla de la Ficha que Podía Matar (NARANJA FLUORESCENTE) */
+.cell.killing-piece-highlight,
+polygon.killing-piece-highlight,
+rect.killing-piece-highlight {
+    stroke: #ff4500 !important; /* Naranja fluorescente */
+    stroke-width: 3px !important;
+    animation: pulseBorderOrange 0.5s 12 ease-in-out !important; /* 12 pulsos = 6 segundos */
+}
+.cell.killing-piece-highlight {
+     outline: 2px solid #ff4500 !important;
+     outline-offset: -2px !important;
+     animation: pulseBorderOrangeDiv 0.5s 12 ease-in-out !important; /* 12 pulsos = 6 segundos */
+     background-color: rgba(255, 69, 0, 0.15) !important; /* Fondo naranja fluorescente */
+}
+
+/* Keyframes para borde VERDE FLUORESCENTE (objetivo) */
+@keyframes pulseBorderGreen {
     0%, 100% { stroke-width: 3px; opacity: 0.7; }
     50% { stroke-width: 5px; opacity: 1; }
 }
-@keyframes pulseBorderLimeDiv {
-     0%, 100% { outline-width: 2px; opacity: 0.7; box-shadow: 0 0 5px var(--lime-glow-rgba); }
-     50% { outline-width: 4px; opacity: 1; box-shadow: 0 0 12px var(--lime-glow-rgba); }
+@keyframes pulseBorderGreenDiv {
+     0%, 100% { outline-width: 2px; opacity: 0.7; box-shadow: 0 0 5px rgba(0, 255, 0, 0.8); }
+     50% { outline-width: 4px; opacity: 1; box-shadow: 0 0 12px rgba(0, 255, 0, 1); }
+}
+@keyframes pulseGreenGlow {
+    0%, 100% { 
+        outline-color: #00ff00;
+        box-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00;
+        opacity: 0.8;
+    }
+    50% { 
+        outline-color: #00ff00;
+        box-shadow: 0 0 30px #00ff00, 0 0 60px #00ff00;
+        opacity: 1;
+    }
+}
+
+/* Keyframes para borde NARANJA FLUORESCENTE (ficha que podía matar) */
+@keyframes pulseBorderOrange {
+    0%, 100% { stroke-width: 3px; opacity: 0.7; }
+    50% { stroke-width: 5px; opacity: 1; }
+}
+@keyframes pulseBorderOrangeDiv {
+     0%, 100% { outline-width: 2px; opacity: 0.7; box-shadow: 0 0 5px rgba(255, 69, 0, 0.8); }
+     50% { outline-width: 4px; opacity: 1; box-shadow: 0 0 12px rgba(255, 69, 0, 1); }
+}
+@keyframes pulseOrangeGlow {
+    0%, 100% { 
+        outline-color: #ff4500;
+        box-shadow: 0 0 20px #ff4500, 0 0 40px #ff4500;
+        opacity: 0.8;
+    }
+    50% { 
+        outline-color: #ff4500;
+        box-shadow: 0 0 30px #ff4500, 0 0 60px #ff4500;
+        opacity: 1;
+    }
 }
 
 /* ===========================================
