@@ -5191,7 +5191,7 @@ io.on('connection', (socket) => {
 
     // --- FIN: LÓGICA PARA EL PANEL DE ADMIN ---
 
-  socket.on('createRoom', (settings) => {
+  socket.on('createRoom', async (settings) => {
     // ▼▼▼ LIMPIAR ESTADO PREVIO SI EXISTE ▼▼▼
     // Si el socket está en otra sala, limpiarla primero (incluso si la sala ya no existe)
     if (socket.currentRoomId) {
