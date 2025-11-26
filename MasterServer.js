@@ -5355,10 +5355,19 @@ io.on('connection', (socket) => {
     
     socket.currentRoomId = roomId;
     
-    socket.emit('roomCreatedSuccessfully', newRoom);
+    // Emitir eventos en el orden correcto
+    // Usar getSanitizedRoomForClient si existe, sino usar newRoom directamente
+    const sanitizedRoom = typeof getSanitizedRoomForClient === 'function' 
+        ? getSanitizedRoomForClient(newRoom) 
+        : newRoom;
+    
+    socket.emit('roomCreatedSuccessfully', sanitizedRoom);
     socket.emit('chatHistory', newRoom.chatHistory);
+    
+    // Notificar a todos que se actualizó la lista de salas
     broadcastRoomListUpdate(io);
-    console.log(`Mesa creada: ${roomId} por ${settings.username}`);
+    
+    console.log(`[createRoom] Mesa creada: ${roomId} por ${settings.username}. Socket ${socket.id} unido a la sala.`);
   });
 
   socket.on('requestPracticeGame', ({ username, avatar }) => { // <--- Recibimos un objeto
