@@ -5286,6 +5286,16 @@ io.on('connection', (socket) => {
         return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
     }
     
+    // Asegurar que playerInfo tenga todas las propiedades necesarias
+    if (!playerInfo.credits && playerInfo.credits !== 0) {
+        playerInfo.credits = 0;
+        console.warn(`[createRoom] playerInfo.credits no definido, estableciendo a 0 para ${userId}`);
+    }
+    if (!playerInfo.currency) {
+        playerInfo.currency = settings.betCurrency || 'USD';
+        console.warn(`[createRoom] playerInfo.currency no definido, estableciendo a ${playerInfo.currency} para ${userId}`);
+    }
+    
     const roomBet = settings.bet || 0;
     const roomPenalty = settings.penalty || 0;
     const roomCurrency = settings.betCurrency || 'USD';
