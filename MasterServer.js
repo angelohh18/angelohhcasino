@@ -3404,6 +3404,12 @@ app.post('/update-avatar', express.json({ limit: '10mb' }), async (req, res) => 
 });
 // ▲▲▲ FIN DEL ENDPOINT update-avatar ▲▲▲
 
+// ▼▼▼ CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS ▼▼▼
+// Servir archivos estáticos desde el directorio public
+app.use(express.static(path.join(__dirname, 'public')));
+console.log('✅ Archivos estáticos configurados desde:', path.join(__dirname, 'public'));
+// ▲▲▲ FIN DE CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS ▲▲▲
+
 // RUTA DE ADMIN GENERAL (panel único para todos los juegos)
 app.get('/admin', adminAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
