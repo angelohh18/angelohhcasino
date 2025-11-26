@@ -5647,8 +5647,6 @@ io.on('connection', (socket) => {
         
         const newDeck = buildDeck();
         shuffle(newDeck);
-        
-        const seatedPlayers = room.seats.filter(s => s !== null);
         seatedPlayers.forEach(player => {
             room.playerHands[player.playerId] = newDeck.splice(0, 14);
         });
