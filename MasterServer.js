@@ -5606,15 +5606,16 @@ io.on('connection', (socket) => {
     }
     
     console.log(`[startGame] ✅ Validaciones pasadas. Iniciando juego en la mesa ${roomId} con ${seatedPlayers.length} jugadores`);
-        room.state = 'playing';
-        if (!room.chatHistory) room.chatHistory = [];
-        room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
-        room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
-        room.melds = [];
-        room.pot = 0; // Inicializar el bote
-        room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
-        
-        room.seats.forEach(async (seat) => {
+    
+    room.state = 'playing';
+    if (!room.chatHistory) room.chatHistory = [];
+    room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
+    room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
+    room.melds = [];
+    room.pot = 0; // Inicializar el bote
+    room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
+    
+    room.seats.forEach(async (seat) => {
             if (seat) {
                 seat.active = true;
                 seat.doneFirstMeld = false;
