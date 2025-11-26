@@ -4577,9 +4577,20 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
         }
         
         // Asegurar que el socket NO tenga currentRoomId después de salir
+        // PERO mantener socket.userId para que el usuario pueda crear una mesa real después
         if (leavingSocket) {
             delete leavingSocket.currentRoomId;
-            console.log(`[Práctica] Asegurado que socket.currentRoomId está limpio para ${leavingPlayerId}`);
+            
+            // Asegurar que socket.userId se mantenga si existe
+            if (!leavingSocket.userId && connectedUsers[leavingPlayerId]) {
+                const username = connectedUsers[leavingPlayerId].username;
+                if (username) {
+                    leavingSocket.userId = 'user_' + username.toLowerCase();
+                    console.log(`[Práctica] Restaurado socket.userId: ${leavingSocket.userId} para ${leavingPlayerId}`);
+                }
+            }
+            
+            console.log(`[Práctica] Asegurado que socket.currentRoomId está limpio para ${leavingPlayerId}, socket.userId: ${leavingSocket.userId}`);
         }
         
         return; // Detiene la ejecución para no aplicar lógica de mesas reales
@@ -5245,11 +5256,27 @@ io.on('connection', (socket) => {
         }
     }
     
+    // Si aún no se encuentra, intentar recargar desde la base de datos
+    if (!playerInfo && settings.username) {
+        try {
+            console.log(`[createRoom] Usuario no encontrado en memoria, intentando recargar desde BD: ${settings.username}`);
+            const userData = await getUserByUsername(settings.username);
+            if (userData) {
+                users[userId] = userData;
+                playerInfo = userData;
+                console.log(`[createRoom] Usuario recargado desde BD: ${userId}, créditos: ${userData.credits}`);
+            }
+        } catch (error) {
+            console.error(`[createRoom] Error al recargar usuario desde BD:`, error);
+        }
+    }
+    
     // Validar que playerInfo existe
     if (!playerInfo) {
         console.error(`[createRoom] ERROR: playerInfo no encontrado para userId: ${userId}, username: ${settings.username}`);
         console.error(`[createRoom] Usuarios disponibles: ${Object.keys(users).join(', ')}`);
         console.error(`[createRoom] connectedUsers[socket.id]:`, connectedUsers[socket.id]);
+        console.error(`[createRoom] socket.userId:`, socket.userId);
         return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
     }
     
