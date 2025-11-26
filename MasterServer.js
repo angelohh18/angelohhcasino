@@ -5701,7 +5701,6 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
     // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
     broadcastRoomListUpdate(io);
-    }
   });
 
   socket.on('meldAction', async (data) => {
