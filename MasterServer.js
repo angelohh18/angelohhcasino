@@ -5579,9 +5579,33 @@ io.on('connection', (socket) => {
 
 
   socket.on('startGame', (roomId) => {
+    console.log(`[startGame] Recibida solicitud para iniciar partida en sala ${roomId} desde socket ${socket.id}`);
     const room = la51Rooms[roomId];
-    if (room && room.hostId === socket.id) {
-        console.log(`Iniciando juego en la mesa ${roomId}`);
+    
+    if (!room) {
+        console.error(`[startGame] ERROR: Sala ${roomId} no encontrada`);
+        return socket.emit('joinError', 'La sala no existe.');
+    }
+    
+    console.log(`[startGame] Sala encontrada. hostId: ${room.hostId}, socket.id: ${socket.id}, ¿Es host?: ${room.hostId === socket.id}`);
+    
+    if (room.hostId !== socket.id) {
+        console.error(`[startGame] ERROR: Socket ${socket.id} no es el host. Host real: ${room.hostId}`);
+        return socket.emit('joinError', 'Solo el anfitrión puede iniciar el juego.');
+    }
+    
+    if (room.state !== 'waiting') {
+        console.error(`[startGame] ERROR: La sala ya está en estado: ${room.state}`);
+        return socket.emit('joinError', 'El juego ya ha comenzado.');
+    }
+    
+    const seatedPlayers = room.seats.filter(s => s !== null);
+    if (seatedPlayers.length < 2) {
+        console.error(`[startGame] ERROR: No hay suficientes jugadores. Jugadores sentados: ${seatedPlayers.length}`);
+        return socket.emit('joinError', 'Se necesitan al menos 2 jugadores para iniciar la partida.');
+    }
+    
+    console.log(`[startGame] ✅ Validaciones pasadas. Iniciando juego en la mesa ${roomId} con ${seatedPlayers.length} jugadores`);
         room.state = 'playing';
         if (!room.chatHistory) room.chatHistory = [];
         room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
