@@ -5616,91 +5616,91 @@ io.on('connection', (socket) => {
     room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
     
     room.seats.forEach(async (seat) => {
-            if (seat) {
-                seat.active = true;
-                seat.doneFirstMeld = false;
+        if (seat) {
+            seat.active = true;
+            seat.doneFirstMeld = false;
 
-                const playerInfo = users[seat.userId];
-                if (playerInfo) {
-                    const roomBet = room.settings.bet;
-                    const roomCurrency = room.settings.betCurrency;
+            const playerInfo = users[seat.userId];
+            if (playerInfo) {
+                const roomBet = room.settings.bet;
+                const roomCurrency = room.settings.betCurrency;
 
-                    // Convertir la apuesta a la moneda del jugador para descontarla
-                    const betInPlayerCurrency = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
+                // Convertir la apuesta a la moneda del jugador para descontarla
+                const betInPlayerCurrency = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
 
-                    playerInfo.credits -= betInPlayerCurrency;
-                    
-                    // ▼▼▼ LÍNEA AÑADIDA: Guardar en la Base de Datos ▼▼▼
-                    await updateUserCredits(seat.userId, playerInfo.credits, playerInfo.currency);
-                    // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
+                playerInfo.credits -= betInPlayerCurrency;
+                
+                // ▼▼▼ LÍNEA AÑADIDA: Guardar en la Base de Datos ▼▼▼
+                await updateUserCredits(seat.userId, playerInfo.credits, playerInfo.currency);
+                // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
 
-                    // El bote siempre se mantiene en la moneda de la mesa
-                    room.pot += roomBet;
+                // El bote siempre se mantiene en la moneda de la mesa
+                room.pot += roomBet;
 
-                    io.to(seat.playerId).emit('userStateUpdated', playerInfo);
-                }
+                io.to(seat.playerId).emit('userStateUpdated', playerInfo);
             }
-        });
-        
-        // Emitir bote inicial a todos los jugadores después de que todas las apuestas se hayan sumado
-        io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
-        console.log(`[${roomId}] 💰 Bote inicial: ${room.pot} ${room.settings.betCurrency} (${seatedPlayers.length} apuestas de ${room.settings.bet} cada una)`);
-        
-        const newDeck = buildDeck();
-        shuffle(newDeck);
-        seatedPlayers.forEach(player => {
-            room.playerHands[player.playerId] = newDeck.splice(0, 14);
-        });
-
-        const startingPlayerId = seatedPlayers[0].playerId;
-        room.playerHands[startingPlayerId].push(newDeck.shift());
-        
-        // --- LÍNEA A AÑADIR ---
-        room.hasDrawn = true; // El primer jugador ya "robó" su carta inicial.
-        // --- FIN DE LA CORRECCIÓN ---
-
-        room.discardPile = [newDeck.shift()];
-        room.deck = newDeck;
-        room.currentPlayerId = startingPlayerId;
-
-        const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
-        if (startingPlayerSeat && startingPlayerSeat.isBot) {
-            setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
-        } else {
-            // Iniciar timeout INMEDIATAMENTE para el primer jugador (ANTES de emitir gameStarted)
-            console.log(`[${roomId}] [START GAME] ⚡⚡⚡ Iniciando juego, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${startingPlayerSeat?.playerName} (${startingPlayerId})...`);
-            startLa51InactivityTimeout(room, startingPlayerId, io);
-            console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
         }
+    });
+    
+    // Emitir bote inicial a todos los jugadores después de que todas las apuestas se hayan sumado
+    io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
+    console.log(`[${roomId}] 💰 Bote inicial: ${room.pot} ${room.settings.betCurrency} (${seatedPlayers.length} apuestas de ${room.settings.bet} cada una)`);
+    
+    const newDeck = buildDeck();
+    shuffle(newDeck);
+    seatedPlayers.forEach(player => {
+        room.playerHands[player.playerId] = newDeck.splice(0, 14);
+    });
 
-        const playerHandCounts = {};
-        seatedPlayers.forEach(player => {
-            playerHandCounts[player.playerId] = room.playerHands[player.playerId].length;
-        });
+    const startingPlayerId = seatedPlayers[0].playerId;
+    room.playerHands[startingPlayerId].push(newDeck.shift());
+    
+    // --- LÍNEA A AÑADIR ---
+    room.hasDrawn = true; // El primer jugador ya "robó" su carta inicial.
+    // --- FIN DE LA CORRECCIÓN ---
 
-        // ▼▼▼ AÑADE ESTE BLOQUE AQUÍ ▼▼▼
-        // Notifica a TODOS en la sala (jugadores y espectadores) que reseteen su chat y lista de espectadores.
-        io.to(roomId).emit('resetForNewGame', { 
-            spectators: room.spectators || [] // Envía la lista de espectadores actualizada
-        });
-        // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
+    room.discardPile = [newDeck.shift()];
+    room.deck = newDeck;
+    room.currentPlayerId = startingPlayerId;
 
-        seatedPlayers.forEach(player => {
-            io.to(player.playerId).emit('gameStarted', {
-                hand: room.playerHands[player.playerId],
-                discardPile: room.discardPile,
-                seats: room.seats,
-                currentPlayerId: room.currentPlayerId,
-                playerHandCounts: playerHandCounts,
-                melds: room.melds // <-- AÑADE ESTA LÍNEA
-            });
+    const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
+    if (startingPlayerSeat && startingPlayerSeat.isBot) {
+        setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
+    } else {
+        // Iniciar timeout INMEDIATAMENTE para el primer jugador (ANTES de emitir gameStarted)
+        console.log(`[${roomId}] [START GAME] ⚡⚡⚡ Iniciando juego, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${startingPlayerSeat?.playerName} (${startingPlayerId})...`);
+        startLa51InactivityTimeout(room, startingPlayerId, io);
+        console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
+    }
+
+    const playerHandCounts = {};
+    seatedPlayers.forEach(player => {
+        playerHandCounts[player.playerId] = room.playerHands[player.playerId].length;
+    });
+
+    // ▼▼▼ AÑADE ESTE BLOQUE AQUÍ ▼▼▼
+    // Notifica a TODOS en la sala (jugadores y espectadores) que reseteen su chat y lista de espectadores.
+    io.to(roomId).emit('resetForNewGame', { 
+        spectators: room.spectators || [] // Envía la lista de espectadores actualizada
+    });
+    // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
+
+    seatedPlayers.forEach(player => {
+        io.to(player.playerId).emit('gameStarted', {
+            hand: room.playerHands[player.playerId],
+            discardPile: room.discardPile,
+            seats: room.seats,
+            currentPlayerId: room.currentPlayerId,
+            playerHandCounts: playerHandCounts,
+            melds: room.melds // <-- AÑADE ESTA LÍNEA
         });
-        
-        console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
-        // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
-        io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
-        // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
-        broadcastRoomListUpdate(io);
+    });
+    
+    console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
+    // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+    io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
+    // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
+    broadcastRoomListUpdate(io);
     }
   });
 
