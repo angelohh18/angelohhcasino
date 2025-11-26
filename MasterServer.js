@@ -3442,6 +3442,41 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+// ▼▼▼ FUNCIÓN PARA SANITIZAR DATOS DE SALA PARA EL CLIENTE ▼▼▼
+function getSanitizedRoomForClient(room) {
+    if (!room) return null;
+
+    // Calculamos los contadores de cartas aquí, una sola vez.
+    const playerHandCounts = {};
+    if (room.seats && room.playerHands) {
+        room.seats.forEach(seat => {
+            if (seat && room.playerHands[seat.playerId]) {
+                playerHandCounts[seat.playerId] = room.playerHands[seat.playerId].length;
+            }
+        });
+    }
+
+    // Creamos un objeto "limpio" solo con la información pública y necesaria.
+    const sanitizedRoom = {
+        roomId: room.roomId,
+        hostId: room.hostId,
+        settings: room.settings,
+        seats: room.seats,
+        state: room.state,
+        discardPile: room.discardPile || [],
+        melds: room.melds || [],
+        spectators: room.spectators || [],
+        playerHandCounts: playerHandCounts,
+        currentPlayerId: room.currentPlayerId,
+        pot: room.pot || 0,
+        chatHistory: room.chatHistory || []
+    };
+    
+    // NUNCA enviamos 'deck' o 'playerHands' completos por seguridad.
+    return sanitizedRoom;
+}
+// ▲▲▲ FIN DE LA FUNCIÓN getSanitizedRoomForClient ▲▲▲
+
 function buildDeck() {
   const suits = ["hearts", "diamonds", "clubs", "spades"];
   const values = [
@@ -5464,7 +5499,12 @@ io.on('connection', (socket) => {
     // Convertimos ese requisito total a la moneda del jugador
     const requiredAmountInPlayerCurrency = convertCurrency(totalRequirementInRoomCurrency, roomCurrency, playerInfo.currency, exchangeRates);
 
-    if (!playerInfo || playerInfo.credits < requiredAmountInPlayerCurrency) {
+    if (!playerInfo) {
+        console.error(`[joinRoom] ERROR: playerInfo no encontrado para userId: ${userId}`);
+        return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
+    }
+    
+    if (playerInfo.credits < requiredAmountInPlayerCurrency) {
         const friendlyBet = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
         const friendlyPenalty = convertCurrency(roomPenalty, roomCurrency, playerInfo.currency, exchangeRates);
         return socket.emit('joinError', `Créditos insuficientes. Necesitas ${requiredAmountInPlayerCurrency.toFixed(2)} ${playerInfo.currency} para cubrir la apuesta (${friendlyBet.toFixed(2)}) y la posible multa (${friendlyPenalty.toFixed(2)}).`);
