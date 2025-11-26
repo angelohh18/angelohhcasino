@@ -5390,11 +5390,15 @@ io.on('connection', (socket) => {
     
     socket.currentRoomId = roomId;
     
-    // Emitir eventos en el orden correcto
-    // Usar getSanitizedRoomForClient si existe, sino usar newRoom directamente
-    const sanitizedRoom = typeof getSanitizedRoomForClient === 'function' 
-        ? getSanitizedRoomForClient(newRoom) 
-        : newRoom;
+    // Emitir eventos en el orden correcto usando getSanitizedRoomForClient
+    const sanitizedRoom = getSanitizedRoomForClient(newRoom);
+    
+    console.log(`[createRoom] ✅ Mesa creada: ${roomId} por ${settings.username}. Socket ${socket.id} unido a la sala. Estado: ${newRoom.state}`);
+    console.log(`[createRoom] Enviando datos sanitizados:`, {
+        roomId: sanitizedRoom.roomId,
+        state: sanitizedRoom.state,
+        seatsCount: sanitizedRoom.seats ? sanitizedRoom.seats.filter(s => s !== null).length : 0
+    });
     
     socket.emit('roomCreatedSuccessfully', sanitizedRoom);
     socket.emit('chatHistory', newRoom.chatHistory);
