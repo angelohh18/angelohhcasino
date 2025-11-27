@@ -5266,11 +5266,11 @@ io.on('connection', (socket) => {
     // --- FIN: LÓGICA PARA EL PANEL DE ADMIN ---
 
   socket.on('createRoom', async (settings) => {
-    // ▼▼▼ LIMPIEZA DE ESTADO DEPREDADOR (FIX DEFINITIVO) ▼▼▼
-    // 1. Forzar salida de TODAS las salas de Socket.IO (excepto su propia sala privada)
-    // Esto elimina cualquier conexión "zombie" a mesas de práctica anteriores.
+    // ▼▼▼ LIMPIEZA DE ESTADO DEPREDADOR MEJORADA ▼▼▼
+    // 1. Forzar salida de TODAS las salas de Socket.IO (Usando Array.from para iteración segura)
     if (socket.rooms) {
-        for (const room of socket.rooms) {
+        // IMPORTANTE: Convertir a Array antes de iterar, porque socket.leave modifica el Set socket.rooms en tiempo real
+        for (const room of Array.from(socket.rooms)) {
             if (room !== socket.id) {
                 socket.leave(room);
                 console.log(`[createRoom] 🧹 Limpieza forzada: Socket ${socket.id} desconectado de sala residual ${room}`);
@@ -5281,12 +5281,10 @@ io.on('connection', (socket) => {
     // 2. Limpiar referencia interna inmediatamente
     delete socket.currentRoomId;
     
-    // 3. Limpiar cualquier sala de práctica huérfana en memoria que pertenezca a este usuario
-    // (Por si handlePlayerDeparture no terminó de ejecutarse correctamente)
+    // 3. Limpiar cualquier sala de práctica huérfana en memoria
     const allRoomIds = Object.keys(la51Rooms);
     for (const rId of allRoomIds) {
         const r = la51Rooms[rId];
-        // Si encontramos una sala de práctica donde este usuario es host o está sentado
         if (r && r.isPractice && (r.hostId === socket.id || r.seats.some(s => s && s.playerId === socket.id))) {
             console.log(`[createRoom] 🧹 Eliminando mesa de práctica huérfana ${rId} detectada antes de crear nueva mesa.`);
             delete la51Rooms[rId];
@@ -5296,11 +5294,8 @@ io.on('connection', (socket) => {
     
     const roomId = generateRoomId();
 
-    // --- INICIO DE LA CORRECCIÓN ---
-    // Se genera el userId en el servidor para consistencia, igual que al unirse.
     const userId = 'user_' + settings.username.toLowerCase();
     console.log(`[Servidor] Asignando userId al creador '${settings.username}': ${userId}`);
-    // --- FIN DE LA CORRECCIÓN ---
 
     socket.userId = userId;
 
@@ -5405,14 +5400,17 @@ io.on('connection', (socket) => {
           avatar: settings.userAvatar, 
           active: true, 
           doneFirstMeld: false,
-          userId: userId // Se usa el ID generado por el servidor
+          userId: userId 
         },
         null, null, null
       ],
       state: 'waiting',
       deck: [],
       discardPile: [],
-      playerHands: {},
+      // ▼▼▼ CORRECCIÓN: Inicializar la mano del host como array vacío ▼▼▼
+      // Esto evita errores en 'getSanitizedRoomForClient' si intenta leer la longitud
+      playerHands: { [socket.id]: [] }, 
+      // ▲▲▲ FIN CORRECCIÓN ▲▲▲
       melds: [],
       turnMelds: [],
       turnPoints: 0,
@@ -5420,37 +5418,34 @@ io.on('connection', (socket) => {
       drewFromDiscard: null,
       firstMeldCompletedByAnyone: false,
       rematchRequests: new Set(),
-      chatHistory: [{ sender: 'Sistema', message: `Mesa de ${settings.username} creada. ¡Buena suerte!` }]
+      chatHistory: [{ sender: 'Sistema', message: `Mesa de ${settings.username} creada. ¡Buena suerte!` }],
+      pot: 0 // Asegurar que pot esté inicializado
     };
+    
     la51Rooms[roomId] = newRoom;
     socket.join(roomId);
     
-    // ▼▼▼ CAMBIAR ESTADO A "JUGANDO" ▼▼▼
     if (connectedUsers[socket.id]) {
         connectedUsers[socket.id].status = 'Jugando';
         broadcastUserListUpdate(io);
     }
-    // ▲▲▲ FIN: BLOQUE AÑADIDO ▲▲▲
     
     socket.currentRoomId = roomId;
     
-    // Emitir eventos en el orden correcto usando getSanitizedRoomForClient
+    // Emitir eventos
     const sanitizedRoom = getSanitizedRoomForClient(newRoom);
     
-    console.log(`[createRoom] ✅ Mesa creada: ${roomId} por ${settings.username}. Socket ${socket.id} unido a la sala. Estado: ${newRoom.state}`);
-    console.log(`[createRoom] Enviando datos sanitizados:`, {
-        roomId: sanitizedRoom.roomId,
-        state: sanitizedRoom.state,
-        seatsCount: sanitizedRoom.seats ? sanitizedRoom.seats.filter(s => s !== null).length : 0
-    });
+    console.log(`[createRoom] ✅ Mesa creada: ${roomId}. Redirigiendo a ${settings.username}`);
     
+    // ▼▼▼ FIX CRÍTICO: EMITIR TODOS LOS EVENTOS DE UNIÓN ▼▼▼
+    // Algunos clientes esperan 'roomCreatedSuccessfully', otros 'joinedRoomSuccessfully'.
+    // Emitimos ambos para asegurar la redirección.
     socket.emit('roomCreatedSuccessfully', sanitizedRoom);
+    socket.emit('joinedRoomSuccessfully', sanitizedRoom); // <--- ESTO ES VITAL
     socket.emit('chatHistory', newRoom.chatHistory);
+    // ▲▲▲ FIN FIX CRÍTICO ▲▲▲
     
-    // Notificar a todos que se actualizó la lista de salas
     broadcastRoomListUpdate(io);
-    
-    console.log(`[createRoom] Mesa creada: ${roomId} por ${settings.username}. Socket ${socket.id} unido a la sala.`);
   });
 
   socket.on('requestPracticeGame', ({ username, avatar }) => { // <--- Recibimos un objeto

@@ -2229,8 +2229,8 @@ function showRoomsOverview() {
     socket.off('firstTurnInfo');
     socket.on('firstTurnInfo', (data) => {
         console.log('[Cliente] ✅ Recibido firstTurnInfo:', data);
-        // Mostrar mensaje informativo sobre el primer turno
-        if (data && data.message) {
+        // Mostrar SOLO el mensaje del primer turno (sin duplicados)
+        if (data && data.message && data.message.includes('primer turno')) {
             // Usar setTimeout para asegurar que el DOM esté listo
             setTimeout(() => {
                 console.log('[Cliente] Mostrando toast con mensaje:', data.message);
@@ -2242,7 +2242,7 @@ function showRoomsOverview() {
                 console.log('[Cliente] ✅ Mensaje mostrado en toast y chat');
             }, 100);
         } else {
-            console.error('[Cliente] ❌ Error: firstTurnInfo sin mensaje:', data);
+            console.log('[Cliente] Ignorando mensaje que no es del primer turno');
         }
     });
     console.log('[Cliente] ✅ Listener firstTurnInfo registrado');
@@ -2538,19 +2538,8 @@ function showRoomsOverview() {
     
     updatePlayersView(initialState.seats, true);
     
-    // ▼▼▼ VERIFICAR SI ES EL PRIMER TURNO Y MOSTRAR MENSAJE INMEDIATAMENTE ▼▼▼
-    // Si el servidor indica que es el primer turno, mostrar el mensaje directamente
-    if (initialState.isFirstTurn && initialState.currentPlayerId === socket.id) {
-        console.log('[Cliente] Es el primer turno del jugador, mostrando mensaje inmediatamente');
-        setTimeout(() => {
-            const message = '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.';
-            showToast(message, 8000);
-            if (typeof addChatMessage === 'function') {
-                addChatMessage(null, message, 'system');
-            }
-        }, 500); // Pequeño delay para asegurar que el DOM esté listo
-    }
-    // ▲▲▲ FIN DE LA VERIFICACIÓN ▲▲▲
+    // El mensaje del primer turno se mostrará a través del evento firstTurnInfo
+    // No mostrar aquí para evitar duplicados
     
     // ▼▼▼ CORRECCIÓN ▼▼▼
     // Asignamos la mano directamente al jugador local, que la lógica de la UI 
@@ -2576,7 +2565,7 @@ function showRoomsOverview() {
     if (myPlayerData && myPlayerData.hand && (myPlayerData.hand.length === 15 || myPlayerData.hand.length === 16)) {
         hasDrawn = true;
         mustDiscard = true;
-        showToast("Empiezas tú. Puedes descartar para iniciar el juego.", 4000);
+        // NO mostrar toast aquí - el mensaje se mostrará a través de firstTurnInfo
     } else {
         hasDrawn = false;
         mustDiscard = false;
