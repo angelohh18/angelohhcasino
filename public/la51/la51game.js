@@ -1877,22 +1877,31 @@ function showRoomsOverview() {
         // ▼▼▼ VERIFICAR SI EL JUGADOR ELIMINADO ES EL USUARIO ACTUAL ▼▼▼
         const isCurrentPlayer = data.playerId === socket.id;
         if (isCurrentPlayer) {
-            console.log('⚠️ El jugador actual fue eliminado. Redirigiendo al lobby...');
-            // Limpiar estado del juego
-            resetClientGameState();
-            if (currentGameSettings && currentGameSettings.roomId) {
-                socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
-            }
-            currentGameSettings = null;
-            
             // Mostrar mensaje de eliminación
             showEliminationMessage(data.playerName, faultInfo);
             
-            // Redirigir al lobby después de un breve delay
-            setTimeout(() => {
-                showLobbyView();
-                socket.emit('enterLa51Lobby');
-            }, 3000);
+            // Verificar el flag redirect para decidir si redirigir al lobby
+            const shouldRedirect = data.redirect !== false; // Por defecto true si no se especifica
+            
+            if (shouldRedirect) {
+                console.log('⚠️ El jugador actual fue eliminado. Redirigiendo al lobby...');
+                // Limpiar estado del juego
+                resetClientGameState();
+                if (currentGameSettings && currentGameSettings.roomId) {
+                    socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+                }
+                currentGameSettings = null;
+                
+                // Redirigir al lobby después de un breve delay
+                setTimeout(() => {
+                    showLobbyView();
+                    socket.emit('enterLa51Lobby');
+                }, 3000);
+            } else {
+                console.log('⚠️ El jugador actual fue eliminado pero puede seguir viendo el juego (redirect: false)');
+                // No redirigir, solo mostrar el mensaje de eliminación
+                // El jugador puede seguir viendo el resto del juego
+            }
             return; // Salir temprano para no procesar más
         }
         // ▲▲▲ FIN VERIFICACIÓN JUGADOR ACTUAL ▲▲▲
