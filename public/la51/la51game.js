@@ -1685,6 +1685,30 @@ function showRoomsOverview() {
         // --- 3. LÓGICA DE "BISTURÍ": Si el descarte fue mío, eliminamos SOLO esa carta. ---
         const humanPlayer = players[0];
         if (data.discardingPlayerId === socket.id && humanPlayer && data.discardedCard) {
+            
+            // ▼▼▼ OCULTAR MENSAJE DEL PRIMER TURNO AL CONFIRMAR EL DESCARTE ▼▼▼
+            // Si es el primer descarte, ocultar el toast definitivamente
+            if (isFirstDiscard) {
+                const toast = document.getElementById('toast');
+                if (toast) {
+                    const toastText = toast.textContent || '';
+                    if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('show')) {
+                        toast.classList.remove('show');
+                        toast.style.display = 'none';
+                        toast.style.opacity = '0';
+                        toast.style.visibility = 'hidden';
+                        toast.textContent = '';
+                        console.log('[Cliente] ✅ Mensaje del primer turno ocultado al confirmar el descarte');
+                    }
+                }
+                // Limpiar el timeout si existe
+                if (firstTurnToastTimeout) {
+                    clearTimeout(firstTurnToastTimeout);
+                    firstTurnToastTimeout = null;
+                }
+                isFirstDiscard = false;
+            }
+            // ▲▲▲ FIN DE OCULTAR MENSAJE DEL PRIMER TURNO ▲▲▲
 
             // a) Actualizamos el array de datos interno.
             const cardIndexInHand = humanPlayer.hand.findIndex(c => c.id === data.discardedCard.id);
@@ -3167,14 +3191,19 @@ function updatePlayersView(seats, inGame = false) {
         // ▼▼▼ OCULTAR MENSAJE DEL PRIMER TURNO AL DESCARTAR LA PRIMERA CARTA ▼▼▼
         // Verificar si es el primer descarte del juego
         if (isFirstDiscard) {
-            // Ocultar el toast del primer turno si está visible
+            // Ocultar el toast del primer turno si está visible (verificar por texto también)
             const toast = document.getElementById('toast');
-            if (toast && toast.classList.contains('show')) {
-                toast.classList.remove('show');
-                toast.style.display = 'none';
-                toast.style.opacity = '0';
-                toast.style.visibility = 'hidden';
-                console.log('[Cliente] ✅ Mensaje del primer turno ocultado al descartar la primera carta');
+            if (toast) {
+                const toastText = toast.textContent || '';
+                // Verificar si el toast contiene el mensaje del primer turno
+                if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('show')) {
+                    toast.classList.remove('show');
+                    toast.style.display = 'none';
+                    toast.style.opacity = '0';
+                    toast.style.visibility = 'hidden';
+                    toast.textContent = ''; // Limpiar el texto también
+                    console.log('[Cliente] ✅ Mensaje del primer turno ocultado al descartar la primera carta');
+                }
             }
             // Limpiar el timeout si existe
             if (firstTurnToastTimeout) {
