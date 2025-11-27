@@ -5446,7 +5446,7 @@ io.on('connection', (socket) => {
     createAndStartPracticeGame(socket, username, avatar, io);
   });
 
-    socket.on('joinRoom', ({ roomId, user }) => {
+    socket.on('joinRoom', async ({ roomId, user }) => {
         const room = la51Rooms[roomId];
         if (!room) {
             return socket.emit('joinError', 'La mesa no existe.');
@@ -5527,18 +5527,74 @@ io.on('connection', (socket) => {
     const roomBet = room.settings.bet;
     const roomPenalty = room.settings.penalty || 0;
     const roomCurrency = room.settings.betCurrency;
-    const playerInfo = users[userId];
+    
+    // Intentar obtener playerInfo de múltiples fuentes
+    let playerInfo = users[userId];
+    
+    // Si no se encuentra con userId, intentar con username directamente
+    if (!playerInfo && user.username) {
+        const usernameKey = user.username.toLowerCase();
+        playerInfo = users[usernameKey];
+        if (playerInfo) {
+            // Si se encontró con username, actualizar la referencia con userId
+            users[userId] = playerInfo;
+        }
+    }
+    
+    // Si aún no se encuentra, intentar obtener desde connectedUsers
+    if (!playerInfo && connectedUsers[socket.id]) {
+        const connectedUser = connectedUsers[socket.id];
+        const connectedUsername = connectedUser.username?.toLowerCase();
+        if (connectedUsername) {
+            const connectedUserId = 'user_' + connectedUsername;
+            playerInfo = users[connectedUserId] || users[connectedUsername];
+        }
+    }
+    
+    // Si aún no se encuentra, intentar recargar desde la base de datos
+    if (!playerInfo && user.username) {
+        try {
+            console.log(`[joinRoom] Usuario no encontrado en memoria, intentando recargar desde BD: ${user.username}`);
+            const userData = await getUserByUsername(user.username);
+            if (userData) {
+                // Guardar en users con userId para futuras búsquedas
+                users[userId] = userData;
+                // También guardar con username por si acaso
+                users[user.username.toLowerCase()] = userData;
+                playerInfo = userData;
+                console.log(`[joinRoom] ✅ Usuario recargado desde BD: ${userId}, créditos: ${userData.credits}, moneda: ${userData.currency}`);
+            } else {
+                console.error(`[joinRoom] ❌ Usuario no encontrado en BD: ${user.username}`);
+            }
+        } catch (error) {
+            console.error(`[joinRoom] Error al recargar usuario desde BD:`, error);
+        }
+    }
+    
+    // Validar que playerInfo existe ANTES de usarlo
+    if (!playerInfo) {
+        console.error(`[joinRoom] ERROR: playerInfo no encontrado para userId: ${userId}, username: ${user.username}`);
+        console.error(`[joinRoom] Usuarios disponibles: ${Object.keys(users).join(', ')}`);
+        console.error(`[joinRoom] connectedUsers[socket.id]:`, connectedUsers[socket.id]);
+        console.error(`[joinRoom] socket.userId:`, socket.userId);
+        return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
+    }
+    
+    // Asegurar que playerInfo tenga todas las propiedades necesarias
+    if (!playerInfo.credits && playerInfo.credits !== 0) {
+        playerInfo.credits = 0;
+        console.warn(`[joinRoom] playerInfo.credits no definido, estableciendo a 0 para ${userId}`);
+    }
+    if (!playerInfo.currency) {
+        playerInfo.currency = roomCurrency || 'USD';
+        console.warn(`[joinRoom] playerInfo.currency no definido, estableciendo a ${playerInfo.currency} para ${userId}`);
+    }
 
     // Calculamos el requisito total (apuesta + multa) en la moneda de la mesa
     const totalRequirementInRoomCurrency = roomBet + roomPenalty;
 
     // Convertimos ese requisito total a la moneda del jugador
     const requiredAmountInPlayerCurrency = convertCurrency(totalRequirementInRoomCurrency, roomCurrency, playerInfo.currency, exchangeRates);
-
-    if (!playerInfo) {
-        console.error(`[joinRoom] ERROR: playerInfo no encontrado para userId: ${userId}`);
-        return socket.emit('joinError', 'Error: Usuario no encontrado. Por favor, recarga la página.');
-    }
     
     if (playerInfo.credits < requiredAmountInPlayerCurrency) {
         const friendlyBet = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
