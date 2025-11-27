@@ -1753,9 +1753,9 @@ function showRoomsOverview() {
         if (newCurrentPlayerSeat) {
             if (newCurrentPlayerSeat.playerId === socket.id) {
                 playSound('turn'); // <--- AÑADE ESTA LÍNEA
-                showToast("¡Es tu turno!", 2500);
+                // Mensaje eliminado: "¡Es tu turno!"
             } else {
-                showToast(`Turno de ${newCurrentPlayerSeat.playerName}.`, 2000);
+                // Mensaje eliminado: "Turno de X jugador"
             }
         }
     });
@@ -1797,7 +1797,7 @@ function showRoomsOverview() {
 
         renderDiscard(); // Esto sí es necesario
         updateActionButtons();
-        showToast("Has robado del mazo.", 2000);
+        // Mensaje eliminado: "Has robado del mazo."
     });
     // ▲▲▲ FIN DEL PRIMER REEMPLAZO ▲▲▲
 
@@ -1834,7 +1834,7 @@ function showRoomsOverview() {
 
         renderDiscard();
         updateActionButtons();
-        showToast(`Has robado del descarte. Debes usar esta carta.`, 3500);
+        // Mensaje eliminado: "Has robado del descarte. Debes usar esta carta."
     });
     // ▲▲▲ FIN DEL SEGUNDO REEMPLAZO ▲▲▲
 
@@ -2940,7 +2940,7 @@ function updatePlayersView(seats, inGame = false) {
              });
         }
         
-        showToast("¡Repartiendo cartas!", 1500);
+        // Mensaje eliminado: "¡Repartiendo cartas!"
         await new Promise(r => setTimeout(r, 500));
     }
 
@@ -4267,16 +4267,16 @@ function reorderHand(draggedIndices, targetDropIndex) {
     }
     window.attemptDiscard = async function() {
         if (isWaitingForNextTurn) {
-            showToast('Esperando tu turno...', 1500);
+            // Mensaje eliminado: "Esperando tu turno..."
             return;
         }
         if (currentPlayer !== 0) {
-            showToast('No es tu turno', 1500);
+            // Mensaje eliminado: "No es tu turno"
             return;
         }
         const p = players[currentPlayer];
         if (!p || p.isBot || !gameStarted) {
-            showToast('No es tu turno', 1500);
+            // Mensaje eliminado: "No es tu turno"
             return;
         }
         if (!hasDrawn && !mustDiscard) {
