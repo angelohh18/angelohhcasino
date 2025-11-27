@@ -2207,12 +2207,15 @@ function showRoomsOverview() {
 
     // ▼▼▼ LISTENER PARA MENSAJE DEL PRIMER TURNO (REGISTRAR PRIMERO) ▼▼▼
     // IMPORTANTE: Registrar este listener ANTES de gameStarted para asegurar que esté listo
+    // Eliminar listener anterior si existe para evitar duplicados
+    socket.off('firstTurnInfo');
     socket.on('firstTurnInfo', (data) => {
         console.log('[Cliente] ✅ Recibido firstTurnInfo:', data);
         // Mostrar mensaje informativo sobre el primer turno
         if (data && data.message) {
             // Usar setTimeout para asegurar que el DOM esté listo
             setTimeout(() => {
+                console.log('[Cliente] Mostrando toast con mensaje:', data.message);
                 showToast(data.message, 8000); // Mostrar por 8 segundos para que el jugador lo lea bien
                 // También agregarlo al chat para referencia
                 if (typeof addChatMessage === 'function') {
@@ -2224,6 +2227,7 @@ function showRoomsOverview() {
             console.error('[Cliente] ❌ Error: firstTurnInfo sin mensaje:', data);
         }
     });
+    console.log('[Cliente] ✅ Listener firstTurnInfo registrado');
     // ▲▲▲ FIN DEL LISTENER ▲▲▲
 
     // ▼▼▼ AÑADE ESTE NUEVO LISTENER COMPLETO ▼▼▼
