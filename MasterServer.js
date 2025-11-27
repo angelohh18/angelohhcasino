@@ -3855,25 +3855,28 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
     room.lastWinnerId = winnerSeat.playerId;
     room.hostId = winnerSeat.playerId;
 
-    // ▼▼▼ CORRECCIÓN MATEMÁTICA: RECÁLCULO DEL BOTE TOTAL ▼▼▼
-    // 1. Calcular total de apuestas iniciales
-    const betPerPlayer = room.settings.bet || 0;
-    const totalBets = (room.initialSeats?.length || 0) * betPerPlayer;
+    // ▼▼▼ CORRECCIÓN MATEMÁTICA DEFINITIVA ▼▼▼
     
-    // 2. Calcular total de multas pagadas (penaltiesPaid es la fuente de verdad)
-    const totalPenalties = Object.values(room.penaltiesPaid || {}).reduce((sum, p) => sum + p.amount, 0);
+    // 1. Calcular total de apuestas iniciales (Forzando números)
+    const betPerPlayer = parseFloat(room.settings.bet) || 0;
+    const initialPlayersCount = room.initialSeats ? room.initialSeats.length : 0;
+    const totalBets = initialPlayersCount * betPerPlayer;
+    
+    // 2. Calcular total de multas pagadas (Forzando números en cada suma)
+    // Esto asegura que sume 10 + 10 = 20, y no "10" + "10" = "1010"
+    const totalPenalties = Object.values(room.penaltiesPaid || {}).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     
     // 3. El Bote Total REAL es la suma de ambos
     const totalPot = totalBets + totalPenalties;
     
-    // 4. Actualizamos room.pot para que coincida con la realidad
+    // 4. Actualizamos room.pot
     room.pot = totalPot;
 
-    // 5. Ahora aplicamos la comisión al BOTE TOTAL
+    // 5. Aplicar comisión al BOTE TOTAL RECAUDADO
     const commissionInRoomCurrency = totalPot * 0.10;
     const netWinnings = totalPot - commissionInRoomCurrency;
     
-    console.log(`[Fin Partida] Bote: ${totalPot} (Apuestas: ${totalBets} + Multas: ${totalPenalties}). Comisión: ${commissionInRoomCurrency}. Ganancia Neta: ${netWinnings}`);
+    console.log(`[Fin Partida] Bote: ${totalPot.toFixed(2)} (Apuestas: ${totalBets.toFixed(2)} + Multas: ${totalPenalties.toFixed(2)}). Ganancia Neta: ${netWinnings.toFixed(2)}`);
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     
     // Guardar comisión en el log de administración (solo una vez por partida)
@@ -4064,7 +4067,7 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
             if (!room.penaltiesPaid) room.penaltiesPaid = {};
             room.penaltiesPaid[playerSeat.userId] = {
                 playerName: playerSeat.playerName,
-                amount: penalty,
+                amount: parseFloat(penalty), // IMPORTANTE: Forzar número aquí
                 reason: finalFaultData?.reason || 'Falta cometida'
             };
             
@@ -5084,99 +5087,79 @@ io.on('connection', (socket) => {
 
     // Eventos para rastrear en qué lobby está el usuario
     socket.on('enterLudoLobby', () => {
-        // ▼▼▼ CORRECCIÓN: Eliminar entradas duplicadas del mismo usuario antes de actualizar ▼▼▼
-        const username = connectedUsers[socket.id]?.username;
-        if (username) {
-            // Buscar y eliminar otras entradas del mismo usuario
+        // Eliminar duplicados previos
+        const currentUsername = connectedUsers[socket.id]?.username;
+        if (currentUsername) {
             Object.keys(connectedUsers).forEach(otherSocketId => {
-                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === username) {
-                    console.log(`[enterLudoLobby] Eliminando entrada duplicada de ${username} (socket anterior: ${otherSocketId})`);
+                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === currentUsername) {
                     delete connectedUsers[otherSocketId];
                 }
             });
         }
-        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         
-        if (connectedUsers[socket.id]) {
-            connectedUsers[socket.id].currentLobby = 'Ludo';
-            // Actualizar el estado inmediatamente
-            if (!connectedUsers[socket.id].status || connectedUsers[socket.id].status === 'En el Lobby' || connectedUsers[socket.id].status.includes('lobby')) {
-                connectedUsers[socket.id].status = 'En el lobby de Ludo';
-            }
-            // Emitir actualización inmediata
-            broadcastUserListUpdate(io);
-        } else {
-            // Si no existe, crear la entrada
-            // CORRECCIÓN: Intentamos recuperar el nombre real desde múltiples fuentes
-            let realUsername = connectedUsers[socket.id]?.username;
-            
-            // Intento 1: Obtener del userId del socket
-            if (!realUsername && socket.userId) {
-                realUsername = socket.userId.replace(/^user_/, '');
-            }
-            
-            // Intento 2 (DEFINITIVO): Buscar en el objeto global 'users' si tenemos el ID
-            if ((!realUsername || realUsername === 'Usuario') && socket.userId && users[socket.userId]) {
-                realUsername = users[socket.userId].username;
-            }
-            
-            const username = realUsername || 'Usuario'; // Último recurso
-            
-            connectedUsers[socket.id] = {
-                username: username,
-                status: 'En el lobby de Ludo',
-                currentLobby: 'Ludo'
-            };
-            broadcastUserListUpdate(io);
+        // ▼▼▼ CORRECCIÓN: LÓGICA DE RECUPERACIÓN DE NOMBRE ROBUSTA ▼▼▼
+        let finalUsername = 'Usuario';
+        
+        // 1. Intentar obtener del socket.userId (fuente más fiable)
+        if (socket.userId && users[socket.userId]) {
+            finalUsername = users[socket.userId].username;
+        } 
+        // 2. Si no, intentar obtener de connectedUsers
+        else if (connectedUsers[socket.id]?.username && connectedUsers[socket.id].username !== 'Usuario') {
+            finalUsername = connectedUsers[socket.id].username;
         }
+        // 3. Si no, intentar parsear el socket.userId crudo
+        else if (socket.userId) {
+            finalUsername = socket.userId.replace(/^user_/, '');
+        }
+
+        // Crear o actualizar la entrada del usuario con el nombre CORRECTO
+        connectedUsers[socket.id] = {
+            username: finalUsername,
+            status: 'En el lobby de Ludo',
+            currentLobby: 'Ludo'
+        };
+        // ▲▲▲ FIN CORRECCIÓN ▲▲▲
+
+        broadcastUserListUpdate(io);
     });
 
     socket.on('enterLa51Lobby', () => {
-        // ▼▼▼ CORRECCIÓN: Eliminar entradas duplicadas del mismo usuario antes de actualizar ▼▼▼
-        const username = connectedUsers[socket.id]?.username;
-        if (username) {
-            // Buscar y eliminar otras entradas del mismo usuario
+        // Eliminar duplicados previos
+        const currentUsername = connectedUsers[socket.id]?.username;
+        if (currentUsername) {
             Object.keys(connectedUsers).forEach(otherSocketId => {
-                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === username) {
-                    console.log(`[enterLa51Lobby] Eliminando entrada duplicada de ${username} (socket anterior: ${otherSocketId})`);
+                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === currentUsername) {
                     delete connectedUsers[otherSocketId];
                 }
             });
         }
-        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         
-        if (connectedUsers[socket.id]) {
-            connectedUsers[socket.id].currentLobby = 'La 51';
-            // Actualizar el estado inmediatamente
-            if (!connectedUsers[socket.id].status || connectedUsers[socket.id].status === 'En el Lobby' || connectedUsers[socket.id].status.includes('lobby')) {
-                connectedUsers[socket.id].status = 'En el lobby de La 51';
-            }
-            // Emitir actualización inmediata
-            broadcastUserListUpdate(io);
-        } else {
-            // Si no existe, crear la entrada
-            // CORRECCIÓN: Intentamos recuperar el nombre real desde múltiples fuentes
-            let realUsername = connectedUsers[socket.id]?.username;
-            
-            // Intento 1: Obtener del userId del socket
-            if (!realUsername && socket.userId) {
-                realUsername = socket.userId.replace(/^user_/, '');
-            }
-            
-            // Intento 2 (DEFINITIVO): Buscar en el objeto global 'users' si tenemos el ID
-            if ((!realUsername || realUsername === 'Usuario') && socket.userId && users[socket.userId]) {
-                realUsername = users[socket.userId].username;
-            }
-            
-            const username = realUsername || 'Usuario'; // Último recurso
-            
-            connectedUsers[socket.id] = {
-                username: username,
-                status: 'En el lobby de La 51',
-                currentLobby: 'La 51'
-            };
-            broadcastUserListUpdate(io);
+        // ▼▼▼ CORRECCIÓN: LÓGICA DE RECUPERACIÓN DE NOMBRE ROBUSTA ▼▼▼
+        let finalUsername = 'Usuario';
+        
+        // 1. Intentar obtener del socket.userId (fuente más fiable)
+        if (socket.userId && users[socket.userId]) {
+            finalUsername = users[socket.userId].username;
+        } 
+        // 2. Si no, intentar obtener de connectedUsers
+        else if (connectedUsers[socket.id]?.username && connectedUsers[socket.id].username !== 'Usuario') {
+            finalUsername = connectedUsers[socket.id].username;
         }
+        // 3. Si no, intentar parsear el socket.userId crudo
+        else if (socket.userId) {
+            finalUsername = socket.userId.replace(/^user_/, '');
+        }
+
+        // Crear o actualizar la entrada del usuario con el nombre CORRECTO
+        connectedUsers[socket.id] = {
+            username: finalUsername,
+            status: 'En el lobby de La 51',
+            currentLobby: 'La 51'
+        };
+        // ▲▲▲ FIN CORRECCIÓN ▲▲▲
+
+        broadcastUserListUpdate(io);
     });
 
     // Escucha cuando un usuario inicia sesión en el lobby
