@@ -1899,6 +1899,13 @@ function showRoomsOverview() {
     socket.on('playerEliminated', (data) => {
         console.log('Jugador eliminado:', data);
 
+        // ▼▼▼ CRÍTICO: NO PROCESAR ELIMINACIONES DE MESAS DE PRÁCTICA ▼▼▼
+        if (currentGameSettings && currentGameSettings.isPractice) {
+            console.log('[playerEliminated] Ignorando eliminación de mesa de práctica. Las mesas de práctica no deben interferir con mesas reales.');
+            return; // Salir inmediatamente sin mostrar modal ni redirigir
+        }
+        // ▲▲▲ FIN DE VERIFICACIÓN DE MESA DE PRÁCTICA ▲▲▲
+
         // --- INICIO DE LA CORRECCIÓN ---
         // Normalizamos el objeto de falta para que siempre tenga la misma estructura.
         let faultInfo = data.faultData;
@@ -2231,8 +2238,12 @@ function showRoomsOverview() {
         console.log('[Cliente] ✅ Recibido firstTurnInfo:', data);
         // Mostrar SOLO el mensaje del primer turno (sin duplicados)
         if (data && data.message && data.message.includes('primer turno')) {
+            // Limpiar cualquier timeout anterior
+            if (firstTurnToastTimeout) {
+                clearTimeout(firstTurnToastTimeout);
+            }
             // Usar setTimeout para asegurar que el DOM esté listo
-            setTimeout(() => {
+            firstTurnToastTimeout = setTimeout(() => {
                 console.log('[Cliente] Mostrando toast con mensaje:', data.message);
                 showToast(data.message, 8000); // Mostrar por 8 segundos para que el jugador lo lea bien
                 // También agregarlo al chat para referencia
@@ -2335,6 +2346,7 @@ function showRoomsOverview() {
     let practiceGameEndedByHumanFault = false;
     // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
     let penaltyAmount, requiredMeld, hasDrawn, drewFromDiscard, discardCardUsed, mustDiscard, strictRules, drewFromDeckToWin, selectedCards, isDrawing;
+    let firstTurnToastTimeout = null; // Variable para rastrear el timeout del toast del primer turno
 
     // ▼▼▼ PEGA EL BLOQUE COMPLETO AQUÍ ▼▼▼
     // Configuración de los botones del modal de reinicio de práctica (Ubicación corregida)
@@ -3148,6 +3160,24 @@ function updatePlayersView(seats, inGame = false) {
         if (!p) return;
 
         const cardToDiscard = p.hand[index];
+
+        // ▼▼▼ OCULTAR MENSAJE DEL PRIMER TURNO AL DESCARTAR LA PRIMERA CARTA ▼▼▼
+        // Verificar si es el primer descarte (jugador tiene 15 o 16 cartas y aún no ha descartado)
+        if (p.hand && (p.hand.length === 15 || p.hand.length === 16) && !hasDrawn) {
+            // Ocultar el toast del primer turno si está visible
+            const toast = document.getElementById('toast');
+            if (toast && toast.classList.contains('show')) {
+                toast.classList.remove('show');
+                toast.style.display = 'none';
+                console.log('[Cliente] ✅ Mensaje del primer turno ocultado al descartar la primera carta');
+            }
+            // Limpiar el timeout si existe
+            if (firstTurnToastTimeout) {
+                clearTimeout(firstTurnToastTimeout);
+                firstTurnToastTimeout = null;
+            }
+        }
+        // ▲▲▲ FIN DE OCULTAR MENSAJE DEL PRIMER TURNO ▲▲▲
 
         // 1. Emitir la acción al servidor.
         socket.emit('accionDescartar', { 
