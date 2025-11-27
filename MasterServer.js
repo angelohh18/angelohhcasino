@@ -5293,6 +5293,9 @@ io.on('connection', (socket) => {
     // Intentar obtener playerInfo de múltiples fuentes
     let playerInfo = users[userId];
     
+    console.log(`[createRoom] Buscando playerInfo para userId: ${userId}, username: ${settings.username}`);
+    console.log(`[createRoom] socket.userId: ${socket.userId}, socket.currentRoomId: ${socket.currentRoomId}`);
+    
     // Si no se encuentra con userId, intentar con username directamente
     if (!playerInfo && settings.username) {
         const usernameKey = settings.username.toLowerCase();
@@ -5300,6 +5303,7 @@ io.on('connection', (socket) => {
         if (playerInfo) {
             // Si se encontró con username, actualizar la referencia con userId
             users[userId] = playerInfo;
+            console.log(`[createRoom] Usuario encontrado con usernameKey: ${usernameKey}`);
         }
     }
     
@@ -5310,6 +5314,9 @@ io.on('connection', (socket) => {
         if (connectedUsername) {
             const connectedUserId = 'user_' + connectedUsername;
             playerInfo = users[connectedUserId] || users[connectedUsername];
+            if (playerInfo) {
+                console.log(`[createRoom] Usuario encontrado desde connectedUsers: ${connectedUserId}`);
+            }
         }
     }
     
@@ -5319,9 +5326,16 @@ io.on('connection', (socket) => {
             console.log(`[createRoom] Usuario no encontrado en memoria, intentando recargar desde BD: ${settings.username}`);
             const userData = await getUserByUsername(settings.username);
             if (userData) {
+                // Guardar en users con userId para futuras búsquedas
                 users[userId] = userData;
+                // También guardar con username por si acaso
+                if (settings.username) {
+                    users[settings.username.toLowerCase()] = userData;
+                }
                 playerInfo = userData;
-                console.log(`[createRoom] Usuario recargado desde BD: ${userId}, créditos: ${userData.credits}`);
+                console.log(`[createRoom] ✅ Usuario recargado desde BD: ${userId}, créditos: ${userData.credits}, moneda: ${userData.currency}`);
+            } else {
+                console.error(`[createRoom] ❌ Usuario no encontrado en BD: ${settings.username}`);
             }
         } catch (error) {
             console.error(`[createRoom] Error al recargar usuario desde BD:`, error);
