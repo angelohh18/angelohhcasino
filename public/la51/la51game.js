@@ -267,32 +267,7 @@ function showPwaInstallModal() {
 
 // --- INICIO: SCRIPT DEL LOBBY ---
 (function(){
-    // Notificar al servidor que estamos en el lobby de La 51
-    if (socket.connected) {
-        socket.emit('enterLa51Lobby');
-    } else {
-        socket.on('connect', () => {
-            socket.emit('enterLa51Lobby');
-        });
-    }
-
-    socket.on('updateRoomList', (serverRooms) => {
-        lastKnownRooms = serverRooms || [];
-        renderRoomsOverview(lastKnownRooms);
-    });
-
-    socket.on('userStateUpdated', (userState) => {
-        console.log('Estado de usuario actualizado:', userState);
-        currentUser.credits = userState.credits;
-        currentUser.currency = userState.currency;
-
-        if (typeof updateLobbyCreditsDisplay === 'function') {
-            updateLobbyCreditsDisplay();
-        }
-        
-        renderRoomsOverview(lastKnownRooms); 
-    });
-
+    // ▼▼▼ REGISTRAR LISTENER PRIMERO (ANTES DE CUALQUIER EMISIÓN) ▼▼▼
     // ▼▼▼ FUNCIÓN PARA RENDERIZAR LISTA DE JUGADORES ▼▼▼
     function renderOnlineUsers(userList = []) {
         console.log('[Cliente] renderOnlineUsers llamado con', userList?.length || 0, 'usuarios');
@@ -331,12 +306,42 @@ function showPwaInstallModal() {
     }
     // ▲▲▲ FIN: FUNCIÓN AÑADIDA ▲▲▲
 
-    // ▼▼▼ LISTENER PARA ACTUALIZAR LISTA DE USUARIOS ▼▼▼
+    // ▼▼▼ LISTENER PARA ACTUALIZAR LISTA DE USUARIOS (REGISTRAR PRIMERO) ▼▼▼
     socket.on('updateUserList', (userList) => {
-        console.log('[Cliente] Recibida lista de usuarios:', userList);
+        console.log('[Cliente] ✅ Recibida lista de usuarios:', userList?.length || 0, 'usuarios');
         renderOnlineUsers(userList);
     });
     // ▲▲▲ FIN: LISTENER AÑADIDO ▲▲▲
+    // ▲▲▲ FIN: REGISTRAR LISTENER PRIMERO ▲▲▲
+
+    // Notificar al servidor que estamos en el lobby de La 51
+    if (socket.connected) {
+        console.log('[Cliente] Socket ya conectado, emitiendo enterLa51Lobby');
+        socket.emit('enterLa51Lobby');
+    } else {
+        console.log('[Cliente] Socket no conectado, esperando conexión...');
+        socket.on('connect', () => {
+            console.log('[Cliente] Socket conectado, emitiendo enterLa51Lobby');
+            socket.emit('enterLa51Lobby');
+        });
+    }
+
+    socket.on('updateRoomList', (serverRooms) => {
+        lastKnownRooms = serverRooms || [];
+        renderRoomsOverview(lastKnownRooms);
+    });
+
+    socket.on('userStateUpdated', (userState) => {
+        console.log('Estado de usuario actualizado:', userState);
+        currentUser.credits = userState.credits;
+        currentUser.currency = userState.currency;
+
+        if (typeof updateLobbyCreditsDisplay === 'function') {
+            updateLobbyCreditsDisplay();
+        }
+        
+        renderRoomsOverview(lastKnownRooms); 
+    });
 
     // ▼▼▼ LISTENERS DEL CHAT DEL LOBBY DE LA 51 (SEPARADOS) ▼▼▼
     // Eliminar listeners anteriores para evitar duplicados
