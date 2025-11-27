@@ -2578,10 +2578,12 @@ function showRoomsOverview() {
     if (myPlayerData && myPlayerData.hand && (myPlayerData.hand.length === 15 || myPlayerData.hand.length === 16)) {
         hasDrawn = true;
         mustDiscard = true;
+        isFirstDiscard = true; // Marcar que el próximo descarte será el primero
         // NO mostrar toast aquí - el mensaje se mostrará a través de firstTurnInfo
     } else {
         hasDrawn = false;
         mustDiscard = false;
+        isFirstDiscard = false;
     }
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
