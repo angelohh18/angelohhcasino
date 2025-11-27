@@ -2610,6 +2610,19 @@ function showRoomsOverview() {
         isFirstDiscard = false;
     }
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+    
+    // ▼▼▼ VERIFICAR SI ES EL PRIMER TURNO DEL JUGADOR ACTUAL (PARA REVANCHAS Y NUEVOS JUEGOS) ▼▼▼
+    // Si el servidor envió isFirstTurn y el jugador actual es este socket, mostrar el mensaje
+    if (initialState.isFirstTurn && initialState.currentPlayerId === socket.id) {
+        console.log('[Cliente] Es el primer turno del jugador en revancha/nuevo juego, mostrando mensaje inmediatamente');
+        setTimeout(() => {
+            showToast('¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.', 8000);
+            if (typeof addChatMessage === 'function') {
+                addChatMessage(null, '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.', 'system');
+            }
+        }, 500); // Pequeño delay para asegurar que el toast esté listo
+    }
+    // ▲▲▲ FIN DE LA VERIFICACIÓN ▲▲▲
 
     if (initialState.playerHandCounts) {
         updatePlayerHandCounts(initialState.playerHandCounts);
