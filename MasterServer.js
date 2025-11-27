@@ -3998,6 +3998,24 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
 
     room.rematchRequests.clear();
     broadcastRoomListUpdate(io);
+    
+    // ▼▼▼ ACTUALIZAR ESTADO DE JUGADORES AL TERMINAR PARTIDA ▼▼▼
+    // Actualizar el estado de todos los jugadores de la sala para que regresen al lobby
+    if (room.initialSeats) {
+        room.initialSeats.forEach(seat => {
+            if (seat && seat.playerId) {
+                const socket = io.sockets.sockets.get(seat.playerId);
+                if (socket && connectedUsers[seat.playerId]) {
+                    // Actualizar estado según el lobby actual
+                    const currentLobby = connectedUsers[seat.playerId].currentLobby || 'La 51';
+                    connectedUsers[seat.playerId].status = `En el lobby de ${currentLobby}`;
+                }
+            }
+        });
+        // Emitir actualización de lista de usuarios
+        broadcastUserListUpdate(io);
+    }
+    // ▲▲▲ FIN DE ACTUALIZACIÓN DE ESTADO ▲▲▲
 }
 // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
 
