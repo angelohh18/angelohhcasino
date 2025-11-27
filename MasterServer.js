@@ -5148,7 +5148,29 @@ io.on('connection', (socket) => {
         };
         // ▲▲▲ FIN CORRECCIÓN ▲▲▲
 
+        // Emitir actualización inmediata de la lista de usuarios
         broadcastUserListUpdate(io);
+        
+        // También emitir la lista directamente al socket que acaba de entrar para asegurar sincronización
+        const userList = Object.keys(connectedUsers)
+            .map(socketId => {
+                const user = { ...connectedUsers[socketId] };
+                const s = io.sockets.sockets.get(socketId);
+                if (s && s.connected) {
+                    if (s.currentRoomId && ludoRooms[s.currentRoomId]) {
+                        const room = ludoRooms[s.currentRoomId];
+                        const gameTypeName = room.settings?.gameType === 'parchis' ? 'Parchís' : 'Ludo';
+                        user.status = `Jugando ${gameTypeName}`;
+                    } else if (user.currentLobby) {
+                        user.status = `En el lobby de ${user.currentLobby}`;
+                    } else if (!user.status || user.status === 'En el Lobby') {
+                        user.status = 'En el Lobby';
+                    }
+                }
+                return user;
+            })
+            .filter(user => user && user.username);
+        socket.emit('updateUserList', userList);
     });
 
     socket.on('enterLa51Lobby', () => {
@@ -5186,7 +5208,28 @@ io.on('connection', (socket) => {
         };
         // ▲▲▲ FIN CORRECCIÓN ▲▲▲
 
+        // Emitir actualización inmediata de la lista de usuarios
         broadcastUserListUpdate(io);
+        
+        // También emitir la lista directamente al socket que acaba de entrar para asegurar sincronización
+        const userList = Object.keys(connectedUsers)
+            .map(socketId => {
+                const user = { ...connectedUsers[socketId] };
+                const s = io.sockets.sockets.get(socketId);
+                if (s && s.connected) {
+                    if (s.currentRoomId && la51Rooms[s.currentRoomId]) {
+                        const room = la51Rooms[s.currentRoomId];
+                        user.status = 'Jugando La 51';
+                    } else if (user.currentLobby) {
+                        user.status = `En el lobby de ${user.currentLobby}`;
+                    } else if (!user.status || user.status === 'En el Lobby') {
+                        user.status = 'En el Lobby';
+                    }
+                }
+                return user;
+            })
+            .filter(user => user && user.username);
+        socket.emit('updateUserList', userList);
     });
 
     // Escucha cuando un usuario inicia sesión en el lobby
