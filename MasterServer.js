@@ -5783,19 +5783,21 @@ io.on('connection', (socket) => {
     // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
 
     seatedPlayers.forEach(player => {
+        const isStartingPlayer = player.playerId === startingPlayerId;
         io.to(player.playerId).emit('gameStarted', {
             hand: room.playerHands[player.playerId],
             discardPile: room.discardPile,
             seats: room.seats,
             currentPlayerId: room.currentPlayerId,
             playerHandCounts: playerHandCounts,
-            melds: room.melds // <-- AÑADE ESTA LÍNEA
+            melds: room.melds, // <-- AÑADE ESTA LÍNEA
+            isFirstTurn: isStartingPlayer && !startingPlayerSeat.isBot // Indicar si es el primer turno
         });
     });
     
     // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA ▼▼▼
     // Enviar mensaje informativo al jugador que inicia (si no es bot)
-    // IMPORTANTE: Enviar con un pequeño delay para asegurar que el listener esté registrado
+    // IMPORTANTE: Enviar con un delay mayor para asegurar que el listener y el DOM estén listos
     if (startingPlayerSeat && !startingPlayerSeat.isBot) {
         console.log(`[startGame] Enviando firstTurnInfo a ${startingPlayerSeat.playerName} (${startingPlayerId})`);
         setTimeout(() => {
@@ -5804,7 +5806,7 @@ io.on('connection', (socket) => {
                 playerName: startingPlayerSeat.playerName
             });
             console.log(`[startGame] ✅ firstTurnInfo enviado a ${startingPlayerSeat.playerName}`);
-        }, 500); // Delay de 500ms para asegurar que el listener esté listo
+        }, 1500); // Delay aumentado a 1500ms para asegurar que todo esté listo
     }
     // ▲▲▲ FIN DEL MENSAJE ▲▲▲
     
