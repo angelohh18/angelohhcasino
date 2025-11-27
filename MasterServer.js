@@ -4731,7 +4731,7 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                     if (!room.penaltiesPaid) room.penaltiesPaid = {};
                     room.penaltiesPaid[leavingPlayerSeat.userId] = {
                         playerName: playerName,
-                        amount: penalty,
+                        amount: parseFloat(penalty), // IMPORTANTE: Forzar número aquí
                         reason: 'Abandono por inactividad'
                     };
                     
