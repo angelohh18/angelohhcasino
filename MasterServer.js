@@ -4832,6 +4832,9 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
         if(p) playerHandCounts[p.playerId] = newRoom.playerHands[p.playerId].length; 
     });
 
+    const humanPlayer = newRoom.seats.find(s => s && !s.isBot);
+    const isStartingPlayer = humanPlayer && humanPlayer.playerId === startingPlayerId;
+    
     io.to(socket.id).emit('gameStarted', {
         hand: newRoom.playerHands[socket.id],
         discardPile: newRoom.discardPile,
@@ -4839,14 +4842,14 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
         currentPlayerId: newRoom.currentPlayerId,
         playerHandCounts: playerHandCounts,
         melds: newRoom.melds,
-        isPractice: true
+        isPractice: true,
+        isFirstTurn: isStartingPlayer // Indicar si es el primer turno
     });
     
     // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA EN MESA DE PRÁCTICA ▼▼▼
     // El jugador humano siempre es el que inicia en mesas de práctica
-    // IMPORTANTE: Enviar con un pequeño delay para asegurar que el listener esté registrado
-    const humanPlayer = newRoom.seats.find(s => s && !s.isBot);
-    if (humanPlayer && humanPlayer.playerId === startingPlayerId) {
+    // IMPORTANTE: Enviar con un delay mayor para asegurar que el listener y el DOM estén listos
+    if (isStartingPlayer) {
         console.log(`[createAndStartPracticeGame] Enviando firstTurnInfo a ${humanPlayer.playerName} (${startingPlayerId})`);
         setTimeout(() => {
             io.to(startingPlayerId).emit('firstTurnInfo', {
@@ -4854,7 +4857,7 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
                 playerName: humanPlayer.playerName
             });
             console.log(`[createAndStartPracticeGame] ✅ firstTurnInfo enviado a ${humanPlayer.playerName}`);
-        }, 500); // Delay de 500ms para asegurar que el listener esté listo
+        }, 1500); // Delay aumentado a 1500ms para asegurar que todo esté listo
     }
     // ▲▲▲ FIN DEL MENSAJE ▲▲▲
 }

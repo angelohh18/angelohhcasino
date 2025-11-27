@@ -2520,9 +2520,18 @@ function showRoomsOverview() {
     
     updatePlayersView(initialState.seats, true);
     
-    // ▼▼▼ VERIFICAR SI ES EL PRIMER TURNO DEL JUGADOR ACTUAL ▼▼▼
-    // Si el jugador actual es este socket y es el primer turno, el servidor enviará firstTurnInfo
-    // Este listener se agregará después del gameStarted
+    // ▼▼▼ VERIFICAR SI ES EL PRIMER TURNO Y MOSTRAR MENSAJE INMEDIATAMENTE ▼▼▼
+    // Si el servidor indica que es el primer turno, mostrar el mensaje directamente
+    if (initialState.isFirstTurn && initialState.currentPlayerId === socket.id) {
+        console.log('[Cliente] Es el primer turno del jugador, mostrando mensaje inmediatamente');
+        setTimeout(() => {
+            const message = '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.';
+            showToast(message, 8000);
+            if (typeof addChatMessage === 'function') {
+                addChatMessage(null, message, 'system');
+            }
+        }, 500); // Pequeño delay para asegurar que el DOM esté listo
+    }
     // ▲▲▲ FIN DE LA VERIFICACIÓN ▲▲▲
     
     // ▼▼▼ CORRECCIÓN ▼▼▼
