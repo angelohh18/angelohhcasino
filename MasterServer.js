@@ -3855,9 +3855,26 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
     room.lastWinnerId = winnerSeat.playerId;
     room.hostId = winnerSeat.playerId;
 
-    const totalPot = room.pot || 0;
+    // ▼▼▼ CORRECCIÓN MATEMÁTICA: RECÁLCULO DEL BOTE TOTAL ▼▼▼
+    // 1. Calcular total de apuestas iniciales
+    const betPerPlayer = room.settings.bet || 0;
+    const totalBets = (room.initialSeats?.length || 0) * betPerPlayer;
+    
+    // 2. Calcular total de multas pagadas (penaltiesPaid es la fuente de verdad)
+    const totalPenalties = Object.values(room.penaltiesPaid || {}).reduce((sum, p) => sum + p.amount, 0);
+    
+    // 3. El Bote Total REAL es la suma de ambos
+    const totalPot = totalBets + totalPenalties;
+    
+    // 4. Actualizamos room.pot para que coincida con la realidad
+    room.pot = totalPot;
+
+    // 5. Ahora aplicamos la comisión al BOTE TOTAL
     const commissionInRoomCurrency = totalPot * 0.10;
     const netWinnings = totalPot - commissionInRoomCurrency;
+    
+    console.log(`[Fin Partida] Bote: ${totalPot} (Apuestas: ${totalBets} + Multas: ${totalPenalties}). Comisión: ${commissionInRoomCurrency}. Ganancia Neta: ${netWinnings}`);
+    // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     
     // Guardar comisión en el log de administración (solo una vez por partida)
     if (!room.commissionSaved) {
@@ -3942,17 +3959,13 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
         });
     }
 
-    // Calcular desglose del bote
-    const totalBets = (room.initialSeats?.length || 0) * bet;
-    const totalPenalties = Object.values(room.penaltiesPaid || {}).reduce((sum, p) => sum + p.amount, 0);
-    const totalContributions = totalBets + totalPenalties;
-    
+    // Calcular desglose del bote (Usando las variables calculadas arriba para consistencia)
     let potBreakdown = '';
     if (totalPenalties > 0) {
         potBreakdown = `<p style="font-size: 0.9rem; color: #c5a56a;"><strong>Desglose del Bote:</strong></p>
                         <p style="font-size: 0.9rem; margin-left: 10px;">• Apuestas iniciales: ${totalBets.toFixed(2)} ${currencySymbol}</p>
                         <p style="font-size: 0.9rem; margin-left: 10px; color: #ff4444;">• Multas aplicadas: +${totalPenalties.toFixed(2)} ${currencySymbol}</p>
-                        <p style="font-size: 0.9rem; margin-left: 10px;"><strong>Total recaudado: ${totalContributions.toFixed(2)} ${currencySymbol}</strong></p>`;
+                        <p style="font-size: 0.9rem; margin-left: 10px;"><strong>Total recaudado: ${totalPot.toFixed(2)} ${currencySymbol}</strong></p>`;
     }
     
     let winningsSummary = `<div style="border-top: 1px solid #c5a56a; margin-top: 15px; padding-top: 10px; text-align: left;">
@@ -5134,12 +5147,20 @@ io.on('connection', (socket) => {
             broadcastUserListUpdate(io);
         } else {
             // Si no existe, crear la entrada
-            // Intentamos recuperar el nombre real desde socket.userId
+            // CORRECCIÓN: Intentamos recuperar el nombre real desde múltiples fuentes
             let realUsername = connectedUsers[socket.id]?.username;
+            
+            // Intento 1: Obtener del userId del socket
             if (!realUsername && socket.userId) {
                 realUsername = socket.userId.replace(/^user_/, '');
             }
-            const username = realUsername || 'Usuario';
+            
+            // Intento 2 (DEFINITIVO): Buscar en el objeto global 'users' si tenemos el ID
+            if ((!realUsername || realUsername === 'Usuario') && socket.userId && users[socket.userId]) {
+                realUsername = users[socket.userId].username;
+            }
+            
+            const username = realUsername || 'Usuario'; // Último recurso
             
             connectedUsers[socket.id] = {
                 username: username,
