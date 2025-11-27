@@ -4639,10 +4639,12 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                     getUserByUsername(username).then(userData => {
                         if (userData) {
                             users[leavingSocket.userId] = userData;
-                            console.log(`[Práctica] Usuario recargado en users: ${leavingSocket.userId} para ${leavingPlayerId}`);
+                            // También guardar con username por si acaso
+                            users[username.toLowerCase()] = userData;
+                            console.log(`[Práctica] ✅ Usuario recargado en users: ${leavingSocket.userId} para ${leavingPlayerId}`);
                         }
                     }).catch(err => {
-                        console.error(`[Práctica] Error al recargar usuario desde BD:`, err);
+                        console.error(`[Práctica] ❌ Error al recargar usuario desde BD:`, err);
                     });
                 }
             }
