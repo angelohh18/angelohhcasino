@@ -4258,7 +4258,7 @@ function findWorstCardToDiscard(hand, allMeldsOnTable) {
 
 // ▼▼▼ REEMPLAZA LA FUNCIÓN botPlay ENTERA EN SERVER.JS CON ESTA VERSIÓN ▼▼▼
 async function botPlay(room, botPlayerId, io) {
-    const botSeat = room.seats.find(s => s.playerId === botPlayerId);
+    const botSeat = room.seats.find(s => s && s.playerId === botPlayerId);
     if (!botSeat || !botSeat.active) return;
 
     const pause = (ms) => new Promise(resolve => setTimeout(resolve, ms));
