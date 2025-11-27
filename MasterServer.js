@@ -5780,6 +5780,16 @@ io.on('connection', (socket) => {
         });
     });
     
+    // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA ▼▼▼
+    // Enviar mensaje informativo al jugador que inicia (si no es bot)
+    if (startingPlayerSeat && !startingPlayerSeat.isBot) {
+        io.to(startingPlayerId).emit('firstTurnInfo', {
+            message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
+            playerName: startingPlayerSeat.playerName
+        });
+    }
+    // ▲▲▲ FIN DEL MENSAJE ▲▲▲
+    
     console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
     // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
     io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });

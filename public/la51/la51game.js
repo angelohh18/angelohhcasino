@@ -2214,6 +2214,15 @@ function showRoomsOverview() {
     });
     // ▲▲▲ FIN DEL NUEVO LISTENER ▲▲▲
 
+    // ▼▼▼ LISTENER PARA MENSAJE DEL PRIMER TURNO ▼▼▼
+    socket.on('firstTurnInfo', (data) => {
+        // Mostrar mensaje informativo sobre el primer turno
+        showToast(data.message, 6000); // Mostrar por 6 segundos para que el jugador lo lea
+        // También agregarlo al chat para referencia
+        addChatMessage(null, data.message, 'system');
+    });
+    // ▲▲▲ FIN DEL LISTENER ▲▲▲
+
     // ▼▼▼ AÑADE ESTE LISTENER COMPLETO AQUÍ ▼▼▼
     socket.on('practiceGameHumanFaultEnd', () => {
         // Cuando el servidor confirma que la partida terminó por nuestra falta,
@@ -2444,7 +2453,7 @@ function showRoomsOverview() {
     // ▼▼▼ AÑADE ESTE NUEVO LISTENER COMPLETO ▼▼▼
 
 // ▼▼▼ REEMPLAZO COMPLETO Y DEFINITIVO ▼▼▼
-socket.on('gameStarted', (initialState) => {
+    socket.on('gameStarted', (initialState) => {
     
     // CORRECCIÓN CLAVE: Si es una partida de práctica, inicializamos manualmente
     // las configuraciones que las mesas reales inicializan por otra vía.
@@ -2494,6 +2503,11 @@ socket.on('gameStarted', (initialState) => {
     isDrawing = false;
     
     updatePlayersView(initialState.seats, true);
+    
+    // ▼▼▼ VERIFICAR SI ES EL PRIMER TURNO DEL JUGADOR ACTUAL ▼▼▼
+    // Si el jugador actual es este socket y es el primer turno, el servidor enviará firstTurnInfo
+    // Este listener se agregará después del gameStarted
+    // ▲▲▲ FIN DE LA VERIFICACIÓN ▲▲▲
     
     // ▼▼▼ CORRECCIÓN ▼▼▼
     // Asignamos la mano directamente al jugador local, que la lógica de la UI 
