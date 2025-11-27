@@ -584,86 +584,95 @@ function checkAndCleanRoom(roomId, io) {
     broadcastRoomListUpdate(io);
 }
 
-// ▼▼▼ FUNCIÓN PARA ACTUALIZAR LISTA DE USUARIOS ▼▼▼
+// ▼▼▼ FUNCIÓN CORREGIDA PARA ACTUALIZAR LISTA DE USUARIOS ▼▼▼
 function broadcastUserListUpdate(io) {
-    // Limpiar usuarios desconectados del objeto connectedUsers
+    // 1. Limpiar usuarios desconectados
     Object.keys(connectedUsers).forEach(socketId => {
         const socket = io.sockets.sockets.get(socketId);
         if (!socket || !socket.connected) {
-            // El socket ya no existe o está desconectado, eliminarlo de la lista
             delete connectedUsers[socketId];
         }
     });
     
-    // ▼▼▼ CORRECCIÓN: Eliminar usuarios duplicados por username (mantener solo el más reciente) ▼▼▼
+    // 2. Eliminar duplicados priorizando la conexión con MEJOR estado
     const usernameToSocketId = new Map();
+    
+    // Función para calcular "peso" del estado (Juego > Lobby Específico > Lobby Genérico)
+    const getStatusWeight = (user) => {
+        if (user.status && user.status.includes('Jugando')) return 3;
+        if (user.currentLobby) return 2; // Tiene un lobby específico (Ludo/La51)
+        return 1; // Genérico "En el Lobby"
+    };
+
     Object.keys(connectedUsers).forEach(socketId => {
         const user = connectedUsers[socketId];
         if (user && user.username) {
             const existingSocketId = usernameToSocketId.get(user.username);
+            
             if (!existingSocketId) {
-                // Primera vez que vemos este username, guardarlo
+                // Primer socket encontrado para este usuario
                 usernameToSocketId.set(user.username, socketId);
             } else {
-                // Ya existe este username, eliminar el anterior (mantener el más reciente)
-                console.log(`[User List] Eliminando usuario duplicado: ${user.username} (socket anterior: ${existingSocketId})`);
-                delete connectedUsers[existingSocketId];
-                usernameToSocketId.set(user.username, socketId);
+                // Ya existe. Comparamos cuál es más importante.
+                const existingUser = connectedUsers[existingSocketId];
+                const newWeight = getStatusWeight(user);
+                const oldWeight = getStatusWeight(existingUser);
+
+                if (newWeight > oldWeight) {
+                    // El nuevo es mejor (ej: está en Ludo vs Genérico), borramos el viejo
+                    delete connectedUsers[existingSocketId];
+                    usernameToSocketId.set(user.username, socketId);
+                } else {
+                    // El viejo es mejor o igual, borramos el nuevo (duplicado redundante)
+                    delete connectedUsers[socketId];
+                }
             }
         }
     });
-    // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     
-    // Convierte el objeto de usuarios en un array simple para enviarlo al cliente
-    // Y añade información sobre en qué sala y juego están
+    // 3. Generar la lista final para el cliente
     const userList = Object.keys(connectedUsers)
         .map(socketId => {
             const user = { ...connectedUsers[socketId] };
             const socket = io.sockets.sockets.get(socketId);
             
             if (socket && socket.connected) {
-                // Verificar si está jugando en una sala de La 51
+                // Prioridad 1: Jugando La 51
                 if (socket.currentRoomId && la51Rooms[socket.currentRoomId]) {
                     const room = la51Rooms[socket.currentRoomId];
                     user.status = 'Jugando La 51';
                     user.gameType = 'La 51';
-                    user.roomName = room.settings?.tableName || room.settings?.username || 'Sala de La 51';
+                    user.roomName = room.settings?.tableName || 'Sala de La 51';
                 }
-                // Verificar si está jugando en una sala de Ludo
-                else if (socket.currentRoomId && ludoRooms[socket.currentRoomId]) {
-                    const room = ludoRooms[socket.currentRoomId];
+                // Prioridad 2: Jugando Ludo/Parchís
+                else if ((socket.currentRoomId && ludoRooms[socket.currentRoomId]) || 
+                         (socket.currentLudoRoom && ludoRooms[socket.currentLudoRoom])) {
+                    const targetRoomId = socket.currentRoomId || socket.currentLudoRoom;
+                    const room = ludoRooms[targetRoomId];
                     const gameTypeName = room.settings?.gameType === 'parchis' ? 'Parchís' : 'Ludo';
                     user.status = `Jugando ${gameTypeName}`;
                     user.gameType = gameTypeName;
-                    user.roomName = room.settings?.roomName || room.settings?.username || 'Sala de Ludo';
+                    user.roomName = room.settings?.roomName || 'Sala de Ludo';
                 }
-                else if (socket.currentLudoRoom && ludoRooms[socket.currentLudoRoom]) {
-                    const room = ludoRooms[socket.currentLudoRoom];
-                    const gameTypeName = room.settings?.gameType === 'parchis' ? 'Parchís' : 'Ludo';
-                    user.status = `Jugando ${gameTypeName}`;
-                    user.gameType = gameTypeName;
-                    user.roomName = room.settings?.roomName || room.settings?.username || 'Sala de Ludo';
-                }
-                // Si no está jugando, mostrar en qué lobby está
+                // Prioridad 3: En un Lobby específico (CORRECCIÓN VISUAL)
                 else if (user.currentLobby) {
-                    // Actualizar el estado basándose en el lobby actual
                     user.status = `En el lobby de ${user.currentLobby}`;
-                } else if (!user.status || user.status === 'En el Lobby') {
-                    // Si no tiene lobby específico, mantener "En el Lobby"
+                } 
+                // Prioridad 4: Fallback
+                else if (!user.status || user.status === 'En el Lobby') {
                     user.status = 'En el Lobby';
                 }
             }
-            
             return user;
         })
-        .filter(user => user && user.username); // Filtrar usuarios inválidos
+        .filter(user => user && user.username);
     
     console.log(`[User List] Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
     console.log(`[User List] Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status })));
     io.emit('updateUserList', userList);
     console.log(`[User List] ✅ Lista transmitida a todos los clientes: ${userList.length} usuarios.`);
 }
-// ▲▲▲ FIN: FUNCIÓN A AÑADIR ▲▲▲
+// ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AL INICIO DE TU ARCHIVO ▼▼▼
 function getSanitizedRoomForClient(room) {
@@ -5121,126 +5130,43 @@ io.on('connection', (socket) => {
 
     // Eventos para rastrear en qué lobby está el usuario
     socket.on('enterLudoLobby', () => {
-        // Eliminar duplicados previos
-        const currentUsername = connectedUsers[socket.id]?.username;
-        if (currentUsername) {
-            Object.keys(connectedUsers).forEach(otherSocketId => {
-                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === currentUsername) {
-                    delete connectedUsers[otherSocketId];
-                }
-            });
+        // Recuperar nombre real de forma robusta
+        let finalUsername = connectedUsers[socket.id]?.username;
+        if (!finalUsername && socket.userId && users[socket.userId]) {
+             finalUsername = users[socket.userId].username;
+        } else if (socket.userId) {
+             finalUsername = socket.userId.replace(/^user_/, '');
         }
-        
-        // ▼▼▼ CORRECCIÓN: LÓGICA DE RECUPERACIÓN DE NOMBRE ROBUSTA ▼▼▼
-        let finalUsername = 'Usuario';
-        
-        // 1. Intentar obtener del socket.userId (fuente más fiable)
-        if (socket.userId && users[socket.userId]) {
-            finalUsername = users[socket.userId].username;
-        } 
-        // 2. Si no, intentar obtener de connectedUsers
-        else if (connectedUsers[socket.id]?.username && connectedUsers[socket.id].username !== 'Usuario') {
-            finalUsername = connectedUsers[socket.id].username;
-        }
-        // 3. Si no, intentar parsear el socket.userId crudo
-        else if (socket.userId) {
-            finalUsername = socket.userId.replace(/^user_/, '');
-        }
+        finalUsername = finalUsername || 'Usuario';
 
-        // Crear o actualizar la entrada del usuario con el nombre CORRECTO
+        // DEFINIR ESTADO CLARAMENTE
         connectedUsers[socket.id] = {
             username: finalUsername,
             status: 'En el lobby de Ludo',
-            currentLobby: 'Ludo'
+            currentLobby: 'Ludo' // <--- ESTO ES VITAL
         };
-        // ▲▲▲ FIN CORRECCIÓN ▲▲▲
-
-        // Emitir actualización inmediata de la lista de usuarios
-        console.log(`[enterLudoLobby] Usuario ${finalUsername} (${socket.id}) entró al lobby. Emitiendo lista...`);
-        broadcastUserListUpdate(io);
         
-        // También emitir la lista directamente al socket que acaba de entrar para asegurar sincronización
-        const userList = Object.keys(connectedUsers)
-            .map(socketId => {
-                const user = { ...connectedUsers[socketId] };
-                const s = io.sockets.sockets.get(socketId);
-                if (s && s.connected) {
-                    if (s.currentRoomId && ludoRooms[s.currentRoomId]) {
-                        const room = ludoRooms[s.currentRoomId];
-                        const gameTypeName = room.settings?.gameType === 'parchis' ? 'Parchís' : 'Ludo';
-                        user.status = `Jugando ${gameTypeName}`;
-                    } else if (user.currentLobby) {
-                        user.status = `En el lobby de ${user.currentLobby}`;
-                    } else if (!user.status || user.status === 'En el Lobby') {
-                        user.status = 'En el Lobby';
-                    }
-                }
-                return user;
-            })
-            .filter(user => user && user.username);
-        console.log(`[enterLudoLobby] Enviando lista directa a ${socket.id}:`, userList.length, 'usuarios');
-        socket.emit('updateUserList', userList);
+        broadcastUserListUpdate(io);
     });
 
     socket.on('enterLa51Lobby', () => {
-        // Eliminar duplicados previos
-        const currentUsername = connectedUsers[socket.id]?.username;
-        if (currentUsername) {
-            Object.keys(connectedUsers).forEach(otherSocketId => {
-                if (otherSocketId !== socket.id && connectedUsers[otherSocketId]?.username === currentUsername) {
-                    delete connectedUsers[otherSocketId];
-                }
-            });
+        // Recuperar nombre real de forma robusta
+        let finalUsername = connectedUsers[socket.id]?.username;
+        if (!finalUsername && socket.userId && users[socket.userId]) {
+             finalUsername = users[socket.userId].username;
+        } else if (socket.userId) {
+             finalUsername = socket.userId.replace(/^user_/, '');
         }
-        
-        // ▼▼▼ CORRECCIÓN: LÓGICA DE RECUPERACIÓN DE NOMBRE ROBUSTA ▼▼▼
-        let finalUsername = 'Usuario';
-        
-        // 1. Intentar obtener del socket.userId (fuente más fiable)
-        if (socket.userId && users[socket.userId]) {
-            finalUsername = users[socket.userId].username;
-        } 
-        // 2. Si no, intentar obtener de connectedUsers
-        else if (connectedUsers[socket.id]?.username && connectedUsers[socket.id].username !== 'Usuario') {
-            finalUsername = connectedUsers[socket.id].username;
-        }
-        // 3. Si no, intentar parsear el socket.userId crudo
-        else if (socket.userId) {
-            finalUsername = socket.userId.replace(/^user_/, '');
-        }
+        finalUsername = finalUsername || 'Usuario';
 
-        // Crear o actualizar la entrada del usuario con el nombre CORRECTO
+        // DEFINIR ESTADO CLARAMENTE
         connectedUsers[socket.id] = {
             username: finalUsername,
             status: 'En el lobby de La 51',
-            currentLobby: 'La 51'
+            currentLobby: 'La 51' // <--- ESTO ES VITAL
         };
-        // ▲▲▲ FIN CORRECCIÓN ▲▲▲
-
-        // Emitir actualización inmediata de la lista de usuarios
-        console.log(`[enterLa51Lobby] Usuario ${finalUsername} (${socket.id}) entró al lobby. Emitiendo lista...`);
-        broadcastUserListUpdate(io);
         
-        // También emitir la lista directamente al socket que acaba de entrar para asegurar sincronización
-        const userList = Object.keys(connectedUsers)
-            .map(socketId => {
-                const user = { ...connectedUsers[socketId] };
-                const s = io.sockets.sockets.get(socketId);
-                if (s && s.connected) {
-                    if (s.currentRoomId && la51Rooms[s.currentRoomId]) {
-                        const room = la51Rooms[s.currentRoomId];
-                        user.status = 'Jugando La 51';
-                    } else if (user.currentLobby) {
-                        user.status = `En el lobby de ${user.currentLobby}`;
-                    } else if (!user.status || user.status === 'En el Lobby') {
-                        user.status = 'En el Lobby';
-                    }
-                }
-                return user;
-            })
-            .filter(user => user && user.username);
-        console.log(`[enterLa51Lobby] Enviando lista directa a ${socket.id}:`, userList.length, 'usuarios');
-        socket.emit('updateUserList', userList);
+        broadcastUserListUpdate(io);
     });
 
     // Escucha cuando un usuario inicia sesión en el lobby
