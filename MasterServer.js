@@ -5263,33 +5263,30 @@ io.on('connection', (socket) => {
     // --- FIN: LÓGICA PARA EL PANEL DE ADMIN ---
 
   socket.on('createRoom', async (settings) => {
-    // ▼▼▼ LIMPIAR ESTADO PREVIO SI EXISTE ▼▼▼
-    // Si el socket está en otra sala, limpiarla primero (incluso si la sala ya no existe)
-    if (socket.currentRoomId) {
-        const oldRoomId = socket.currentRoomId;
-        console.log(`[createRoom] Limpiando estado previo: sala ${oldRoomId}`);
-        
-        // Salir de la sala Socket.IO (aunque la sala ya no exista en la51Rooms)
-        socket.leave(oldRoomId);
-        
-        // Limpiar currentRoomId
-        delete socket.currentRoomId;
-        console.log(`[createRoom] Estado previo limpiado.`);
+    // ▼▼▼ LIMPIEZA DE ESTADO DEPREDADOR (FIX DEFINITIVO) ▼▼▼
+    // 1. Forzar salida de TODAS las salas de Socket.IO (excepto su propia sala privada)
+    // Esto elimina cualquier conexión "zombie" a mesas de práctica anteriores.
+    if (socket.rooms) {
+        for (const room of socket.rooms) {
+            if (room !== socket.id) {
+                socket.leave(room);
+                console.log(`[createRoom] 🧹 Limpieza forzada: Socket ${socket.id} desconectado de sala residual ${room}`);
+            }
+        }
     }
     
-    // Limpiar cualquier referencia residual a salas de práctica
+    // 2. Limpiar referencia interna inmediatamente
+    delete socket.currentRoomId;
+    
+    // 3. Limpiar cualquier sala de práctica huérfana en memoria que pertenezca a este usuario
+    // (Por si handlePlayerDeparture no terminó de ejecutarse correctamente)
     const allRoomIds = Object.keys(la51Rooms);
-    for (const existingRoomId of allRoomIds) {
-        const existingRoom = la51Rooms[existingRoomId];
-        if (existingRoom && existingRoom.isPractice) {
-            const seatIndex = existingRoom.seats.findIndex(s => s && s.playerId === socket.id);
-            if (seatIndex !== -1) {
-                console.log(`[createRoom] Encontrado socket en sala de práctica ${existingRoomId}, limpiando...`);
-                socket.leave(existingRoomId);
-                if (socket.currentRoomId === existingRoomId) {
-                    delete socket.currentRoomId;
-                }
-            }
+    for (const rId of allRoomIds) {
+        const r = la51Rooms[rId];
+        // Si encontramos una sala de práctica donde este usuario es host o está sentado
+        if (r && r.isPractice && (r.hostId === socket.id || r.seats.some(s => s && s.playerId === socket.id))) {
+            console.log(`[createRoom] 🧹 Eliminando mesa de práctica huérfana ${rId} detectada antes de crear nueva mesa.`);
+            delete la51Rooms[rId];
         }
     }
     // ▲▲▲ FIN DE LIMPIEZA PREVIA ▲▲▲
