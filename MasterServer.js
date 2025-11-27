@@ -3792,6 +3792,16 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                     const penaltyInPlayerCurrency = convertCurrency(penalty, room.settings.betCurrency, playerInfo.currency, exchangeRates);
                     playerInfo.credits -= penaltyInPlayerCurrency;
                     room.pot = (room.pot || 0) + penalty;
+                    
+                    // ▼▼▼ IMPORTANTE: Guardar la multa en penaltiesPaid para el desglose correcto ▼▼▼
+                    if (!room.penaltiesPaid) room.penaltiesPaid = {};
+                    room.penaltiesPaid[finalSeatState.userId] = {
+                        playerName: finalSeatState.playerName || seat.playerName,
+                        amount: parseFloat(penalty), // Usar la multa configurada en el modal
+                        reason: 'No bajó los 51 puntos requeridos'
+                    };
+                    // ▲▲▲ FIN DE GUARDAR EN penaltiesPaid ▲▲▲
+                    
                     await updateUserCredits(finalSeatState.userId, playerInfo.credits, playerInfo.currency);
                     io.to(finalSeatState.playerId).emit('userStateUpdated', playerInfo);
                     io.to(room.roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: true });
