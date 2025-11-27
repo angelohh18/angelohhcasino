@@ -5283,6 +5283,12 @@ io.on('connection', (socket) => {
     // --- FIN: LÓGICA PARA EL PANEL DE ADMIN ---
 
   socket.on('createRoom', async (settings) => {
+    console.log(`[createRoom] Iniciando creación de mesa para socket ${socket.id}. Estado actual:`, {
+        currentRoomId: socket.currentRoomId,
+        userId: socket.userId,
+        rooms: Array.from(socket.rooms || [])
+    });
+    
     // ▼▼▼ LIMPIEZA DE ESTADO DEPREDADOR MEJORADA ▼▼▼
     // 1. Forzar salida de TODAS las salas de Socket.IO (Usando Array.from para iteración segura)
     if (socket.rooms) {
@@ -5297,6 +5303,7 @@ io.on('connection', (socket) => {
     
     // 2. Limpiar referencia interna inmediatamente
     delete socket.currentRoomId;
+    console.log(`[createRoom] ✅ socket.currentRoomId eliminado`);
     
     // 3. Limpiar cualquier sala de práctica huérfana en memoria
     const allRoomIds = Object.keys(la51Rooms);
@@ -5307,6 +5314,14 @@ io.on('connection', (socket) => {
             delete la51Rooms[rId];
         }
     }
+    
+    // 4. Verificar que el estado esté completamente limpio antes de continuar
+    if (socket.currentRoomId) {
+        console.warn(`[createRoom] ⚠️ ADVERTENCIA: socket.currentRoomId aún existe después de limpieza: ${socket.currentRoomId}. Forzando eliminación.`);
+        delete socket.currentRoomId;
+    }
+    
+    console.log(`[createRoom] ✅ Estado limpio. Continuando con creación de mesa...`);
     // ▲▲▲ FIN DE LIMPIEZA PREVIA ▲▲▲
     
     const roomId = generateRoomId();
