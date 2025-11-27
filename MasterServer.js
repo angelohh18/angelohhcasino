@@ -4038,7 +4038,9 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         io.to(faultingPlayerId).emit('playerEliminated', {
             playerId: faultingPlayerId,
             playerName: playerSeat.playerName,
-            faultData: finalFaultData
+            faultData: finalFaultData,
+            redirect: false, // IMPORTANTE: No sacar de la mesa
+            canWatch: true   // IMPORTANTE: Permitir ver el resto del juego
         });
         
         // 2. Enviamos un evento SEPARADO para indicarle al cliente que debe mostrar el modal de reinicio.
