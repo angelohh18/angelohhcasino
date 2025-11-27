@@ -4841,6 +4841,17 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
         melds: newRoom.melds,
         isPractice: true
     });
+    
+    // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA EN MESA DE PRÁCTICA ▼▼▼
+    // El jugador humano siempre es el que inicia en mesas de práctica
+    const humanPlayer = newRoom.seats.find(s => s && !s.isBot);
+    if (humanPlayer && humanPlayer.playerId === startingPlayerId) {
+        io.to(startingPlayerId).emit('firstTurnInfo', {
+            message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
+            playerName: humanPlayer.playerName
+        });
+    }
+    // ▲▲▲ FIN DEL MENSAJE ▲▲▲
 }
 // ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
 
