@@ -2347,6 +2347,7 @@ function showRoomsOverview() {
     // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
     let penaltyAmount, requiredMeld, hasDrawn, drewFromDiscard, discardCardUsed, mustDiscard, strictRules, drewFromDeckToWin, selectedCards, isDrawing;
     let firstTurnToastTimeout = null; // Variable para rastrear el timeout del toast del primer turno
+    let isFirstDiscard = false; // Variable para rastrear si es el primer descarte del juego
 
     // ▼▼▼ PEGA EL BLOQUE COMPLETO AQUÍ ▼▼▼
     // Configuración de los botones del modal de reinicio de práctica (Ubicación corregida)
@@ -3162,13 +3163,15 @@ function updatePlayersView(seats, inGame = false) {
         const cardToDiscard = p.hand[index];
 
         // ▼▼▼ OCULTAR MENSAJE DEL PRIMER TURNO AL DESCARTAR LA PRIMERA CARTA ▼▼▼
-        // Verificar si es el primer descarte (jugador tiene 15 o 16 cartas y aún no ha descartado)
-        if (p.hand && (p.hand.length === 15 || p.hand.length === 16) && !hasDrawn) {
+        // Verificar si es el primer descarte del juego
+        if (isFirstDiscard) {
             // Ocultar el toast del primer turno si está visible
             const toast = document.getElementById('toast');
             if (toast && toast.classList.contains('show')) {
                 toast.classList.remove('show');
                 toast.style.display = 'none';
+                toast.style.opacity = '0';
+                toast.style.visibility = 'hidden';
                 console.log('[Cliente] ✅ Mensaje del primer turno ocultado al descartar la primera carta');
             }
             // Limpiar el timeout si existe
@@ -3176,6 +3179,8 @@ function updatePlayersView(seats, inGame = false) {
                 clearTimeout(firstTurnToastTimeout);
                 firstTurnToastTimeout = null;
             }
+            // Marcar que ya no es el primer descarte
+            isFirstDiscard = false;
         }
         // ▲▲▲ FIN DE OCULTAR MENSAJE DEL PRIMER TURNO ▲▲▲
 
