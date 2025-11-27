@@ -4844,12 +4844,17 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
     
     // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA EN MESA DE PRÁCTICA ▼▼▼
     // El jugador humano siempre es el que inicia en mesas de práctica
+    // IMPORTANTE: Enviar con un pequeño delay para asegurar que el listener esté registrado
     const humanPlayer = newRoom.seats.find(s => s && !s.isBot);
     if (humanPlayer && humanPlayer.playerId === startingPlayerId) {
-        io.to(startingPlayerId).emit('firstTurnInfo', {
-            message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
-            playerName: humanPlayer.playerName
-        });
+        console.log(`[createAndStartPracticeGame] Enviando firstTurnInfo a ${humanPlayer.playerName} (${startingPlayerId})`);
+        setTimeout(() => {
+            io.to(startingPlayerId).emit('firstTurnInfo', {
+                message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
+                playerName: humanPlayer.playerName
+            });
+            console.log(`[createAndStartPracticeGame] ✅ firstTurnInfo enviado a ${humanPlayer.playerName}`);
+        }, 500); // Delay de 500ms para asegurar que el listener esté listo
     }
     // ▲▲▲ FIN DEL MENSAJE ▲▲▲
 }
@@ -5793,11 +5798,16 @@ io.on('connection', (socket) => {
     
     // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA ▼▼▼
     // Enviar mensaje informativo al jugador que inicia (si no es bot)
+    // IMPORTANTE: Enviar con un pequeño delay para asegurar que el listener esté registrado
     if (startingPlayerSeat && !startingPlayerSeat.isBot) {
-        io.to(startingPlayerId).emit('firstTurnInfo', {
-            message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
-            playerName: startingPlayerSeat.playerName
-        });
+        console.log(`[startGame] Enviando firstTurnInfo a ${startingPlayerSeat.playerName} (${startingPlayerId})`);
+        setTimeout(() => {
+            io.to(startingPlayerId).emit('firstTurnInfo', {
+                message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
+                playerName: startingPlayerSeat.playerName
+            });
+            console.log(`[startGame] ✅ firstTurnInfo enviado a ${startingPlayerSeat.playerName}`);
+        }, 500); // Delay de 500ms para asegurar que el listener esté listo
     }
     // ▲▲▲ FIN DEL MENSAJE ▲▲▲
     

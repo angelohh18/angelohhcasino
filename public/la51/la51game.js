@@ -2205,6 +2205,27 @@ function showRoomsOverview() {
         }
     });
 
+    // ▼▼▼ LISTENER PARA MENSAJE DEL PRIMER TURNO (REGISTRAR PRIMERO) ▼▼▼
+    // IMPORTANTE: Registrar este listener ANTES de gameStarted para asegurar que esté listo
+    socket.on('firstTurnInfo', (data) => {
+        console.log('[Cliente] ✅ Recibido firstTurnInfo:', data);
+        // Mostrar mensaje informativo sobre el primer turno
+        if (data && data.message) {
+            // Usar setTimeout para asegurar que el DOM esté listo
+            setTimeout(() => {
+                showToast(data.message, 8000); // Mostrar por 8 segundos para que el jugador lo lea bien
+                // También agregarlo al chat para referencia
+                if (typeof addChatMessage === 'function') {
+                    addChatMessage(null, data.message, 'system');
+                }
+                console.log('[Cliente] ✅ Mensaje mostrado en toast y chat');
+            }, 100);
+        } else {
+            console.error('[Cliente] ❌ Error: firstTurnInfo sin mensaje:', data);
+        }
+    });
+    // ▲▲▲ FIN DEL LISTENER ▲▲▲
+
     // ▼▼▼ AÑADE ESTE NUEVO LISTENER COMPLETO ▼▼▼
     socket.on('playerAbandoned', (data) => {
         // Mostramos una notificación visual a todos.
@@ -2213,15 +2234,6 @@ function showRoomsOverview() {
         addChatMessage(null, data.message, 'system');
     });
     // ▲▲▲ FIN DEL NUEVO LISTENER ▲▲▲
-
-    // ▼▼▼ LISTENER PARA MENSAJE DEL PRIMER TURNO ▼▼▼
-    socket.on('firstTurnInfo', (data) => {
-        // Mostrar mensaje informativo sobre el primer turno
-        showToast(data.message, 6000); // Mostrar por 6 segundos para que el jugador lo lea
-        // También agregarlo al chat para referencia
-        addChatMessage(null, data.message, 'system');
-    });
-    // ▲▲▲ FIN DEL LISTENER ▲▲▲
 
     // ▼▼▼ AÑADE ESTE LISTENER COMPLETO AQUÍ ▼▼▼
     socket.on('practiceGameHumanFaultEnd', () => {
