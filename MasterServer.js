@@ -5107,12 +5107,20 @@ io.on('connection', (socket) => {
             broadcastUserListUpdate(io);
         } else {
             // Si no existe, crear la entrada
-            // Intentamos recuperar el nombre real desde socket.userId
+            // CORRECCIÓN: Intentamos recuperar el nombre real desde múltiples fuentes
             let realUsername = connectedUsers[socket.id]?.username;
+            
+            // Intento 1: Obtener del userId del socket
             if (!realUsername && socket.userId) {
                 realUsername = socket.userId.replace(/^user_/, '');
             }
-            const username = realUsername || 'Usuario';
+            
+            // Intento 2 (DEFINITIVO): Buscar en el objeto global 'users' si tenemos el ID
+            if ((!realUsername || realUsername === 'Usuario') && socket.userId && users[socket.userId]) {
+                realUsername = users[socket.userId].username;
+            }
+            
+            const username = realUsername || 'Usuario'; // Último recurso
             
             connectedUsers[socket.id] = {
                 username: username,
