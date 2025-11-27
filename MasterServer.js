@@ -6615,18 +6615,45 @@ socket.on('accionDescartar', async (data) => {
         });
         // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
 
+        // Encontrar el asiento del jugador que inicia
+        const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
+        
         seatedPlayers.forEach(player => {
             if (player) {
+                const isStartingPlayer = player.playerId === startingPlayerId;
                 io.to(player.playerId).emit('gameStarted', {
                     hand: room.playerHands[player.playerId],
                     discardPile: room.discardPile,
                     seats: room.seats,
                     currentPlayerId: room.currentPlayerId,
                     playerHandCounts: playerHandCounts,
-                    melds: room.melds
+                    melds: room.melds,
+                    isFirstTurn: isStartingPlayer && !startingPlayerSeat?.isBot // Indicar si es el primer turno
                 });
             }
         });
+        
+        // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA LA REVANCHA ▼▼▼
+        // Enviar mensaje informativo al jugador que inicia (si no es bot)
+        // IMPORTANTE: Enviar con un delay para asegurar que el listener esté registrado
+        if (startingPlayerSeat && !startingPlayerSeat.isBot) {
+            console.log(`[startRematch] Enviando firstTurnInfo a ${startingPlayerSeat.playerName} (${startingPlayerId})`);
+            setTimeout(() => {
+                io.to(startingPlayerId).emit('firstTurnInfo', {
+                    message: '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.',
+                    playerName: startingPlayerSeat.playerName
+                });
+                console.log(`[startRematch] ✅ firstTurnInfo enviado a ${startingPlayerSeat.playerName}`);
+            }, 1500); // Delay de 1500ms para asegurar que el listener esté listo
+        }
+        // ▲▲▲ FIN DEL MENSAJE ▲▲▲
+        
+        // Iniciar timeout de inactividad para el jugador que inicia (si no es bot)
+        if (startingPlayerSeat && !startingPlayerSeat.isBot) {
+            startLa51InactivityTimeout(room, startingPlayerId, io);
+        } else if (startingPlayerSeat && startingPlayerSeat.isBot) {
+            setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
+        }
 
         broadcastRoomListUpdate(io);
 
