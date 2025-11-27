@@ -4631,6 +4631,22 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                 }
             }
             
+            // Asegurar que el usuario esté en el objeto users para que createRoom pueda encontrarlo
+            if (leavingSocket.userId && !users[leavingSocket.userId] && connectedUsers[leavingPlayerId]) {
+                const username = connectedUsers[leavingPlayerId].username;
+                if (username) {
+                    // Intentar recargar desde la BD
+                    getUserByUsername(username).then(userData => {
+                        if (userData) {
+                            users[leavingSocket.userId] = userData;
+                            console.log(`[Práctica] Usuario recargado en users: ${leavingSocket.userId} para ${leavingPlayerId}`);
+                        }
+                    }).catch(err => {
+                        console.error(`[Práctica] Error al recargar usuario desde BD:`, err);
+                    });
+                }
+            }
+            
             console.log(`[Práctica] Asegurado que socket.currentRoomId está limpio para ${leavingPlayerId}, socket.userId: ${leavingSocket.userId}`);
         }
         
