@@ -4847,9 +4847,8 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
 
 // --- MANEJO DE RUTAS (REEMPLAZAR ESTE BLOQUE) ---
 
-// 3. Middleware para servir archivos estáticos (CSS, JS del cliente, imágenes)
-// Apunta a la nueva carpeta /public
-app.use(express.static(path.join(__dirname, 'public')));
+// NOTA: El middleware de archivos estáticos ya está configurado arriba (línea 3409)
+// No es necesario duplicarlo aquí
 
 // Ruta para el menú de selección
 app.get('/select', (req, res) => {
