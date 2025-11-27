@@ -108,16 +108,34 @@ function showRematchFundsModal(requiredText, missingText) {
 
 // ▼▼▼ PEGA LA FUNCIÓN COMPLETA AQUÍ ▼▼▼
 function showToast(msg, duration = 3000) {
+    console.log('[showToast] Llamada con mensaje:', msg, 'duración:', duration);
     const toast = document.getElementById('toast');
     if (!toast) {
-        console.error("Elemento 'toast' no encontrado en el DOM.");
+        console.error("[showToast] ❌ Elemento 'toast' no encontrado en el DOM.");
         return;
     }
+    console.log('[showToast] ✅ Elemento toast encontrado:', toast);
     toast.textContent = msg;
+    console.log('[showToast] Texto asignado al toast');
+    
+    // Forzar visibilidad antes de agregar la clase
+    toast.style.display = 'block';
+    toast.style.visibility = 'visible';
+    toast.style.opacity = '1';
+    
     toast.classList.add('show');
+    console.log('[showToast] Clase "show" agregada. Estado del toast:', {
+        display: toast.style.display,
+        visibility: toast.style.visibility,
+        opacity: toast.style.opacity,
+        classList: Array.from(toast.classList),
+        textContent: toast.textContent
+    });
+    
     // Usamos un temporizador para ocultar el toast después de la duración
     setTimeout(() => {
         toast.classList.remove('show');
+        console.log('[showToast] Clase "show" removida después de', duration, 'ms');
     }, duration);
 }
 // ▲▲▲ FIN DEL CÓDIGO A PEGAR ▲▲▲
