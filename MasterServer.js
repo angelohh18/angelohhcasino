@@ -4618,7 +4618,18 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
         // Asegurar que el socket NO tenga currentRoomId después de salir
         // PERO mantener socket.userId para que el usuario pueda crear una mesa real después
         if (leavingSocket) {
+            // ▼▼▼ LIMPIEZA AGRESIVA DEL ESTADO DEL SOCKET ▼▼▼
             delete leavingSocket.currentRoomId;
+            
+            // Forzar salida de TODAS las salas de Socket.IO relacionadas con esta práctica
+            if (leavingSocket.rooms) {
+                for (const room of Array.from(leavingSocket.rooms)) {
+                    if (room !== leavingSocket.id && (room.includes('practice') || room === roomId)) {
+                        leavingSocket.leave(room);
+                        console.log(`[Práctica] 🧹 Socket ${leavingPlayerId} salió de sala Socket.IO: ${room}`);
+                    }
+                }
+            }
             
             // Asegurar que socket.userId se mantenga si existe
             if (!leavingSocket.userId && connectedUsers[leavingPlayerId]) {
@@ -4647,7 +4658,13 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                 }
             }
             
-            console.log(`[Práctica] Asegurado que socket.currentRoomId está limpio para ${leavingPlayerId}, socket.userId: ${leavingSocket.userId}`);
+            console.log(`[Práctica] ✅ Estado del socket limpiado completamente para ${leavingPlayerId}. Listo para crear nueva mesa.`);
+            console.log(`[Práctica] Estado final del socket:`, {
+                currentRoomId: leavingSocket.currentRoomId,
+                userId: leavingSocket.userId,
+                rooms: Array.from(leavingSocket.rooms || [])
+            });
+            // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
         }
         
         return; // Detiene la ejecución para no aplicar lógica de mesas reales
