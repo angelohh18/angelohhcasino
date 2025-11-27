@@ -4258,6 +4258,10 @@ function findWorstCardToDiscard(hand, allMeldsOnTable) {
 
 // ▼▼▼ REEMPLAZA LA FUNCIÓN botPlay ENTERA EN SERVER.JS CON ESTA VERSIÓN ▼▼▼
 async function botPlay(room, botPlayerId, io) {
+    // 1. NUEVA LÍNEA: Verificar si la sala aún existe en el registro global.
+    // Si la sala fue eliminada (ej. por salir de práctica), detenemos al bot inmediatamente.
+    if (!la51Rooms[room.roomId]) return;
+    
     const botSeat = room.seats.find(s => s && s.playerId === botPlayerId);
     if (!botSeat || !botSeat.active) return;
 
@@ -5090,7 +5094,13 @@ io.on('connection', (socket) => {
             broadcastUserListUpdate(io);
         } else {
             // Si no existe, crear la entrada
-            const username = connectedUsers[socket.id]?.username || 'Usuario';
+            // Intentamos recuperar el nombre real desde socket.userId
+            let realUsername = connectedUsers[socket.id]?.username;
+            if (!realUsername && socket.userId) {
+                realUsername = socket.userId.replace(/^user_/, '');
+            }
+            const username = realUsername || 'Usuario';
+            
             connectedUsers[socket.id] = {
                 username: username,
                 status: 'En el lobby de Ludo',
@@ -5124,7 +5134,13 @@ io.on('connection', (socket) => {
             broadcastUserListUpdate(io);
         } else {
             // Si no existe, crear la entrada
-            const username = connectedUsers[socket.id]?.username || 'Usuario';
+            // Intentamos recuperar el nombre real desde socket.userId
+            let realUsername = connectedUsers[socket.id]?.username;
+            if (!realUsername && socket.userId) {
+                realUsername = socket.userId.replace(/^user_/, '');
+            }
+            const username = realUsername || 'Usuario';
+            
             connectedUsers[socket.id] = {
                 username: username,
                 status: 'En el lobby de La 51',
