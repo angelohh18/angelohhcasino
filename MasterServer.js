@@ -4009,6 +4009,11 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                     // Actualizar estado según el lobby actual
                     const currentLobby = connectedUsers[seat.playerId].currentLobby || 'La 51';
                     connectedUsers[seat.playerId].status = `En el lobby de ${currentLobby}`;
+                    
+                    // Si el jugador no tiene currentLobby, establecerlo según el juego
+                    if (!connectedUsers[seat.playerId].currentLobby) {
+                        connectedUsers[seat.playerId].currentLobby = 'La 51';
+                    }
                 }
             }
         });
