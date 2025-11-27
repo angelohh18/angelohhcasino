@@ -4089,11 +4089,15 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         resetTurnState(room);
 
         playerSeat.active = false;
+        // ▼▼▼ CAMBIO AQUÍ ▼▼▼
         io.to(roomId).emit('playerEliminated', {
             playerId: faultingPlayerId,
             playerName: playerSeat.playerName,
-            faultData: finalFaultData
+            faultData: finalFaultData,
+            redirect: false, // IMPORTANTE: No sacar de la mesa
+            canWatch: true   // IMPORTANTE: Permitir ver el resto del juego
         });
+        // ▲▲▲ FIN DEL CAMBIO ▲▲▲
     }
 
     const activePlayers = room.seats.filter(s => s && s.active !== false);
@@ -4706,11 +4710,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             console.log(`Jugador activo ${playerName} ha abandonado. Se aplica multa.`);
 
             const reason = abandonmentReason;
+            // ▼▼▼ CAMBIO AQUÍ ▼▼▼
             io.to(roomId).emit('playerEliminated', {
                 playerId: leavingPlayerId,
                 playerName: playerName,
-                reason: reason
+                reason: reason,
+                redirect: true // IMPORTANTE: Forzar salida al lobby
             });
+            // ▲▲▲ FIN DEL CAMBIO ▲▲▲
 
             if (leavingPlayerSeat && leavingPlayerSeat.userId) {
                 const penalty = room.settings.penalty || 0;
