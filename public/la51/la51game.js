@@ -295,10 +295,19 @@ function showPwaInstallModal() {
 
     // ▼▼▼ FUNCIÓN PARA RENDERIZAR LISTA DE JUGADORES ▼▼▼
     function renderOnlineUsers(userList = []) {
+        console.log('[Cliente] renderOnlineUsers llamado con', userList?.length || 0, 'usuarios');
         const listElement = document.getElementById('online-users-list');
-        if (!listElement) return;
+        if (!listElement) {
+            console.error('[Cliente] ERROR: Elemento online-users-list no encontrado en el DOM');
+            return;
+        }
 
         listElement.innerHTML = ''; // Limpia la lista actual
+
+        if (!userList || userList.length === 0) {
+            console.log('[Cliente] Lista de usuarios vacía, no hay nada que renderizar');
+            return;
+        }
 
         // Ordena la lista alfabéticamente por nombre de usuario
         userList.sort((a, b) => a.username.localeCompare(b.username));
@@ -317,11 +326,14 @@ function showPwaInstallModal() {
             `;
             listElement.appendChild(li);
         });
+        
+        console.log('[Cliente] Lista de usuarios renderizada correctamente:', userList.length, 'usuarios');
     }
     // ▲▲▲ FIN: FUNCIÓN AÑADIDA ▲▲▲
 
     // ▼▼▼ LISTENER PARA ACTUALIZAR LISTA DE USUARIOS ▼▼▼
     socket.on('updateUserList', (userList) => {
+        console.log('[Cliente] Recibida lista de usuarios:', userList);
         renderOnlineUsers(userList);
     });
     // ▲▲▲ FIN: LISTENER AÑADIDO ▲▲▲

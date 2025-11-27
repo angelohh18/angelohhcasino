@@ -658,8 +658,10 @@ function broadcastUserListUpdate(io) {
         })
         .filter(user => user && user.username); // Filtrar usuarios inválidos
     
+    console.log(`[User List] Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
+    console.log(`[User List] Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status })));
     io.emit('updateUserList', userList);
-    console.log(`[User List] Transmitiendo lista actualizada de ${userList.length} usuarios.`);
+    console.log(`[User List] ✅ Lista transmitida a todos los clientes: ${userList.length} usuarios.`);
 }
 // ▲▲▲ FIN: FUNCIÓN A AÑADIR ▲▲▲
 
@@ -5154,6 +5156,7 @@ io.on('connection', (socket) => {
         // ▲▲▲ FIN CORRECCIÓN ▲▲▲
 
         // Emitir actualización inmediata de la lista de usuarios
+        console.log(`[enterLudoLobby] Usuario ${finalUsername} (${socket.id}) entró al lobby. Emitiendo lista...`);
         broadcastUserListUpdate(io);
         
         // También emitir la lista directamente al socket que acaba de entrar para asegurar sincronización
@@ -5175,6 +5178,7 @@ io.on('connection', (socket) => {
                 return user;
             })
             .filter(user => user && user.username);
+        console.log(`[enterLudoLobby] Enviando lista directa a ${socket.id}:`, userList.length, 'usuarios');
         socket.emit('updateUserList', userList);
     });
 
@@ -5214,6 +5218,7 @@ io.on('connection', (socket) => {
         // ▲▲▲ FIN CORRECCIÓN ▲▲▲
 
         // Emitir actualización inmediata de la lista de usuarios
+        console.log(`[enterLa51Lobby] Usuario ${finalUsername} (${socket.id}) entró al lobby. Emitiendo lista...`);
         broadcastUserListUpdate(io);
         
         // También emitir la lista directamente al socket que acaba de entrar para asegurar sincronización
@@ -5234,6 +5239,7 @@ io.on('connection', (socket) => {
                 return user;
             })
             .filter(user => user && user.username);
+        console.log(`[enterLa51Lobby] Enviando lista directa a ${socket.id}:`, userList.length, 'usuarios');
         socket.emit('updateUserList', userList);
     });
 
