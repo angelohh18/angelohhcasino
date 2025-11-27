@@ -6792,9 +6792,23 @@ socket.on('accionDescartar', async (data) => {
     // limpiamos el estado del socket de forma segura.
     if (roomId) {
         socket.leave(roomId);
-        console.log(`Socket ${socket.id} ha salido de la sala Socket.IO: ${roomId}`);
+        console.log(`[leaveGame] Socket ${socket.id} ha salido de la sala Socket.IO: ${roomId}`);
     }
+    
+    // ▼▼▼ LIMPIEZA AGRESIVA: Forzar salida de todas las salas relacionadas con práctica ▼▼▼
+    if (socket.rooms) {
+        for (const room of Array.from(socket.rooms)) {
+            if (room !== socket.id && (room.includes('practice') || room === roomId)) {
+                socket.leave(room);
+                console.log(`[leaveGame] 🧹 Socket ${socket.id} salió de sala residual: ${room}`);
+            }
+        }
+    }
+    // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
+    
+    // Limpiar currentRoomId
     delete socket.currentRoomId;
+    console.log(`[leaveGame] ✅ socket.currentRoomId eliminado para ${socket.id}`);
 
     // 3. Finalmente, actualizamos el estado del usuario basándose en su lobby actual
     if (connectedUsers[socket.id]) {
@@ -6806,6 +6820,12 @@ socket.on('accionDescartar', async (data) => {
         }
         broadcastUserListUpdate(io);
     }
+    
+    console.log(`[leaveGame] ✅ Estado final del socket ${socket.id}:`, {
+        currentRoomId: socket.currentRoomId,
+        userId: socket.userId,
+        rooms: Array.from(socket.rooms || [])
+    });
   });
   // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
 
