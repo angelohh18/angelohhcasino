@@ -9801,14 +9801,9 @@ socket.on('accionDescartar', async (data) => {
       io.to(roomId).emit('gameChatUpdate', { sender, text, ts: Date.now() });
     });
 
-    // Escucha el evento del botón "Volver al Lobby"
-    socket.on('leaveGame', (data) => {
-      const { roomId } = data || {};
-      console.log(`[LeaveGame] Jugador ${socket.id} ha hecho clic en "Volver al Lobby" para la sala ${roomId}.`);
-      if (roomId && ludoRooms[roomId]) {
-          ludoHandlePlayerDeparture(roomId, socket.id, io);
-      }
-    });
+    // ▼▼▼ HANDLER DUPLICADO ELIMINADO - SE USA EL HANDLER COMPLETO EN LÍNEA 7047 ▼▼▼
+    // El handler en línea 7047 maneja tanto Ludo como La 51 correctamente
+    // ▲▲▲ FIN DE ELIMINACIÓN DE HANDLER DUPLICADO ▲▲▲
 
     // ▼▼▼ SISTEMA DE REVANCHA ▼▼▼
     socket.on('confirmRematch', (data) => {
