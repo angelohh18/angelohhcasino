@@ -593,18 +593,18 @@ function broadcastUserListUpdate(io) {
             delete connectedUsers[socketId];
         }
     });
-
+    
     const userList = Object.keys(connectedUsers).map(socketId => {
-        const user = { ...connectedUsers[socketId] };
+            const user = { ...connectedUsers[socketId] };
         // Aseguramos que el estado visual coincida con la lógica interna
         if (user.currentLobby === 'Ludo' && !user.status.includes('Jugando')) {
             user.status = 'En el lobby de Ludo';
         } else if (user.currentLobby === 'La 51' && !user.status.includes('Jugando')) {
             user.status = 'En el lobby de La 51';
         }
-        return user;
+            return user;
     }).filter(u => u && u.username); // Filtro simple
-
+    
     console.log(`[User List] Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
     console.log(`[User List] Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status })));
     io.emit('updateUserList', userList);
@@ -685,7 +685,7 @@ let la51DisconnectedPlayers = {}; // { `${roomId}_${userId}`: { disconnectedAt: 
 // ▼▼▼ TIMEOUT DE INACTIVIDAD: 2 minutos sin acción durante el turno ▼▼▼
 const LA51_INACTIVITY_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) de inactividad antes de eliminar por falta
 let la51InactivityTimeouts = {}; // { `${roomId}_${playerId}`: timeoutId }
-let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: true } - Para rastrear jugadores eliminados por inactividad
+let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: { playerName, reason, faultData, penaltyInfo } } - Para rastrear jugadores eliminados por inactividad
 // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LA 51 ▲▲▲
 
@@ -1447,25 +1447,25 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▼▼▼ CORRECCIÓN: NO DESCONTAR LA APUESTA AL ABANDONAR (YA SE DESCONTÓ AL INICIAR) ▼▼▼
         // La apuesta ya se descontó al iniciar la partida en ludoStartGame, por lo que NO se debe descontar de nuevo al abandonar
         // Solo notificar al jugador que abandonó (sin descontar créditos)
-        if (userInfo) {
+            if (userInfo) {
             // Notificar al jugador que abandonó de su saldo actual (sin cambios)
-            let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
-            if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
-                for (const [socketId, socket] of io.sockets.sockets.entries()) {
-                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-                    if (socketUserId === leavingPlayerSeat.userId) {
-                        leavingPlayerSocket = socket;
-                        break;
+                let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+                if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === leavingPlayerSeat.userId) {
+                            leavingPlayerSocket = socket;
+                            break;
+                        }
                     }
                 }
-            }
-            if (leavingPlayerSocket) {
-                leavingPlayerSocket.emit('userStateUpdated', userInfo);
+                if (leavingPlayerSocket) {
+                    leavingPlayerSocket.emit('userStateUpdated', userInfo);
                 console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency}) - SIN DESCONTAR APUESTA (ya se descontó al iniciar)`);
-            }
-        } else {
+                }
+            } else {
             console.warn(`[${roomId}] No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
-        }
+            }
         // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         
         // Emitir notificación de falta por abandono
@@ -3879,9 +3879,9 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                 // Jugador abandonó
                 if (penaltyInfo) {
                     reasonText = 'por abandonar (multa aplicada)';
-                    baseText = 'Pagó apuesta y multa';
-                    amountPaid = bet + penalty;
-                    color = '#ff4444';
+                baseText = 'Pagó apuesta y multa';
+                amountPaid = bet + penalty;
+                color = '#ff4444';
                 } else {
                     reasonText = 'por abandonar';
                     baseText = 'Pagó apuesta';
@@ -3929,7 +3929,7 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                         <p style="font-size: 0.9rem; margin-left: 10px; color: #ff4444;">• Multas aplicadas: +${totalPenalties.toFixed(2)} ${currencySymbol}</p>
                         <p style="font-size: 0.9rem; margin-left: 10px;"><strong>Total recaudado: ${totalPot.toFixed(2)} ${currencySymbol}</strong></p>`;
     }
-    
+
     let winningsSummary = `<div style="border-top: 1px solid #c5a56a; margin-top: 15px; padding-top: 10px; text-align: left;">
                             ${potBreakdown}
                             <p><strong>Bote Total Recaudado:</strong> ${totalPot.toFixed(2)} ${currencySymbol}</p>
@@ -4510,7 +4510,7 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
 async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     const room = la51Rooms[roomId];
-    
+
     // Cancelar timeout de inactividad: el jugador está saliendo
     cancelLa51InactivityTimeout(roomId, leavingPlayerId);
 
@@ -4739,7 +4739,7 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
 
     const humanPlayer = newRoom.seats.find(s => s && !s.isBot);
     const isStartingPlayer = humanPlayer && humanPlayer.playerId === startingPlayerId;
-    
+
     io.to(socket.id).emit('gameStarted', {
         hand: newRoom.playerHands[socket.id],
         discardPile: newRoom.discardPile,
@@ -5007,11 +5007,11 @@ io.on('connection', (socket) => {
         finalUsername = finalUsername || 'Usuario';
 
         // 2. Actualizar estado CLARAMENTE
-        connectedUsers[socket.id] = {
+            connectedUsers[socket.id] = {
             username: finalUsername,
-            status: 'En el lobby de Ludo',
-            currentLobby: 'Ludo'
-        };
+                status: 'En el lobby de Ludo',
+                currentLobby: 'Ludo'
+            };
         
         // 3. Limpiar duplicados viejos de este mismo usuario
         if (finalUsername !== 'Usuario') {
@@ -5022,7 +5022,7 @@ io.on('connection', (socket) => {
             });
         }
 
-        broadcastUserListUpdate(io);
+            broadcastUserListUpdate(io);
     });
 
     socket.on('enterLa51Lobby', () => {
@@ -5040,11 +5040,11 @@ io.on('connection', (socket) => {
         finalUsername = finalUsername || 'Usuario';
 
         // 2. Actualizar estado CLARAMENTE
-        connectedUsers[socket.id] = {
+            connectedUsers[socket.id] = {
             username: finalUsername,
-            status: 'En el lobby de La 51',
-            currentLobby: 'La 51'
-        };
+                status: 'En el lobby de La 51',
+                currentLobby: 'La 51'
+            };
 
         // 3. Limpiar duplicados viejos
         if (finalUsername !== 'Usuario') {
@@ -5397,19 +5397,28 @@ io.on('connection', (socket) => {
         // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO POR INACTIVIDAD ▼▼▼
         const eliminatedKey = `${roomId}_${userId}`;
         if (la51EliminatedPlayers[eliminatedKey]) {
-            console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Redirigiendo al lobby.`);
-            delete la51EliminatedPlayers[eliminatedKey];
+            const eliminationInfo = la51EliminatedPlayers[eliminatedKey];
+            console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Mostrando modal de falta.`);
             
-            socket.emit('playerEliminatedByInactivity', {
-                message: 'Fuiste eliminado por inactividad. Serás redirigido al lobby.',
-                redirectToLobby: true
+            // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
+            socket.emit('playerEliminated', {
+                playerId: socket.id,
+                playerName: eliminationInfo.playerName || user.username,
+                reason: eliminationInfo.reason || 'Abandono por inactividad',
+                faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
+                redirect: true, // Redirigir al lobby después de mostrar el modal
+                penaltyInfo: eliminationInfo.penaltyInfo
             });
             
+            // Limpiar la entrada después de enviar el evento
+            delete la51EliminatedPlayers[eliminatedKey];
+            
+            // Redirigir al lobby después de un delay para que el usuario vea el modal
             setTimeout(() => {
                 socket.emit('redirectToLobby', {
                     reason: 'Fuiste eliminado por inactividad durante la partida.'
                 });
-            }, 1000);
+            }, 3000); // Aumentado a 3 segundos para que el usuario pueda ver el modal
             
             return; // No permitir que se una a la sala
         }
@@ -5529,7 +5538,7 @@ io.on('connection', (socket) => {
 
     // Convertimos ese requisito total a la moneda del jugador
     const requiredAmountInPlayerCurrency = convertCurrency(totalRequirementInRoomCurrency, roomCurrency, playerInfo.currency, exchangeRates);
-    
+
     if (playerInfo.credits < requiredAmountInPlayerCurrency) {
         const friendlyBet = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
         const friendlyPenalty = convertCurrency(roomPenalty, roomCurrency, playerInfo.currency, exchangeRates);
@@ -5629,61 +5638,61 @@ io.on('connection', (socket) => {
     
     console.log(`[startGame] ✅ Validaciones pasadas. Iniciando juego en la mesa ${roomId} con ${seatedPlayers.length} jugadores`);
     
-    room.state = 'playing';
-    if (!room.chatHistory) room.chatHistory = [];
-    room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
-    room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
-    room.melds = [];
+        room.state = 'playing';
+        if (!room.chatHistory) room.chatHistory = [];
+        room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
+        room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
+        room.melds = [];
     room.pot = 0; // Inicializar el bote
     room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
-    
-    room.seats.forEach(async (seat) => {
-        if (seat) {
-            seat.active = true;
-            seat.doneFirstMeld = false;
+        
+        room.seats.forEach(async (seat) => {
+            if (seat) {
+                seat.active = true;
+                seat.doneFirstMeld = false;
 
-            const playerInfo = users[seat.userId];
-            if (playerInfo) {
-                const roomBet = room.settings.bet;
-                const roomCurrency = room.settings.betCurrency;
+                const playerInfo = users[seat.userId];
+                if (playerInfo) {
+                    const roomBet = room.settings.bet;
+                    const roomCurrency = room.settings.betCurrency;
 
-                // Convertir la apuesta a la moneda del jugador para descontarla
-                const betInPlayerCurrency = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
+                    // Convertir la apuesta a la moneda del jugador para descontarla
+                    const betInPlayerCurrency = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
 
-                playerInfo.credits -= betInPlayerCurrency;
-                
-                // ▼▼▼ LÍNEA AÑADIDA: Guardar en la Base de Datos ▼▼▼
-                await updateUserCredits(seat.userId, playerInfo.credits, playerInfo.currency);
-                // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
+                    playerInfo.credits -= betInPlayerCurrency;
+                    
+                    // ▼▼▼ LÍNEA AÑADIDA: Guardar en la Base de Datos ▼▼▼
+                    await updateUserCredits(seat.userId, playerInfo.credits, playerInfo.currency);
+                    // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
 
-                // El bote siempre se mantiene en la moneda de la mesa
-                room.pot += roomBet;
+                    // El bote siempre se mantiene en la moneda de la mesa
+                    room.pot += roomBet;
 
-                io.to(seat.playerId).emit('userStateUpdated', playerInfo);
+                    io.to(seat.playerId).emit('userStateUpdated', playerInfo);
+                }
             }
-        }
-    });
+        });
     
     // Emitir bote inicial a todos los jugadores después de que todas las apuestas se hayan sumado
     io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
     console.log(`[${roomId}] 💰 Bote inicial: ${room.pot} ${room.settings.betCurrency} (${seatedPlayers.length} apuestas de ${room.settings.bet} cada una)`);
-    
-    const newDeck = buildDeck();
-    shuffle(newDeck);
-    seatedPlayers.forEach(player => {
-        room.playerHands[player.playerId] = newDeck.splice(0, 14);
-    });
+        
+        const newDeck = buildDeck();
+        shuffle(newDeck);
+        seatedPlayers.forEach(player => {
+            room.playerHands[player.playerId] = newDeck.splice(0, 14);
+        });
 
-    const startingPlayerId = seatedPlayers[0].playerId;
-    room.playerHands[startingPlayerId].push(newDeck.shift());
-    
-    // --- LÍNEA A AÑADIR ---
-    room.hasDrawn = true; // El primer jugador ya "robó" su carta inicial.
-    // --- FIN DE LA CORRECCIÓN ---
+        const startingPlayerId = seatedPlayers[0].playerId;
+        room.playerHands[startingPlayerId].push(newDeck.shift());
+        
+        // --- LÍNEA A AÑADIR ---
+        room.hasDrawn = true; // El primer jugador ya "robó" su carta inicial.
+        // --- FIN DE LA CORRECCIÓN ---
 
-    room.discardPile = [newDeck.shift()];
-    room.deck = newDeck;
-    room.currentPlayerId = startingPlayerId;
+        room.discardPile = [newDeck.shift()];
+        room.deck = newDeck;
+        room.currentPlayerId = startingPlayerId;
 
     const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
     if (startingPlayerSeat && startingPlayerSeat.isBot) {
@@ -5695,30 +5704,30 @@ io.on('connection', (socket) => {
         console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
     }
 
-    const playerHandCounts = {};
-    seatedPlayers.forEach(player => {
-        playerHandCounts[player.playerId] = room.playerHands[player.playerId].length;
-    });
+        const playerHandCounts = {};
+        seatedPlayers.forEach(player => {
+            playerHandCounts[player.playerId] = room.playerHands[player.playerId].length;
+        });
 
-    // ▼▼▼ AÑADE ESTE BLOQUE AQUÍ ▼▼▼
-    // Notifica a TODOS en la sala (jugadores y espectadores) que reseteen su chat y lista de espectadores.
-    io.to(roomId).emit('resetForNewGame', { 
-        spectators: room.spectators || [] // Envía la lista de espectadores actualizada
-    });
-    // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
+        // ▼▼▼ AÑADE ESTE BLOQUE AQUÍ ▼▼▼
+        // Notifica a TODOS en la sala (jugadores y espectadores) que reseteen su chat y lista de espectadores.
+        io.to(roomId).emit('resetForNewGame', { 
+            spectators: room.spectators || [] // Envía la lista de espectadores actualizada
+        });
+        // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
 
-    seatedPlayers.forEach(player => {
+        seatedPlayers.forEach(player => {
         const isStartingPlayer = player.playerId === startingPlayerId;
-        io.to(player.playerId).emit('gameStarted', {
-            hand: room.playerHands[player.playerId],
-            discardPile: room.discardPile,
-            seats: room.seats,
-            currentPlayerId: room.currentPlayerId,
-            playerHandCounts: playerHandCounts,
+            io.to(player.playerId).emit('gameStarted', {
+                hand: room.playerHands[player.playerId],
+                discardPile: room.discardPile,
+                seats: room.seats,
+                currentPlayerId: room.currentPlayerId,
+                playerHandCounts: playerHandCounts,
             melds: room.melds, // <-- AÑADE ESTA LÍNEA
             isFirstTurn: isStartingPlayer && !startingPlayerSeat.isBot // Indicar si es el primer turno
+            });
         });
-    });
     
     // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA ▼▼▼
     // Enviar mensaje informativo al jugador que inicia (si no es bot)
@@ -5734,12 +5743,12 @@ io.on('connection', (socket) => {
         }, 1500); // Delay aumentado a 1500ms para asegurar que todo esté listo
     }
     // ▲▲▲ FIN DEL MENSAJE ▲▲▲
-    
-    console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
-    // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
-    io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
-    // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
-    broadcastRoomListUpdate(io);
+        
+        console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
+        // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+        io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
+        // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
+        broadcastRoomListUpdate(io);
   });
 
   socket.on('meldAction', async (data) => {
@@ -6399,7 +6408,7 @@ socket.on('accionDescartar', async (data) => {
             // ESTABA EN EL LOBBY DE LA 51 (ESPERANDO)
             // Liberar asiento inmediatamente sin reserva de reconexión
             console.log(`[LA 51 DISCONNECT] ${username} se desconectó de la sala ${roomId} (esperando). Asiento liberado inmediatamente.`);
-            handlePlayerDeparture(roomId, socket.id, io);
+        handlePlayerDeparture(roomId, socket.id, io);
             
         } else if (seatIndex !== -1 && la51Room.state === 'playing') {
             // Durante partida activa: NO hacer nada. El timeout ya está activo si es su turno
@@ -6627,7 +6636,7 @@ socket.on('accionDescartar', async (data) => {
 
         // Encontrar el asiento del jugador que inicia
         const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
-        
+
         seatedPlayers.forEach(player => {
             if (player) {
                 const isStartingPlayer = player.playerId === startingPlayerId;
@@ -6696,7 +6705,7 @@ socket.on('accionDescartar', async (data) => {
         if (roomId) {
             socket.leave(roomId);
         }
-        delete socket.currentRoomId;
+            delete socket.currentRoomId;
         
         // Actualizar estado del usuario
         if (connectedUsers[socket.id]) {
@@ -8799,32 +8808,32 @@ socket.on('accionDescartar', async (data) => {
 
                           // Verificar con otras fichas si aún no se puede matar
                           if (!killStillPossible) {
-                              for (const piece of activePiecesNow) {
-                                  if (piece.id === pieceId) {
-                                      console.log(`[${roomId}] Regla 1: Excluyendo ${piece.id} de verificación de matanza.`);
-                                      continue;
-                                  }
+                          for (const piece of activePiecesNow) {
+                              if (piece.id === pieceId) {
+                                  console.log(`[${roomId}] Regla 1: Excluyendo ${piece.id} de verificación de matanza.`);
+                                  continue;
+                              }
 
-                                  for (const die of remainingDice) {
-                                      const simulatedPath = ludoCalculatePath(playerColor, piece.position, die, boardRules, room.gameState.pieces, gameType);
-                                      if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
-                                          killStillPossible = true;
-                                          console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
-                                          break;
-                                      }
+                              for (const die of remainingDice) {
+                                  const simulatedPath = ludoCalculatePath(playerColor, piece.position, die, boardRules, room.gameState.pieces, gameType);
+                                  if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
+                                      killStillPossible = true;
+                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
+                                      break;
                                   }
-                                  if (killStillPossible) break;
+                              }
+                              if (killStillPossible) break;
 
-                                  if (remainingDice.length === 2 && !killStillPossible) {
-                                      const sumDie = remainingDice[0] + remainingDice[1];
-                                      const simulatedSumPath = ludoCalculatePath(playerColor, piece.position, sumDie, boardRules, room.gameState.pieces, gameType);
-                                      if (simulatedSumPath.finalPosition !== null && targetKillPositions.includes(simulatedSumPath.finalPosition)) {
-                                          killStillPossible = true;
-                                          console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedSumPath.finalPosition} con la suma ${sumDie}.`);
-                                          break;
-                                      }
+                              if (remainingDice.length === 2 && !killStillPossible) {
+                                  const sumDie = remainingDice[0] + remainingDice[1];
+                                  const simulatedSumPath = ludoCalculatePath(playerColor, piece.position, sumDie, boardRules, room.gameState.pieces, gameType);
+                                  if (simulatedSumPath.finalPosition !== null && targetKillPositions.includes(simulatedSumPath.finalPosition)) {
+                                      killStillPossible = true;
+                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedSumPath.finalPosition} con la suma ${sumDie}.`);
+                                      break;
                                   }
-                                  if (killStillPossible) break;
+                              }
+                              if (killStillPossible) break;
                               }
                           }
                       } else {
