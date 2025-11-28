@@ -3749,7 +3749,7 @@ function canBeAddedToServerMeld(card, meld) {
 
 // ▼▼▼ REEMPLAZA LA FUNCIÓN endGameAndCalculateScores ENTERA CON ESTA VERSIÓN ▼▼▼
 async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo = null) {
-    io.to(room.roomId).emit('playSound', 'victory'); // <--- AÑADE ESTA LÍNEA AQUÍ
+    io.to(room.roomId).emit('playSound', 'victory');
     if (room.isPractice) {
         const humanPlayer = room.seats.find(s => s && !s.isBot);
         if (!humanPlayer) return;
@@ -3990,7 +3990,7 @@ async function checkVictoryCondition(room, roomId, io) {
 // ▼▼▼ REEMPLAZA ESTA FUNCIÓN COMPLETA ▼▼▼
 async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
     if (!room) return;
-    io.to(room.roomId).emit('playSound', 'fault'); // <--- AÑADE ESTA LÍNEA AQUÍ
+    io.to(room.roomId).emit('playSound', 'fault');
     const roomId = room.roomId;
     const playerSeat = room.seats.find(s => s && s.playerId === faultingPlayerId);
 
@@ -4001,7 +4001,7 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         // CASO ESPECIAL: Es una partida de práctica Y la falta la cometió el jugador humano.
         console.log(`[Práctica] Falta del jugador humano. Terminando la partida.`);
 
-        io.to(room.roomId).emit('playSound', 'fault'); // <--- AÑADE ESTA LÍNEA AQUÍ
+        io.to(room.roomId).emit('playSound', 'fault');
         
         // 1. Notificamos al jugador de su eliminación para que vea el modal de la falta.
         io.to(faultingPlayerId).emit('playerEliminated', {
@@ -4340,7 +4340,7 @@ async function botPlay(room, botPlayerId, io) {
             }
             if (cardToAdd) {
                 io.to(room.roomId).emit('animateCardAdd', { melderId: botPlayerId, card: cardToAdd, targetMeldIndex: targetMeldIndex });
-                io.to(room.roomId).emit('playSound', 'add'); // <--- AÑADE ESTA LÍNEA AQUÍ
+                io.to(room.roomId).emit('playSound', 'add');
                 const addPosition = canBeAddedToServerMeld(cardToAdd, room.melds[targetMeldIndex]);
                 if (addPosition === 'prepend') room.melds[targetMeldIndex].cards.unshift(cardToAdd);
                 else room.melds[targetMeldIndex].cards.push(cardToAdd);
@@ -4382,7 +4382,7 @@ async function botPlay(room, botPlayerId, io) {
 
             if (shouldProceedWithMeld) {
                 // El bot cumple las reglas, procede a bajar las combinaciones.
-                io.to(room.roomId).emit('playSound', 'meld'); // <--- AÑADE ESTA LÍNEA AQUÍ
+                io.to(room.roomId).emit('playSound', 'meld');
                 const allMeldedCardIds = new Set();
 
                 for (const meld of meldsToPlay) {
