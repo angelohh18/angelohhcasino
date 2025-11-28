@@ -732,9 +732,17 @@ function startLa51InactivityTimeout(room, playerId, io) {
         // Eliminar al jugador por inactividad (igual que abandono voluntario)
         console.log(`[${roomId}] 🚨 Eliminando ${playerSeat.playerName} por inactividad (2 minutos sin acción).`);
         
+        // Guardar información completa de la eliminación ANTES de eliminar al jugador
         if (playerSeat.userId) {
             const eliminatedKey = `${roomId}_${playerSeat.userId}`;
-            la51EliminatedPlayers[eliminatedKey] = true;
+            const penaltyInfo = currentRoom.penaltiesPaid && currentRoom.penaltiesPaid[playerSeat.userId] ? currentRoom.penaltiesPaid[playerSeat.userId] : null;
+            la51EliminatedPlayers[eliminatedKey] = {
+                playerName: playerSeat.playerName,
+                reason: 'Abandono por inactividad',
+                faultData: { reason: 'Abandono por inactividad' },
+                penaltyInfo: penaltyInfo,
+                roomId: roomId
+            };
         }
         
         // Contar jugadores activos antes de eliminar
