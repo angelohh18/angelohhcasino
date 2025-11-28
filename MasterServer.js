@@ -4690,12 +4690,30 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             };
 
             // Notificar a la sala (y al jugador si aun escucha)
+            // ▼▼▼ CRÍTICO: Enviar evento de eliminación con redirect: true para EXPULSAR al jugador ▼▼▼
             io.to(roomId).emit('playerEliminated', {
                 playerId: leavingPlayerId,
                 playerName: playerName,
                 reason: abandonmentReason,
-                redirect: true // ESTO ES CLAVE: Fuerza al cliente a ir al lobby
+                faultData: { reason: abandonmentReason },
+                redirect: true, // ESTO ES CLAVE: Fuerza al cliente a ir al lobby
+                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono por inactividad' }
             });
+            
+            // ▼▼▼ CRÍTICO: También enviar directamente al jugador eliminado para asegurar que reciba el evento ▼▼▼
+            const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (leavingSocket) {
+                leavingSocket.emit('playerEliminated', {
+                    playerId: leavingPlayerId,
+                    playerName: playerName,
+                    reason: abandonmentReason,
+                    faultData: { reason: abandonmentReason },
+                    redirect: true, // ESTO ES CLAVE: Fuerza al cliente a ir al lobby
+                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono por inactividad' }
+                });
+                console.log(`[${roomId}] ✅ Evento playerEliminated enviado directamente a ${playerName} (${leavingPlayerId}) con redirect: true`);
+            }
+            // ▲▲▲ FIN ENVÍO DIRECTO ▲▲▲
 
             // Cobrar multa
             if (userId) {

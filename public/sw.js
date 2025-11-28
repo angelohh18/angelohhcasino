@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.132'; // Actualizado: Limpieza completa de estados residuales para permitir reingreso de jugadores eliminados sin bloquear el juego
+const CACHE_NAME = 'mutijuego-v1.12.133'; // Actualizado: Corregir eliminación y expulsión por inactividad, asegurar que faltas de juego no expulsen
 const urlsToCache = [
   '/',
   '/index.html',
