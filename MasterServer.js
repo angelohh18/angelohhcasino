@@ -1830,18 +1830,60 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
     const TURN_ORDER = ['yellow', 'blue', 'red', 'green'];
 
     const currentSeat = seats[currentTurnIndex];
+    
+    // ▼▼▼ CORRECCIÓN: Validar que currentSeat existe y tiene color ▼▼▼
+    if (!currentSeat) {
+        console.error(`[${roomId}] ERROR: currentSeat es null en asiento ${currentTurnIndex}. Buscando siguiente jugador activo directamente.`);
+        // Si el asiento actual es null, buscar el siguiente jugador activo directamente
+        let foundNext = false;
+        for (let i = 1; i <= seats.length; i++) {
+            const checkIndex = (currentTurnIndex + i) % seats.length;
+            const checkSeat = seats[checkIndex];
+            if (checkSeat && checkSeat.status !== 'waiting') {
+                room.gameState.turn.playerIndex = checkIndex;
+                console.log(`[${roomId}] CORRECCIÓN: Turno ajustado de asiento null (${currentTurnIndex}) a ${checkSeat.playerName} (asiento ${checkIndex})`);
+                // Continuar con la lógica normal usando el nuevo índice
+                return ludoPassTurn(room, io, isPunishmentTurn); // Recursión para procesar correctamente
+            }
+        }
+        console.error(`[${roomId}] ERROR CRÍTICO: No se encontró ningún jugador activo después del asiento null.`);
+        return;
+    }
+    // ▲▲▲ FIN CORRECCIÓN ▲▲▲
+    
     const fallbackColor = room.settings?.colorMap ? room.settings.colorMap[currentTurnIndex] : null;
-    const currentColor = currentSeat?.color || fallbackColor;
+    const currentColor = currentSeat.color || fallbackColor;
 
+    // ▼▼▼ CORRECCIÓN: Validar que currentColor existe ▼▼▼
+    if (!currentColor) {
+        console.error(`[${roomId}] ERROR: currentColor es null/undefined para asiento ${currentTurnIndex}. Jugador: ${currentSeat.playerName}. Buscando siguiente jugador activo directamente.`);
+        // Si no hay color, buscar el siguiente jugador activo directamente
+        let foundNext = false;
+        for (let i = 1; i <= seats.length; i++) {
+            const checkIndex = (currentTurnIndex + i) % seats.length;
+            const checkSeat = seats[checkIndex];
+            if (checkSeat && checkSeat.status !== 'waiting') {
+                room.gameState.turn.playerIndex = checkIndex;
+                console.log(`[${roomId}] CORRECCIÓN: Turno ajustado de asiento sin color (${currentTurnIndex}) a ${checkSeat.playerName} (asiento ${checkIndex})`);
+                // Continuar con la lógica normal usando el nuevo índice
+                return ludoPassTurn(room, io, isPunishmentTurn); // Recursión para procesar correctamente
+            }
+        }
+        console.error(`[${roomId}] ERROR CRÍTICO: No se encontró ningún jugador activo después del asiento sin color.`);
+        return;
+    }
+    // ▲▲▲ FIN CORRECCIÓN ▲▲▲
 
-    let currentTurnOrderIndex = currentColor ? TURN_ORDER.indexOf(currentColor) : -1;
+    let currentTurnOrderIndex = TURN_ORDER.indexOf(currentColor);
     if (currentTurnOrderIndex === -1) {
+        console.warn(`[${roomId}] Color ${currentColor} no está en TURN_ORDER. Usando fallback basado en índice.`);
         currentTurnOrderIndex = currentTurnIndex % TURN_ORDER.length;
     }
 
     let nextPlayerIndex = -1;
     let nextPlayer = null;
 
+    // ▼▼▼ CORRECCIÓN: Buscar siguiente jugador activo en orden de colores, pero con validación mejorada ▼▼▼
     for (let i = 1; i <= 4; i++) {
         const nextTurnOrderIndex = (currentTurnOrderIndex + i) % 4;
         const nextColor = TURN_ORDER[nextTurnOrderIndex];
@@ -1850,14 +1892,32 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         if (foundSeatIndex !== -1) {
             nextPlayerIndex = foundSeatIndex;
             nextPlayer = seats[foundSeatIndex];
+            console.log(`[${roomId}] Siguiente jugador encontrado: ${nextPlayer.playerName} (${nextColor}, asiento ${nextPlayerIndex})`);
             break;
         }
     }
 
+    // Si no se encontró en el orden de colores, buscar directamente el siguiente jugador activo
     if (nextPlayerIndex === -1 || !nextPlayer) {
-            console.warn(`[${roomId}] No se pudo encontrar un siguiente jugador activo.`);
+        console.warn(`[${roomId}] No se encontró siguiente jugador en orden de colores. Buscando directamente siguiente jugador activo...`);
+        for (let i = 1; i <= seats.length; i++) {
+            const checkIndex = (currentTurnIndex + i) % seats.length;
+            const checkSeat = seats[checkIndex];
+            if (checkSeat && checkSeat.status !== 'waiting' && checkSeat.playerId !== currentSeat.playerId) {
+                nextPlayerIndex = checkIndex;
+                nextPlayer = checkSeat;
+                console.log(`[${roomId}] Siguiente jugador encontrado directamente: ${nextPlayer.playerName} (asiento ${nextPlayerIndex})`);
+                break;
+            }
+        }
+    }
+
+    if (nextPlayerIndex === -1 || !nextPlayer) {
+        console.error(`[${roomId}] ERROR CRÍTICO: No se pudo encontrar un siguiente jugador activo. currentTurnIndex: ${currentTurnIndex}, activePlayers: ${activePlayers.length}`);
+        console.error(`[${roomId}] Asientos actuales:`, seats.map((s, i) => s ? `${i}: ${s.playerName} (${s.color}, ${s.status})` : `${i}: null`));
         return;
     }
+    // ▲▲▲ FIN CORRECCIÓN ▲▲▲
 
     room.gameState.turn.playerIndex = nextPlayerIndex;
     room.gameState.turn.canRoll = true;
