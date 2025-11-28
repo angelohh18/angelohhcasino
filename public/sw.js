@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.135'; // Actualizado: Limpieza agresiva del estado cuando jugador eliminado regresa al juego
+const CACHE_NAME = 'mutijuego-v1.12.136'; // Actualizado: MasterServer.js actualizado manualmente
 const urlsToCache = [
   '/',
   '/index.html',
