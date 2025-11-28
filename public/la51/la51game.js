@@ -1952,10 +1952,16 @@ function showRoomsOverview() {
         // --- FIN DE LA CORRECCIÓN ---
 
         // ▼▼▼ VERIFICAR SI EL JUGADOR ELIMINADO ES EL USUARIO ACTUAL ▼▼▼
-        // CRÍTICO: Verificar por socket.id Y también si redirect es true (abandono por inactividad)
-        // Si redirect es true, significa que es abandono por inactividad y debe procesarse
-        const isCurrentPlayer = data.playerId === socket.id || (data.redirect === true && data.playerName);
-        if (isCurrentPlayer) {
+        // CRÍTICO: Si redirect es true, SIEMPRE procesar como eliminación por inactividad
+        // Esto asegura que funcione incluso si el socket.id cambió después de reconexión
+        const isCurrentPlayer = data.playerId === socket.id;
+        const isInactivityAbandonment = data.redirect === true;
+        
+        console.log('[playerEliminated] isCurrentPlayer (por socket.id):', isCurrentPlayer);
+        console.log('[playerEliminated] isInactivityAbandonment (redirect === true):', isInactivityAbandonment);
+        
+        // ▼▼▼ CRÍTICO: Procesar si es el jugador actual O si es abandono por inactividad ▼▼▼
+        if (isCurrentPlayer || isInactivityAbandonment) {
             console.log('⚠️ El jugador actual fue eliminado. Verificando tipo de eliminación...');
             
             // ▼▼▼ CRÍTICO: Verificar el flag redirect PRIMERO antes de limpiar el estado ▼▼▼
