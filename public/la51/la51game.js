@@ -433,37 +433,10 @@ function showPwaInstallModal() {
     });
 
     // ▼▼▼ HANDLER: Jugador eliminado por inactividad - mostrar mensaje y redirigir al lobby ▼▼▼
-    socket.on('playerEliminatedByInactivity', (data) => {
-        console.log('Jugador eliminado por inactividad:', data);
-        if (data.message) {
-            showToast(data.message, 5000);
-        }
-        // El evento redirectToLobby se encargará de la redirección
-    });
-    // ▲▲▲ FIN HANDLER ELIMINACIÓN POR INACTIVIDAD ▲▲▲
-
-    // ▼▼▼ HANDLER: Redirigir al lobby cuando el jugador fue eliminado por inactividad ▼▼▼
-    socket.on('redirectToLobby', (data) => {
-        console.log('Redirigiendo al lobby:', data);
-        
-        // Mostrar mensaje si existe
-        if (data.reason) {
-            showToast(data.reason, 5000);
-        }
-        
-        // Limpiar estado del juego SIN emitir leaveGame (el jugador ya no está en la sala)
-        resetClientGameState();
-        currentGameSettings = null;
-        
-        // Redirigir al lobby inmediatamente (sin delay) para evitar problemas de sesión
-        showLobbyView();
-        
-        // Notificar al servidor que estamos de vuelta en el lobby (sin cerrar sesión)
-        if (socket.connected) {
-            socket.emit('enterLa51Lobby');
-        }
-    });
-    // ▲▲▲ FIN HANDLER REDIRECCIÓN AL LOBBY ▲▲▲
+    // ▼▼▼ HANDLERS DUPLICADOS ELIMINADOS - SE USA playerEliminated CON redirect: true ▼▼▼
+    // Estos handlers estaban causando conflictos y ya no son necesarios
+    // El handler playerEliminated maneja todo correctamente con el flag redirect
+    // ▲▲▲ FIN DE ELIMINACIÓN DE HANDLERS DUPLICADOS ▲▲▲
 
     // ▼▼▼ AÑADE ESTE LISTENER COMPLETO ▼▼▼
     socket.on('potUpdated', (data) => {

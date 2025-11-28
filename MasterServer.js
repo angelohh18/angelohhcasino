@@ -3903,12 +3903,17 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
             let color = '#ffff00';
 
             if (!finalSeatState) {
-                // Jugador abandonó
+                // Jugador abandonó (incluye inactividad)
                 if (penaltyInfo) {
-                    reasonText = 'por abandonar (multa aplicada)';
-                baseText = 'Pagó apuesta y multa';
-                amountPaid = bet + penalty;
-                color = '#ff4444';
+                    // Verificar si la razón es específica de inactividad
+                    if (penaltyInfo.reason && (penaltyInfo.reason.includes('inactividad') || penaltyInfo.reason.includes('Abandono'))) {
+                        reasonText = 'por abandono por inactividad (multa aplicada)';
+                    } else {
+                        reasonText = 'por abandonar (multa aplicada)';
+                    }
+                    baseText = 'Pagó apuesta y multa';
+                    amountPaid = bet + penalty;
+                    color = '#ff4444';
                 } else {
                     reasonText = 'por abandonar';
                     baseText = 'Pagó apuesta';
@@ -3916,7 +3921,7 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                     color = '#ffff00';
                 }
             } else if (finalSeatState.active === false) {
-                // Jugador eliminado por falta
+                // Jugador eliminado por falta (no inactividad)
                 if (penaltyInfo) {
                     reasonText = `por falta: ${penaltyInfo.reason}`;
                     baseText = 'Pagó apuesta y multa';
