@@ -4585,9 +4585,53 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     const leavingPlayerSeat = { ...room.seats[seatIndex] };
     const playerName = leavingPlayerSeat.playerName;
     const wasActive = leavingPlayerSeat.active === true && leavingPlayerSeat.status !== 'waiting';
+    const leavingUserId = leavingPlayerSeat.userId; // Guardar userId antes de eliminar
 
+    // ▼▼▼ LIMPIEZA AGRESIVA DE REGISTROS DEL JUGADOR ▼▼▼
+    // 1. Liberar el asiento
     room.seats[seatIndex] = null;
     leavingPlayerSeat.active = false; // Marcar como inactivo
+    
+    // 2. Limpiar referencia en el socket del jugador
+    const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+    if (leavingSocket) {
+        // Eliminar currentRoomId
+        if (leavingSocket.currentRoomId === roomId) {
+            delete leavingSocket.currentRoomId;
+            console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${leavingPlayerId}`);
+        }
+        // Forzar salida de la sala de socket.io
+        leavingSocket.leave(roomId);
+        console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
+        
+        // Limpiar cualquier referencia a salas relacionadas
+        if (leavingSocket.rooms) {
+            for (const r of Array.from(leavingSocket.rooms)) {
+                if (r !== leavingSocket.id && (r === roomId || r.startsWith('practice-'))) {
+                    leavingSocket.leave(r);
+                }
+            }
+        }
+    }
+    
+    // 3. Limpiar de initialSeats si existe
+    if (room.initialSeats) {
+        const initialSeatIndex = room.initialSeats.findIndex(s => s && s.playerId === leavingPlayerId);
+        if (initialSeatIndex !== -1) {
+            room.initialSeats[initialSeatIndex] = null;
+        }
+    }
+    
+    // 4. Limpiar de playerHands si existe
+    if (room.playerHands && room.playerHands[leavingPlayerId]) {
+        delete room.playerHands[leavingPlayerId];
+    }
+    
+    // 5. Limpiar de rematchRequests si existe
+    if (room.rematchRequests && room.rematchRequests.has(leavingPlayerId)) {
+        room.rematchRequests.delete(leavingPlayerId);
+    }
+    // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
 
     if (room.state === 'playing') {
         // VALIDACIÓN CLAVE: Solo aplicamos lógica de abandono si el jugador estaba ACTIVO.
@@ -4640,6 +4684,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                 console.log(`[${roomId}] ⚠️ No se aplicó multa: leavingPlayerSeat=${!!leavingPlayerSeat}, userId=${leavingPlayerSeat?.userId}`);
             }
 
+            // ▼▼▼ ACTUALIZAR ESTADO DEL USUARIO EN CONNECTEDUSERS ▼▼▼
+            if (connectedUsers[leavingPlayerId]) {
+                const currentLobby = connectedUsers[leavingPlayerId].currentLobby;
+                connectedUsers[leavingPlayerId].status = currentLobby ? `En el lobby de ${currentLobby}` : 'En el Lobby';
+                // NO eliminar de connectedUsers, solo actualizar el estado para que pueda volver a entrar
+            }
+            // ▲▲▲ FIN DE ACTUALIZACIÓN DE ESTADO ▲▲▲
+            
             const activePlayers = room.seats.filter(s => s && s.active !== false);
             if (activePlayers.length === 1) {
                 await endGameAndCalculateScores(room, activePlayers[0], io, { name: playerName });
@@ -5408,6 +5460,26 @@ io.on('connection', (socket) => {
             const eliminationInfo = la51EliminatedPlayers[eliminatedKey];
             console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Mostrando modal de falta.`);
             
+            // ▼▼▼ LIMPIEZA ADICIONAL PARA ASEGURAR QUE PUEDA VOLVER A ENTRAR COMO NUEVO ▼▼▼
+            // Asegurarse de que el socket no tenga referencias a esta sala
+            if (socket.currentRoomId === roomId) {
+                delete socket.currentRoomId;
+                console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${socket.id} antes de mostrar modal`);
+            }
+            // Asegurarse de que el socket salga de la sala
+            socket.leave(roomId);
+            
+            // Limpiar cualquier asiento que pueda tener este userId en la sala
+            if (room.seats) {
+                for (let i = 0; i < room.seats.length; i++) {
+                    if (room.seats[i] && room.seats[i].userId === userId) {
+                        console.log(`[${roomId}] ✅ Limpiando asiento [${i}] del usuario ${userId}`);
+                        room.seats[i] = null;
+                    }
+                }
+            }
+            // ▲▲▲ FIN DE LIMPIEZA ADICIONAL ▲▲▲
+            
             // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
             socket.emit('playerEliminated', {
                 playerId: socket.id,
@@ -5418,8 +5490,12 @@ io.on('connection', (socket) => {
                 penaltyInfo: eliminationInfo.penaltyInfo
             });
             
-            // Limpiar la entrada después de enviar el evento
-            delete la51EliminatedPlayers[eliminatedKey];
+            // Limpiar la entrada DESPUÉS de enviar el evento (para que el modal se muestre)
+            // Usar setTimeout para asegurar que el evento se envíe primero
+            setTimeout(() => {
+                delete la51EliminatedPlayers[eliminatedKey];
+                console.log(`[${roomId}] ✅ Entrada de la51EliminatedPlayers eliminada para ${userId}`);
+            }, 100);
             
             // NO redirigir automáticamente - la redirección se manejará cuando el usuario cierre el modal
             // El cliente manejará la redirección cuando el usuario haga clic en "Aceptar" en el modal
