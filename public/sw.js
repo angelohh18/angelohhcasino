@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.140'; // Actualizado: Corregir notificación y redirección para jugadores eliminados por inactividad
+const CACHE_NAME = 'mutijuego-v1.12.141'; // Actualizado: Corregir reconexión de jugadores que se desconectan temporalmente
 const urlsToCache = [
   '/',
   '/index.html',
