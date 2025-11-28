@@ -6557,7 +6557,17 @@ socket.on('accionDescartar', async (data) => {
                 const currentLobby = connectedUsers[seat.playerId].currentLobby;
                 connectedUsers[seat.playerId].status = currentLobby ? `En el lobby de ${currentLobby}` : 'En el Lobby';
             }
+            // Limpiar referencia de la sala en el socket
+            const playerSocket = io.sockets.sockets.get(seat.playerId);
+            if (playerSocket) {
+                delete playerSocket.currentRoomId;
+                playerSocket.leave(roomId);
+            }
         });
+        // Actualizar lista de usuarios después de liberar asientos
+        if (playersNotConfirmed.length > 0) {
+            broadcastUserListUpdate(io);
+        }
         // ▲▲▲ FIN DE LIBERAR ASIENTOS ▲▲▲
 
         // ▼▼▼ AÑADE ESTE NUEVO BLOQUE DE CÓDIGO AQUÍ ▼▼▼
