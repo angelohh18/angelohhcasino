@@ -5414,19 +5414,15 @@ io.on('connection', (socket) => {
                 playerName: eliminationInfo.playerName || user.username,
                 reason: eliminationInfo.reason || 'Abandono por inactividad',
                 faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
-                redirect: true, // Redirigir al lobby después de mostrar el modal
+                redirect: true, // Redirigir al lobby después de mostrar el modal (se maneja cuando cierra el modal)
                 penaltyInfo: eliminationInfo.penaltyInfo
             });
             
             // Limpiar la entrada después de enviar el evento
             delete la51EliminatedPlayers[eliminatedKey];
             
-            // Redirigir al lobby después de un delay para que el usuario vea el modal
-            setTimeout(() => {
-                socket.emit('redirectToLobby', {
-                    reason: 'Fuiste eliminado por inactividad durante la partida.'
-                });
-            }, 3000); // Aumentado a 3 segundos para que el usuario pueda ver el modal
+            // NO redirigir automáticamente - la redirección se manejará cuando el usuario cierre el modal
+            // El cliente manejará la redirección cuando el usuario haga clic en "Aceptar" en el modal
             
             return; // No permitir que se una a la sala
         }
