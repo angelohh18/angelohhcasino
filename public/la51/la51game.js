@@ -4266,6 +4266,7 @@ function reorderHand(draggedIndices, targetDropIndex) {
     // ▼▼▼ REEMPLAZA LA FUNCIÓN ENTERA CON ESTA VERSIÓN ▼▼▼
     // ▼▼▼ REEMPLAZA ESTA FUNCIÓN COMPLETA ▼▼▼
     window.closeEliminationOverlay = function() { 
+        console.log('[closeEliminationOverlay] Cerrando modal de eliminación. shouldRedirectToLobbyAfterElimination:', shouldRedirectToLobbyAfterElimination);
         hideOverlay('elimination-overlay'); 
         
         // ▼▼▼ SI DEBE REDIRIGIR AL LOBBY (jugador eliminado por inactividad) ▼▼▼
@@ -4277,12 +4278,22 @@ function reorderHand(draggedIndices, targetDropIndex) {
             resetClientGameState();
             currentGameSettings = null;
             
+            // Ocultar cualquier vista del juego que pueda estar visible
+            const gameContainer = document.getElementById('game-container');
+            if (gameContainer) {
+                gameContainer.style.display = 'none';
+            }
+            
             // Mostrar el lobby
             showLobbyView();
+            console.log('[closeEliminationOverlay] Lobby mostrado');
             
             // Notificar al servidor que estamos en el lobby
-            if (socket.connected) {
+            if (socket && socket.connected) {
                 socket.emit('enterLa51Lobby');
+                console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
+            } else {
+                console.warn('[closeEliminationOverlay] Socket no conectado, no se puede emitir enterLa51Lobby');
             }
             return; // Salir temprano, no procesar más
         }
