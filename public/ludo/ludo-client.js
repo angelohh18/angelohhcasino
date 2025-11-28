@@ -1329,9 +1329,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (myTurn && turn.canRoll) {
                 console.log("✅ Habilitando dados (pointerEvents = 'auto')"); // Log de éxito
                 myDiceContainer.style.pointerEvents = 'auto'; // Habilitar mis dados
+                // ▼▼▼ ACTIVAR ANIMACIÓN DE ILUMINACIÓN ▼▼▼
+                myDiceContainer.classList.add('dice-glow');
+                console.log("✨ Animación de iluminación activada para los dados");
+                // ▲▲▲ FIN DE ACTIVAR ANIMACIÓN ▲▲▲
             } else {
                 console.log("❌ Deshabilitando dados (pointerEvents = 'none')"); // Log de fallo
                 myDiceContainer.style.pointerEvents = 'none'; // Deshabilitar mis dados
+                // ▼▼▼ DESACTIVAR ANIMACIÓN DE ILUMINACIÓN ▼▼▼
+                myDiceContainer.classList.remove('dice-glow');
+                console.log("💤 Animación de iluminación desactivada para los dados");
+                // ▲▲▲ FIN DE DESACTIVAR ANIMACIÓN ▲▲▲
             }
         } else {
             console.warn("updateTurnUI: myDiceContainer no encontrado."); // Log de advertencia
@@ -2637,7 +2645,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Deshabilita los dados inmediatamente para evitar doble clic
-        if (myDiceContainer) myDiceContainer.style.pointerEvents = 'none';
+        if (myDiceContainer) {
+            myDiceContainer.style.pointerEvents = 'none';
+            // ▼▼▼ DESACTIVAR ANIMACIÓN DE ILUMINACIÓN AL LANZAR ▼▼▼
+            myDiceContainer.classList.remove('dice-glow');
+            console.log("💤 Animación de iluminación desactivada al lanzar los dados");
+            // ▲▲▲ FIN DE DESACTIVAR ANIMACIÓN ▲▲▲
+        }
 
         // Solo emite la solicitud al servidor (YA NO llama a animateDice)
         socket.emit('ludoRollDice', { roomId });
