@@ -1978,33 +1978,34 @@ function showRoomsOverview() {
         // ▼▼▼ VERIFICAR SI EL JUGADOR ELIMINADO ES EL USUARIO ACTUAL ▼▼▼
         const isCurrentPlayer = data.playerId === socket.id;
         if (isCurrentPlayer) {
-            console.log('⚠️ El jugador actual fue eliminado. Limpiando estado y mostrando modal...');
+            console.log('⚠️ El jugador actual fue eliminado. Verificando tipo de eliminación...');
             
-            // ▼▼▼ LIMPIAR ESTADO INMEDIATAMENTE PARA PREVENIR QUE SE MUESTRE EL JUEGO ▼▼▼
-            // Limpiar estado del juego ANTES de mostrar el modal
-            resetClientGameState();
-            if (currentGameSettings && currentGameSettings.roomId) {
-                socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
-            }
-            currentGameSettings = null;
-            
-            // Ocultar la vista del juego inmediatamente
-            const gameContainer = document.getElementById('game-container');
-            if (gameContainer) {
-                gameContainer.style.display = 'none';
-            }
-            // Mostrar el lobby para que no quede en blanco
-            showLobbyView();
-            // ▲▲▲ FIN DE LIMPIEZA INMEDIATA ▲▲▲
-            
-            // Mostrar mensaje de eliminación
-            showEliminationMessage(data.playerName, faultInfo);
-            
+            // ▼▼▼ CRÍTICO: Verificar el flag redirect PRIMERO antes de limpiar el estado ▼▼▼
             // Verificar el flag redirect para decidir si redirigir al lobby
-            const shouldRedirect = data.redirect !== false; // Por defecto true si no se especifica
+            const shouldRedirect = data.redirect === true; // Solo true si es explícitamente true (abandono por inactividad)
             
             if (shouldRedirect) {
-                console.log('⚠️ El jugador actual fue eliminado. Se mostrará el modal y luego se redirigirá al lobby al darle aceptar...');
+                // ▼▼▼ CASO: ABANDONO POR INACTIVIDAD - Limpiar estado y expulsar ▼▼▼
+                console.log('⚠️ El jugador actual fue eliminado por ABANDONO POR INACTIVIDAD. Limpiando estado y expulsando al lobby...');
+                
+                // Limpiar estado del juego ANTES de mostrar el modal
+                resetClientGameState();
+                if (currentGameSettings && currentGameSettings.roomId) {
+                    socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+                }
+                currentGameSettings = null;
+                
+                // Ocultar la vista del juego inmediatamente
+                const gameContainer = document.getElementById('game-container');
+                if (gameContainer) {
+                    gameContainer.style.display = 'none';
+                }
+                // Mostrar el lobby para que no quede en blanco
+                showLobbyView();
+                
+                // Mostrar mensaje de eliminación
+                showEliminationMessage(data.playerName, faultInfo);
+                
                 // Marcar que debe redirigir al lobby cuando cierre el modal
                 shouldRedirectToLobbyAfterElimination = true;
                 
@@ -2020,12 +2021,21 @@ function showRoomsOverview() {
                 }
                 // ▲▲▲ FIN DE DETECCIÓN DE TIPO DE JUEGO ▲▲▲
             } else {
-                console.log('⚠️ El jugador actual fue eliminado pero puede seguir viendo el juego (redirect: false)');
-                // No redirigir, solo mostrar el mensaje de eliminación
-                // El jugador puede seguir viendo el resto del juego
+                // ▼▼▼ CASO: FALTA DE JUEGO - NO limpiar estado, solo mostrar modal ▼▼▼
+                console.log('⚠️ El jugador actual fue eliminado por FALTA DE JUEGO. Mostrando modal pero NO expulsando (redirect: false)');
+                
+                // NO limpiar el estado del juego
+                // NO ocultar la vista del juego
+                // NO emitir leaveGame
+                // Solo mostrar el mensaje de eliminación
+                showEliminationMessage(data.playerName, faultInfo);
+                
+                // NO redirigir, el jugador puede seguir viendo el resto del juego
                 shouldRedirectToLobbyAfterElimination = false;
                 eliminationGameType = null;
             }
+            // ▲▲▲ FIN DE VERIFICACIÓN DE TIPO DE ELIMINACIÓN ▲▲▲
+            
             return; // Salir temprano para no procesar más
         }
         // ▲▲▲ FIN VERIFICACIÓN JUGADOR ACTUAL ▲▲▲
