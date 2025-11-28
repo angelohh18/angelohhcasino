@@ -4635,14 +4635,36 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
         }
     }
     
-    // 4. Limpiar de playerHands si existe
+    // 4. Limpiar de playerHands si existe (ELIMINAR TODAS LAS CARTAS)
     if (room.playerHands && room.playerHands[leavingPlayerId]) {
+        console.log(`[${roomId}] ✅ Eliminando ${room.playerHands[leavingPlayerId].length} cartas del jugador ${playerName}`);
         delete room.playerHands[leavingPlayerId];
     }
     
     // 5. Limpiar de rematchRequests si existe
     if (room.rematchRequests && room.rematchRequests.has(leavingPlayerId)) {
         room.rematchRequests.delete(leavingPlayerId);
+        console.log(`[${roomId}] ✅ Eliminando solicitud de revancha del jugador ${playerName}`);
+    }
+    
+    // 6. Limpiar de penaltiesPaid si existe (para permitir reingreso como nuevo)
+    if (room.penaltiesPaid && room.penaltiesPaid[leavingUserId]) {
+        // NO eliminar aquí, se necesita para el cálculo final del bote
+        // Pero se limpiará cuando el jugador regrese como nuevo
+        console.log(`[${roomId}] ⚠️ penaltiesPaid conservado para cálculo de bote: ${playerName}`);
+    }
+    
+    // 7. Limpiar desconexiones si existe
+    const disconnectKey = `${roomId}_${leavingUserId}`;
+    if (la51DisconnectedPlayers && la51DisconnectedPlayers[disconnectKey]) {
+        delete la51DisconnectedPlayers[disconnectKey];
+        console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers del usuario ${leavingUserId}`);
+    }
+    
+    // 8. Cancelar cualquier timeout de inactividad pendiente
+    cancelLa51InactivityTimeout(roomId, leavingPlayerId);
+    if (leavingUserId) {
+        cancelLa51InactivityTimeout(roomId, leavingUserId);
     }
     // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
 
