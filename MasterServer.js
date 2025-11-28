@@ -5676,9 +5676,81 @@ io.on('connection', (socket) => {
         }
         // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN POR INACTIVIDAD ▲▲▲
 
+        // ▼▼▼ CRÍTICO: VERIFICAR SI EL JUGADOR YA ESTABA EN LA MESA (RECONEXIÓN) ▼▼▼
+        // Si el jugador ya estaba en la mesa, permitirle reconectarse a su asiento
+        let existingSeatIndex = -1;
+        let existingSeat = null;
+        
+        // Buscar si el jugador ya tiene un asiento en la mesa
+        for (let i = 0; i < room.seats.length; i++) {
+            if (room.seats[i] && room.seats[i].userId === userId) {
+                existingSeatIndex = i;
+                existingSeat = room.seats[i];
+                console.log(`[${roomId}] ✅ Jugador ${user.username} ya tiene asiento [${i}] en la mesa. Permitir reconexión.`);
+                break;
+            }
+        }
+        
+        // Si el jugador ya estaba en la mesa, actualizar su socket.id y permitir reconexión
+        if (existingSeat && existingSeatIndex !== -1) {
+            console.log(`[${roomId}] 🔄 Jugador ${user.username} reconectándose a su asiento [${existingSeatIndex}]. Actualizando socket.id de ${existingSeat.playerId} a ${socket.id}`);
+            
+            // Actualizar el playerId con el nuevo socket.id
+            existingSeat.playerId = socket.id;
+            
+            // Asegurar que el socket esté en la sala
+            socket.join(roomId);
+            socket.currentRoomId = roomId;
+            
+            // Cancelar cualquier timeout de inactividad que pueda estar activo
+            cancelLa51InactivityTimeout(roomId, existingSeat.playerId);
+            if (userId) {
+                cancelLa51InactivityTimeout(roomId, userId);
+            }
+            
+            // Limpiar de la lista de desconectados si existe
+            const disconnectKey = `${roomId}_${userId}`;
+            if (la51DisconnectedPlayers && la51DisconnectedPlayers[disconnectKey]) {
+                delete la51DisconnectedPlayers[disconnectKey];
+                console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers para ${userId}`);
+            }
+            
+            // Enviar el estado actual de la sala al jugador reconectado
+            const sanitizedRoom = getSanitizedRoomForClient(room);
+            socket.emit('joinedRoomSuccessfully', sanitizedRoom);
+            
+            // Si el juego está en curso, enviar el estado del juego
+            if (room.state === 'playing') {
+                if (room.playerHands && room.playerHands[existingSeat.playerId]) {
+                    // Actualizar la clave en playerHands al nuevo socket.id
+                    room.playerHands[socket.id] = room.playerHands[existingSeat.playerId];
+                    delete room.playerHands[existingSeat.playerId];
+                }
+                
+                // Enviar estado del juego actual
+                const playerHandCounts = {};
+                room.seats.forEach(s => { 
+                    if(s) playerHandCounts[s.playerId] = room.playerHands[s.playerId]?.length || 0; 
+                });
+                
+                socket.emit('gameStarted', {
+                    hand: room.playerHands[socket.id] || [],
+                    discardPile: room.discardPile || [],
+                    seats: room.seats,
+                    currentPlayerId: room.currentPlayerId,
+                    playerHandCounts: playerHandCounts,
+                    melds: room.melds || [],
+                    isPractice: room.isPractice || false
+                });
+            }
+            
+            console.log(`[${roomId}] ✅ Jugador ${user.username} reconectado exitosamente a su asiento [${existingSeatIndex}]`);
+            return; // Salir temprano, no procesar más
+        }
+        // ▲▲▲ FIN DE VERIFICACIÓN DE RECONEXIÓN ▲▲▲
 
-        // --- LÓGICA ANTI-ROBO DE IDENTIDAD: LIMPIEZA AGRESIVA ---
-        // 1. Limpiamos CUALQUIER asiento que tenga el mismo userId
+        // --- LÓGICA ANTI-ROBO DE IDENTIDAD: LIMPIEZA AGRESIVA (SOLO SI NO ES RECONEXIÓN) ---
+        // 1. Limpiamos CUALQUIER asiento que tenga el mismo userId (solo si no es reconexión)
         for (let i = 0; i < room.seats.length; i++) {
             if (room.seats[i] && room.seats[i].userId === userId) {
                 console.log(`[ANTI-ROBO] Eliminando asiento [${i}] del usuario '${user.username}' para prevenir robo de identidad.`);
