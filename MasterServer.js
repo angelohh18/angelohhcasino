@@ -7438,12 +7438,30 @@ socket.on('accionDescartar', async (data) => {
                   delete ludoDisconnectedPlayers[disconnectKey];
               }
               
-              // Cancelar timeouts de inactividad
+              // --- FIX CRÍTICO: Cancelar TODOS los timeouts de inactividad que quedaron colgados ---
               const inactivityTimeoutKey = `${roomId}_${userId}`;
               if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
                   clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
                   delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                  console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${userId} (reconexión directa).`);
               }
+              
+              // Limpiar también por socket.id (por si acaso)
+              const inactivityTimeoutKeyBySocket = `${roomId}_${socket.id}`;
+              if (ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]) {
+                  clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]);
+                  delete ludoInactivityTimeouts[inactivityTimeoutKeyBySocket];
+                  console.log(`[${roomId}] ✓ Timeout adicional cancelado por socket.id`);
+              }
+              
+              // Buscar y cancelar cualquier otro timeout relacionado
+              Object.keys(ludoInactivityTimeouts).forEach(key => {
+                  if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id))) {
+                      clearTimeout(ludoInactivityTimeouts[key]);
+                      delete ludoInactivityTimeouts[key];
+                      console.log(`[${roomId}] ✓ Timeout adicional cancelado: ${key}`);
+                  }
+              });
               
               // Limpiar reconnectSeats si existe
               if (room.reconnectSeats && room.reconnectSeats[userId]) {
@@ -7453,11 +7471,9 @@ socket.on('accionDescartar', async (data) => {
                   }
               }
               
-              // Actualizar socket
+              // --- FIX CRÍTICO: Asegurar userId en el socket ---
               socket.currentRoomId = roomId;
-              if (!socket.userId) {
-                  socket.userId = userId;
-              }
+              socket.userId = userId; // SIEMPRE establecer userId
               socket.join(roomId);
               
               // Emitir eventos de reconexión
@@ -7467,7 +7483,7 @@ socket.on('accionDescartar', async (data) => {
                   roomName: room.settings.roomName,
                   seats: room.seats,
                   settings: room.settings,
-                  mySeatIndex: mySeatIndex,
+                  mySeatIndex: existingSeatIndex,
                   gameState: room.gameState
               });
               
@@ -7606,11 +7622,9 @@ socket.on('accionDescartar', async (data) => {
           }
           // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
           
-          // IMPORTANTE: Actualizar socket.currentRoomId y socket.userId para que el jugador pueda interactuar
+          // --- FIX CRÍTICO: Asegurar userId en el socket ---
           socket.currentRoomId = roomId;
-          if (!socket.userId) {
-              socket.userId = userId;
-          }
+          socket.userId = userId; // SIEMPRE establecer userId
           socket.join(roomId);
           
           console.log(`[${roomId}] ✓ Reconexión completada para ${userId}. Asiento ${originalSeatIndex} restaurado/actualizado. playerId: ${socket.id}`);
@@ -7715,18 +7729,37 @@ socket.on('accionDescartar', async (data) => {
               existingSeat.playerId = socket.id;
               console.log(`[${roomId}] ${userId} actualizó su playerId a ${socket.id} en asiento ${mySeatIndex} (reconexión directa)`);
               
-              // Limpiar estado de desconexión
+              // --- FIX CRÍTICO: Limpiar TODOS los timeouts de inactividad que quedaron colgados ---
               const disconnectKey = `${roomId}_${userId}`;
               if (ludoDisconnectedPlayers[disconnectKey]) {
                   delete ludoDisconnectedPlayers[disconnectKey];
+                  console.log(`[${roomId}] ✓ Estado de desconectado limpiado para ${userId}.`);
               }
               
-              // Cancelar timeouts de inactividad
+              // Cancelar TODOS los timeouts de inactividad
               const inactivityTimeoutKey = `${roomId}_${userId}`;
               if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
                   clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
                   delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                  console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${userId} (reconexión normal).`);
               }
+              
+              // Limpiar también por socket.id (por si acaso)
+              const inactivityTimeoutKeyBySocket = `${roomId}_${socket.id}`;
+              if (ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]) {
+                  clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]);
+                  delete ludoInactivityTimeouts[inactivityTimeoutKeyBySocket];
+                  console.log(`[${roomId}] ✓ Timeout adicional cancelado por socket.id`);
+              }
+              
+              // Buscar y cancelar cualquier otro timeout relacionado
+              Object.keys(ludoInactivityTimeouts).forEach(key => {
+                  if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id))) {
+                      clearTimeout(ludoInactivityTimeouts[key]);
+                      delete ludoInactivityTimeouts[key];
+                      console.log(`[${roomId}] ✓ Timeout adicional cancelado: ${key}`);
+                  }
+              });
               
               // Limpiar reconnectSeats si existe
               if (room.reconnectSeats && room.reconnectSeats[userId]) {
@@ -7735,6 +7768,10 @@ socket.on('accionDescartar', async (data) => {
                       delete room.reconnectSeats;
                   }
               }
+              
+              // --- FIX CRÍTICO: Asegurar userId en el socket ---
+              socket.currentRoomId = roomId;
+              socket.userId = userId; // SIEMPRE establecer userId
               
               // Continuar con el flujo normal de join
               playerName = existingSeat.playerName;
@@ -7932,7 +7969,7 @@ socket.on('accionDescartar', async (data) => {
           } else {
               // Asiento asignado exitosamente
               socket.currentRoomId = roomId;
-              socket.userId = userId;
+              socket.userId = userId; // SIEMPRE establecer userId
           }
       } else {
           // El jugador SÍ está en la sala, re-asociar su nuevo socket.id
@@ -7949,7 +7986,7 @@ socket.on('accionDescartar', async (data) => {
         
           // Actualizar el estado del socket (para futuros disconnects)
           socket.currentRoomId = roomId; 
-          socket.userId = room.seats[mySeatIndex].userId;
+          socket.userId = userId; // SIEMPRE usar el userId recibido, no el del asiento
       }
 
       // Si el jugador se unió exitosamente a un asiento (no es espectador)
