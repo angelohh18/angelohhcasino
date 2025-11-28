@@ -2686,6 +2686,15 @@ function showRoomsOverview() {
     }
 
     // El resto del código es el que ya tenías y es correcto para AMBOS tipos de partida.
+    
+    // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO ANTES DE MOSTRAR LA VISTA DEL JUEGO ▼▼▼
+    // Si shouldRedirectToLobbyAfterElimination está activo, no mostrar la vista del juego
+    if (shouldRedirectToLobbyAfterElimination) {
+        console.log('[gameStarted] Jugador fue eliminado, ignorando inicio de partida');
+        return; // No mostrar la vista del juego
+    }
+    // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
+    
     document.querySelector('.player-actions').style.display = 'flex';
     resetClientGameState();
     console.log("Servidor ha iniciado la partida. Recibiendo estado:", initialState);
