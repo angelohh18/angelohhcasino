@@ -107,8 +107,8 @@ function showRematchFundsModal(requiredText, missingText) {
 // --- INICIO: SCRIPT DE PUENTE (BRIDGE) ---
 
 // ▼▼▼ PEGA LA FUNCIÓN COMPLETA AQUÍ ▼▼▼
-function showToast(msg, duration = 3000) {
-    console.log('[showToast] Llamada con mensaje:', msg, 'duración:', duration);
+function showToast(msg, duration = 3000, isFirstTurn = false) {
+    console.log('[showToast] Llamada con mensaje:', msg, 'duración:', duration, 'isFirstTurn:', isFirstTurn);
     const toast = document.getElementById('toast');
     if (!toast) {
         console.error("[showToast] ❌ Elemento 'toast' no encontrado en el DOM.");
@@ -117,6 +117,13 @@ function showToast(msg, duration = 3000) {
     console.log('[showToast] ✅ Elemento toast encontrado:', toast);
     toast.textContent = msg;
     console.log('[showToast] Texto asignado al toast');
+    
+    // Si es el mensaje del primer turno, agregar la clase especial para centrarlo
+    if (isFirstTurn) {
+        toast.classList.add('first-turn');
+    } else {
+        toast.classList.remove('first-turn');
+    }
     
     // Forzar visibilidad antes de agregar la clase
     toast.style.display = 'block';
@@ -135,6 +142,9 @@ function showToast(msg, duration = 3000) {
     // Usamos un temporizador para ocultar el toast después de la duración
     setTimeout(() => {
         toast.classList.remove('show');
+        if (isFirstTurn) {
+            toast.classList.remove('first-turn');
+        }
         console.log('[showToast] Clase "show" removida después de', duration, 'ms');
     }, duration);
 }
@@ -1694,6 +1704,7 @@ function showRoomsOverview() {
                     const toastText = toast.textContent || '';
                     if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('show')) {
                         toast.classList.remove('show');
+                        toast.classList.remove('first-turn'); // Remover también la clase de centrado
                         toast.style.display = 'none';
                         toast.style.opacity = '0';
                         toast.style.visibility = 'hidden';
@@ -2269,7 +2280,7 @@ function showRoomsOverview() {
             // Usar setTimeout para asegurar que el DOM esté listo
             firstTurnToastTimeout = setTimeout(() => {
                 console.log('[Cliente] Mostrando toast con mensaje:', data.message);
-                showToast(data.message, 8000); // Mostrar por 8 segundos para que el jugador lo lea bien
+                showToast(data.message, 8000, true); // Mostrar por 8 segundos, centrado en pantalla
                 // También agregarlo al chat para referencia
                 if (typeof addChatMessage === 'function') {
                     addChatMessage(null, data.message, 'system');
@@ -3211,6 +3222,7 @@ function updatePlayersView(seats, inGame = false) {
                 // Verificar si el toast contiene el mensaje del primer turno
                 if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('show')) {
                     toast.classList.remove('show');
+                    toast.classList.remove('first-turn'); // Remover también la clase de centrado
                     toast.style.display = 'none';
                     toast.style.opacity = '0';
                     toast.style.visibility = 'hidden';

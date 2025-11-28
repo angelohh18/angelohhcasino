@@ -1887,6 +1887,9 @@ body.game-active {
 
 .toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); background:var(--casino-dark-panel); color:var(--casino-gold); padding:10px 16px; border-radius:8px; border:2px solid var(--casino-gold); z-index:11000; display: none; box-shadow: 0 0 10px rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s ease-in-out; }
 .toast.show { display: block !important; opacity: 1 !important; }
+/* Mensaje del primer turno centrado en la pantalla */
+.toast.first-turn { top: 50%; bottom: auto; transform: translate(-50%, -50%); padding: 20px 30px; font-size: 1.2rem; font-weight: bold; text-align: center; min-width: 300px; max-width: 90%; }
+.toast.first-turn.show { display: block !important; opacity: 1 !important; }
 #turn-indicator, #points-indicator { position:absolute; top:-34px; padding:6px 10px; border-radius:8px; font-weight:bold; background:var(--casino-dark-panel); border:2px solid var(--casino-gold); color:var(--casino-gold); }
 #points-indicator { right:20px; left:auto; border-color:#00ff00; color:#00ff00; }
 #debug-info { position:absolute; bottom:-46px; left:20px; background:rgba(0,0,0,0.7); padding:8px; border-radius:8px; font-size:12px; color:#fff; border:1px solid #666; }
