@@ -612,23 +612,17 @@ function broadcastUserListUpdate(io) {
 }
 // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
-// ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AL INICIO DE TU ARCHIVO ▼▼▼
-// ▼▼▼ FUNCIÓN ELIMINADA (DUPLICADA) - SE USA LA VERSIÓN COMPLETA EN LÍNEA 3422 ▼▼▼
-// Esta función fue reemplazada por una versión más completa que incluye pot y chatHistory
-// ▲▲▲ FIN DE FUNCIÓN ELIMINADA ▲▲▲
+// Nota: getSanitizedRoomForClient está definida en línea 3392 (versión completa con pot y chatHistory)
 
-// ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AQUÍ ▼▼▼
 function generateRoomId() {
   // Crea un ID aleatorio y único para cada mesa, ej: 'room-a1b2c3d4'
   return `room-${Math.random().toString(36).slice(2, 10)}`;
 }
-// ▲▲▲ FIN DEL CÓDIGO A AÑADIR ▲▲▲
 
 let la51Rooms = {}; // Estado de las mesas de La 51 se mantiene en memoria
 let ludoRooms = {}; // Estado de las mesas de Ludo se mantiene en memoria
 let connectedUsers = {}; // Objeto para rastrear usuarios activos
 
-// ▼▼▼ AÑADE ESTAS LÍNEAS AL INICIO, JUNTO A TUS OTRAS VARIABLES GLOBALES ▼▼▼
 let lobbyChatHistory = []; // Chat del lobby general (compartido)
 let ludoLobbyChatHistory = []; // Chat específico del lobby de Ludo
 let la51LobbyChatHistory = []; // Chat específico del lobby de La 51
@@ -1326,9 +1320,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
 
             // 3. Usar los datos del HOST ÚNICO para 'rematchData'
             room.rematchData = {
-                winnerId: rematchHostId,       // <-- CORREGIDO
-                winnerName: rematchHostName,   // <-- CORREGIDO
-                winnerColor: rematchHostColor, // <-- CORREGIDO
+                winnerId: rematchHostId,
+                winnerName: rematchHostName,
+                winnerColor: rematchHostColor,
                 confirmedPlayers: [],
                 canStart: false,
                 expectedPlayers: playersWhoPlayed.length
@@ -1337,7 +1331,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             // 4. Usar el NOMBRE DE VISUALIZACIÓN para 'ludoGameOver'
             io.to(roomId).emit('playSound', 'victory');
             io.to(roomId).emit('ludoGameOver', {
-                winnerName: winnerDisplayName, // <-- Muestra "JugadorA & JugadorB"
+                winnerName: winnerDisplayName,
                 winnerColor: rematchHostColor,
                 winnerAvatar: rematchHostAvatar,
                 playersWhoPlayed: playersWhoPlayed,
@@ -2042,7 +2036,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
 
     let diceUsedForExit = [];
     let piecesAvailableToExit = piecesInBase.length;
-    let blockadeJustCreatedOnStart = false; // <-- AÑADE ESTA LÍNEA
+    let blockadeJustCreatedOnStart = false;
 
     if (piecesAvailableToExit > 0) {
         let availableSlots = Math.max(0, 2 - piecesOnStart);
@@ -2186,7 +2180,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
             } catch (e) {
                 console.error("Error en Timeout Parchis Roll:", e);
             }
-        }, 2500); // <-- CAMBIADO DE 1200 A 2500
+        }, 2500);
         // ▲▲▲ FIN MODIFICACIÓN ▲▲▲
     }
 
@@ -2377,7 +2371,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
                     if (finalPosition !== null) {
                         blockadeBreakMoves.push({
                             type: 'move_active_piece',
-                            startPosition: pos, // <-- AÑADE ESTA LÍNEA
+                            startPosition: pos,
                             pieceId: piece.id,
                             diceValue: dieValue,
                             targetPosition: finalPosition,
@@ -2633,7 +2627,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
                         pieceId: piece.id,
                         diceValue: dieValue,
                         targetPosition: finalPosition,
-                        isKill: isKill // <-- ¡PROPIEDAD AÑADIDA!
+                        isKill: isKill
                     });
                 }
             });
@@ -3041,7 +3035,7 @@ function ludoCheckWinCondition(room, playerColor) {
 const adminAuth = (req, res, next) => {
     // Define aquí tu usuario y contraseña. ¡Cámbialos por algo seguro!
     const ADMIN_USER = "angelohh18";
-    const ADMIN_PASS = "ANGELO51"; // <-- CAMBIA ESTA CONTRASEÑA
+    const ADMIN_PASS = "ANGELO51";
 
     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
     const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
@@ -3073,8 +3067,8 @@ app.post('/register', async (req, res) => {
         password, 
         avatar, 
         currency,
-        acceptedTerms,    // <--- NUEVO CAMPO
-        acceptedPrivacy   // <--- NUEVO CAMPO
+        acceptedTerms,
+        acceptedPrivacy
     } = req.body;
 
     // VALIDACIÓN BÁSICA: Asegúrate de que los campos vengan
@@ -3102,8 +3096,8 @@ app.post('/register', async (req, res) => {
         currency,
         credits: 0.0,
         created_at: new Date().toISOString(),
-        accepted_terms_at: acceptedTerms,      // <--- NUEVO CAMPO
-        accepted_privacy_at: acceptedPrivacy  // <--- NUEVO CAMPO
+        accepted_terms_at: acceptedTerms,
+        accepted_privacy_at: acceptedPrivacy
       });
       
       // Actualizar panel de administración en tiempo real
@@ -3466,7 +3460,7 @@ function resetTurnState(room) {
         room.turnPoints = 0;
         room.hasDrawn = false;
         room.drewFromDiscard = null;
-        room.discardCardRequirementMet = false; // <-- AÑADE ESTA LÍNEA
+        room.discardCardRequirementMet = false;
     }
 }
 
@@ -3603,7 +3597,7 @@ function analyzeAndSuggestCorrection(cards) {
 
     // Intenta corregir como si fuera una escalera
     if (suits.size === 1) {
-        const sortedCards = sortCardsForRun([...cards]); // <--- CORRECCIÓN APLICADA
+        const sortedCards = sortCardsForRun([...cards]);
         if (isValidRun(sortedCards)) {
             const correctOrder = sortedCards.map(c => c.value).join('-');
             if (originalOrder !== correctOrder) {
