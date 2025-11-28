@@ -661,10 +661,8 @@ let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: { playerName, reason
 // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LA 51 ▲▲▲
 
-// ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
 let reconnectTimeouts = {}; // Para rastrear los tiempos de reconexión
 const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar en partida activa
-// ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
 // ▼▼▼ FUNCIONES HELPER PARA TIMEOUT DE INACTIVIDAD EN LA 51 ▼▼▼
 function startLa51InactivityTimeout(room, playerId, io) {
