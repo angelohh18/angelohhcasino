@@ -1603,7 +1603,12 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             if (!room.abandonmentFinalized) {
                 room.abandonmentFinalized = {};
             }
-            room.abandonmentFinalized[leavingPlayerSeat.userId] = true;
+            room.abandonmentFinalized[leavingPlayerSeat.userId] = {
+                reason: 'Abandono por inactividad',
+                penaltyApplied: true,
+                timestamp: Date.now()
+            };
+            console.log(`[${roomId}] ✅ Jugador ${playerName} registrado en abandonmentFinalized para mostrar modal si regresa.`);
             
             // Cancelar cualquier timeout de reconexión pendiente
             const timeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
@@ -1702,6 +1707,8 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                     reason: 'abandonment', 
                     winner: winnerName,
                     message: `Has sido eliminado por abandono. La apuesta ya fue descontada al iniciar la partida.`,
+                    redirect: true, // CRÍTICO: Forzar redirección al lobby
+                    forceExit: true // Flag extra para forzar salida
                     redirect: true,
                     penalty: 0,
                     currency: roomCurrency,
