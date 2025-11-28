@@ -4289,40 +4289,80 @@ function reorderHand(draggedIndices, targetDropIndex) {
             shouldRedirectToLobbyAfterElimination = false; // Resetear la bandera
             eliminationGameType = null; // Resetear el tipo de juego
             
+            // ▼▼▼ LIMPIEZA AGRESIVA DEL ESTADO Y VISTA DEL JUEGO ▼▼▼
             // Asegurar que el estado esté limpio
             resetClientGameState();
             currentGameSettings = null;
             
-            // Ocultar cualquier vista del juego que pueda estar visible
+            // Ocultar TODOS los elementos del juego de forma agresiva
             const gameContainer = document.getElementById('game-container');
             if (gameContainer) {
                 gameContainer.style.display = 'none';
+                gameContainer.style.visibility = 'hidden';
             }
+            
+            // Remover clase game-active del body
+            document.body.classList.remove('game-active');
+            
+            // Ocultar cualquier overlay o modal del juego
+            const victoryOverlay = document.getElementById('victory-overlay');
+            if (victoryOverlay) {
+                victoryOverlay.style.display = 'none';
+            }
+            
+            // Asegurar que el lobby overlay esté visible
+            const lobbyOverlay = document.getElementById('lobby-overlay');
+            if (lobbyOverlay) {
+                lobbyOverlay.style.display = 'flex';
+            }
+            // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
             
             // ▼▼▼ REDIRIGIR AL LOBBY CORRECTO SEGÚN EL TIPO DE JUEGO ▼▼▼
             if (gameType === 'ludo') {
                 // Si estaba jugando Ludo o Parchís, redirigir al lobby de Ludo
                 console.log('[closeEliminationOverlay] Redirigiendo al lobby de Ludo/Parchís');
-                if (socket && socket.connected) {
-                    socket.emit('enterLudoLobby');
-                    console.log('[closeEliminationOverlay] Evento enterLudoLobby emitido');
-                } else {
-                    console.warn('[closeEliminationOverlay] Socket no conectado, redirigiendo manualmente a /ludo/');
+                
+                // En móvil, usar redirección directa para asegurar que funcione
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobile) {
+                    console.log('[closeEliminationOverlay] Dispositivo móvil detectado, usando redirección directa a /ludo/');
                     window.location.href = '/ludo/';
+                } else {
+                    if (socket && socket.connected) {
+                        socket.emit('enterLudoLobby');
+                        console.log('[closeEliminationOverlay] Evento enterLudoLobby emitido');
+                        // También forzar redirección visual
+                        window.location.href = '/ludo/';
+                    } else {
+                        console.warn('[closeEliminationOverlay] Socket no conectado, redirigiendo manualmente a /ludo/');
+                        window.location.href = '/ludo/';
+                    }
                 }
             } else {
                 // Si estaba jugando La 51, redirigir al lobby de La 51
                 console.log('[closeEliminationOverlay] Redirigiendo al lobby de La 51');
-                // Mostrar el lobby
+                
+                // Mostrar el lobby de forma agresiva
                 showLobbyView();
                 console.log('[closeEliminationOverlay] Lobby mostrado');
                 
-                // Notificar al servidor que estamos en el lobby
-                if (socket && socket.connected) {
-                    socket.emit('enterLa51Lobby');
-                    console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
+                // En móvil, también usar redirección directa para asegurar que funcione
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobile) {
+                    console.log('[closeEliminationOverlay] Dispositivo móvil detectado, usando redirección directa a /la51/');
+                    // Pequeño delay para asegurar que el estado se limpie
+                    setTimeout(() => {
+                        window.location.href = '/la51/';
+                    }, 100);
                 } else {
-                    console.warn('[closeEliminationOverlay] Socket no conectado, no se puede emitir enterLa51Lobby');
+                    // Notificar al servidor que estamos en el lobby
+                    if (socket && socket.connected) {
+                        socket.emit('enterLa51Lobby');
+                        console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
+                    } else {
+                        console.warn('[closeEliminationOverlay] Socket no conectado, redirigiendo manualmente a /la51/');
+                        window.location.href = '/la51/';
+                    }
                 }
             }
             // ▲▲▲ FIN DE REDIRECCIÓN AL LOBBY CORRECTO ▲▲▲
