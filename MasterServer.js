@@ -5575,7 +5575,51 @@ io.on('connection', (socket) => {
                     }
                 }
             }
+            
+            // Limpiar initialSeats también
+            if (room.initialSeats) {
+                for (let i = 0; i < room.initialSeats.length; i++) {
+                    if (room.initialSeats[i] && room.initialSeats[i].userId === userId) {
+                        console.log(`[${roomId}] ✅ Limpiando initialSeats[${i}] del usuario ${userId}`);
+                        room.initialSeats[i] = null;
+                    }
+                }
+            }
+            
+            // Limpiar playerHands
+            if (room.playerHands && room.playerHands[socket.id]) {
+                delete room.playerHands[socket.id];
+                console.log(`[${roomId}] ✅ Limpiando playerHands del socket ${socket.id}`);
+            }
+            
+            // Limpiar rematchRequests
+            if (room.rematchRequests && room.rematchRequests.has(socket.id)) {
+                room.rematchRequests.delete(socket.id);
+                console.log(`[${roomId}] ✅ Limpiando rematchRequests del socket ${socket.id}`);
+            }
             // ▲▲▲ FIN DE LIMPIEZA ADICIONAL ▲▲▲
+            
+            // ▼▼▼ CRÍTICO: Actualizar connectedUsers con el nombre correcto ANTES de enviar el evento ▼▼▼
+            // Esto previene que aparezca como "Usuario" en el lobby
+            if (connectedUsers[socket.id]) {
+                // Asegurar que el nombre se mantenga correcto
+                if (!connectedUsers[socket.id].username || connectedUsers[socket.id].username === 'Usuario') {
+                    connectedUsers[socket.id].username = eliminationInfo.playerName || user.username;
+                    console.log(`[${roomId}] ✅ Nombre corregido en connectedUsers para ${socket.id}: ${connectedUsers[socket.id].username}`);
+                }
+                connectedUsers[socket.id].status = 'En el lobby de La 51';
+                connectedUsers[socket.id].currentLobby = 'La 51';
+            } else {
+                // Crear entrada si no existe
+                connectedUsers[socket.id] = {
+                    username: eliminationInfo.playerName || user.username,
+                    status: 'En el lobby de La 51',
+                    currentLobby: 'La 51'
+                };
+                console.log(`[${roomId}] ✅ Jugador agregado a connectedUsers con nombre correcto: ${connectedUsers[socket.id].username}`);
+            }
+            broadcastUserListUpdate(io);
+            // ▲▲▲ FIN DE ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
             
             // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
             socket.emit('playerEliminated', {
@@ -5583,7 +5627,7 @@ io.on('connection', (socket) => {
                 playerName: eliminationInfo.playerName || user.username,
                 reason: eliminationInfo.reason || 'Abandono por inactividad',
                 faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
-                redirect: true, // Redirigir al lobby después de mostrar el modal (se maneja cuando cierra el modal)
+                redirect: true, // CRÍTICO: Redirigir al lobby después de mostrar el modal
                 penaltyInfo: eliminationInfo.penaltyInfo
             });
             
@@ -5591,7 +5635,7 @@ io.on('connection', (socket) => {
             // Usar setTimeout para asegurar que el evento se envíe primero
             setTimeout(() => {
                 delete la51EliminatedPlayers[eliminatedKey];
-                console.log(`[${roomId}] ✅ Entrada de la51EliminatedPlayers eliminada para ${userId}`);
+                console.log(`[${roomId}] ✅ Entrada de la51EliminatedPlayers eliminada para ${userId}. Puede volver a unirse como nuevo jugador.`);
             }, 100);
             
             // NO redirigir automáticamente - la redirección se manejará cuando el usuario cierre el modal
