@@ -1708,7 +1708,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                     winner: winnerName,
                     message: `Has sido eliminado por abandono. La apuesta ya fue descontada al iniciar la partida.`,
                     redirect: true, // CRÍTICO: Forzar redirección al lobby
-                    forceExit: true // Flag extra para forzar salida
+                    forceExit: true, // Flag extra para forzar salida
+                    penalty: 0,
+                    currency: roomCurrency
                     redirect: true,
                     penalty: 0,
                     currency: roomCurrency,
