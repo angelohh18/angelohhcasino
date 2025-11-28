@@ -5501,18 +5501,17 @@ io.on('connection', (socket) => {
         const eliminatedKey = `${roomId}_${userId}`;
         if (la51EliminatedPlayers[eliminatedKey]) {
             const info = la51EliminatedPlayers[eliminatedKey];
-            console.log(`[La51 Join] ${user.username} intenta volver tras eliminación. Enviando modal y limpiando.`);
+            console.log(`[La51 Join] ${user.username} intenta volver tras eliminación. Limpiando TODOS los estados residuales y enviando modal.`);
             
-            // ▼▼▼ LIMPIEZA ADICIONAL PARA ASEGURAR QUE PUEDA VOLVER A ENTRAR COMO NUEVO ▼▼▼
-            // Asegurarse de que el socket no tenga referencias a esta sala
+            // ▼▼▼ LIMPIEZA COMPLETA Y DESTRUCTIVA DE TODOS LOS ESTADOS RESIDUALES ▼▼▼
+            // 1. Limpiar referencias del socket
             if (socket.currentRoomId === roomId) {
                 delete socket.currentRoomId;
-                console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${socket.id} antes de mostrar modal`);
+                console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${socket.id}`);
             }
-            // Asegurarse de que el socket salga de la sala
             socket.leave(roomId);
             
-            // Limpiar cualquier asiento que pueda tener este userId en la sala
+            // 2. Limpiar CUALQUIER asiento que pueda tener este userId en la sala
             if (room.seats) {
                 for (let i = 0; i < room.seats.length; i++) {
                     if (room.seats[i] && room.seats[i].userId === userId) {
@@ -5521,9 +5520,53 @@ io.on('connection', (socket) => {
                     }
                 }
             }
-            // ▲▲▲ FIN DE LIMPIEZA ADICIONAL ▲▲▲
             
-            // 1. Enviar evento para mostrar modal y redirigir
+            // 3. Limpiar de initialSeats si existe
+            if (room.initialSeats) {
+                for (let i = 0; i < room.initialSeats.length; i++) {
+                    if (room.initialSeats[i] && room.initialSeats[i].userId === userId) {
+                        console.log(`[${roomId}] ✅ Limpiando initialSeats[${i}] del usuario ${userId}`);
+                        room.initialSeats[i] = null;
+                    }
+                }
+            }
+            
+            // 4. Limpiar playerHands si existe
+            if (room.playerHands && room.playerHands[userId]) {
+                delete room.playerHands[userId];
+                console.log(`[${roomId}] ✅ Limpiando playerHands del usuario ${userId}`);
+            }
+            
+            // 5. Limpiar rematchRequests si existe
+            if (room.rematchRequests && room.rematchRequests.has && room.rematchRequests.has(userId)) {
+                room.rematchRequests.delete(userId);
+                console.log(`[${roomId}] ✅ Limpiando rematchRequests del usuario ${userId}`);
+            }
+            
+            // 6. Limpiar penaltiesPaid si existe
+            if (room.penaltiesPaid && room.penaltiesPaid[userId]) {
+                delete room.penaltiesPaid[userId];
+                console.log(`[${roomId}] ✅ Limpiando penaltiesPaid del usuario ${userId}`);
+            }
+            
+            // 7. Limpiar desconexiones si existe
+            const disconnectKey = `${roomId}_${userId}`;
+            if (la51DisconnectedPlayers[disconnectKey]) {
+                delete la51DisconnectedPlayers[disconnectKey];
+                console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers del usuario ${userId}`);
+            }
+            
+            // 8. Cancelar cualquier timeout de inactividad pendiente
+            cancelLa51InactivityTimeout(roomId, userId);
+            cancelLa51InactivityTimeout(roomId, socket.id);
+            
+            // 9. BORRAR EL REGISTRO DE ELIMINACIÓN ANTES de mostrar el modal
+            // Esto permite que el jugador pueda volver a entrar como nuevo después de aceptar el modal
+            delete la51EliminatedPlayers[eliminatedKey];
+            console.log(`[La51 Join] ✅ Registro de eliminación borrado para ${userId}. Puede volver a unirse como nuevo jugador después de aceptar el modal.`);
+            // ▲▲▲ FIN DE LIMPIEZA COMPLETA ▲▲▲
+            
+            // 10. Enviar evento para mostrar modal y redirigir
             socket.emit('playerEliminated', {
                 playerId: socket.id,
                 playerName: info.playerName || user.username,
@@ -5532,12 +5575,8 @@ io.on('connection', (socket) => {
                 redirect: true, // <--- OBLIGATORIO
                 penaltyInfo: info.penaltyInfo
             });
-
-            // 2. BORRAR EL REGISTRO para permitir reingreso futuro como nuevo
-            delete la51EliminatedPlayers[eliminatedKey];
-            console.log(`[La51 Join] Registro de eliminación borrado para ${userId}. Puede volver a unirse como nuevo jugador.`);
             
-            return; // Bloquear este intento específico
+            return; // Bloquear este intento específico (el jugador debe aceptar el modal primero)
         }
         // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN POR INACTIVIDAD ▲▲▲
 
@@ -7540,16 +7579,98 @@ socket.on('accionDescartar', async (data) => {
       const room = ludoRooms[roomId];
     
       // --- INICIO: VERIFICACIÓN DE ELIMINACIÓN PREVIA ---
-      // Si el jugador fue eliminado (está en abandonmentFinalized), le mostramos el modal Y LO BORRAMOS DE LA LISTA NEGRA
+      // Si el jugador fue eliminado (está en abandonmentFinalized), limpiar TODOS los estados y mostrar modal
       if (room && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
-          console.log(`[LUDO JOIN] ${userId} intenta entrar pero fue eliminado. Enviando modal y REDIRIGIENDO.`);
+          console.log(`[LUDO JOIN] ${userId} intenta entrar pero fue eliminado. Limpiando TODOS los estados residuales y enviando modal.`);
           
           const abandonmentInfo = room.abandonmentFinalized[userId];
           const username = userId.replace('user_', '');
           const bet = parseFloat(room.settings.bet) || 0;
           const roomCurrency = room.settings.betCurrency || 'USD';
           
-          // 1. Emitir el evento que abre el modal y fuerza redirect
+          // ▼▼▼ LIMPIEZA COMPLETA Y DESTRUCTIVA DE TODOS LOS ESTADOS RESIDUALES ▼▼▼
+          // 1. Limpiar referencias del socket
+          if (socket.currentRoomId === roomId) {
+              delete socket.currentRoomId;
+              console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${socket.id}`);
+          }
+          socket.leave(roomId);
+          
+          // 2. Limpiar CUALQUIER asiento que pueda tener este userId en la sala
+          if (room.seats) {
+              for (let i = 0; i < room.seats.length; i++) {
+                  if (room.seats[i] && room.seats[i].userId === userId) {
+                      console.log(`[${roomId}] ✅ Limpiando asiento [${i}] del usuario ${userId}`);
+                      room.seats[i] = null;
+                  }
+              }
+          }
+          
+          // 3. Limpiar piezas del jugador si existen
+          if (room.gameState && room.gameState.pieces) {
+              const playerSeat = room.seats.find(s => s && s.userId === userId);
+              if (playerSeat && playerSeat.color) {
+                  delete room.gameState.pieces[playerSeat.color];
+                  console.log(`[${roomId}] ✅ Limpiando piezas del color ${playerSeat.color} del usuario ${userId}`);
+              }
+          }
+          
+          // 4. Limpiar reconnectSeats si existe
+          if (room.reconnectSeats && room.reconnectSeats[userId]) {
+              delete room.reconnectSeats[userId];
+              console.log(`[${roomId}] ✅ Limpiando reconnectSeats del usuario ${userId}`);
+          }
+          
+          // 5. Limpiar abandonmentTimeouts si existe
+          if (room.abandonmentTimeouts && room.abandonmentTimeouts[userId]) {
+              clearTimeout(room.abandonmentTimeouts[userId]);
+              delete room.abandonmentTimeouts[userId];
+              console.log(`[${roomId}] ✅ Limpiando abandonmentTimeouts del usuario ${userId}`);
+          }
+          
+          // 6. Limpiar desconexiones si existe
+          const disconnectKey = `${roomId}_${userId}`;
+          if (ludoDisconnectedPlayers[disconnectKey]) {
+              delete ludoDisconnectedPlayers[disconnectKey];
+              console.log(`[${roomId}] ✅ Limpiando ludoDisconnectedPlayers del usuario ${userId}`);
+          }
+          
+          // 7. Cancelar TODOS los timeouts relacionados
+          const timeoutKey = `${roomId}_${userId}`;
+          if (ludoReconnectTimeouts[timeoutKey]) {
+              clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+              delete ludoReconnectTimeouts[timeoutKey];
+              console.log(`[${roomId}] ✅ Limpiando ludoReconnectTimeouts del usuario ${userId}`);
+          }
+          
+          // 8. Cancelar timeouts de inactividad
+          const inactivityKey = `${roomId}_${userId}`;
+          if (ludoInactivityTimeouts[inactivityKey]) {
+              clearTimeout(ludoInactivityTimeouts[inactivityKey]);
+              delete ludoInactivityTimeouts[inactivityKey];
+              console.log(`[${roomId}] ✅ Limpiando ludoInactivityTimeouts del usuario ${userId}`);
+          }
+          const inactivityKeyBySocket = `${roomId}_${socket.id}`;
+          if (ludoInactivityTimeouts[inactivityKeyBySocket]) {
+              clearTimeout(ludoInactivityTimeouts[inactivityKeyBySocket]);
+              delete ludoInactivityTimeouts[inactivityKeyBySocket];
+              console.log(`[${roomId}] ✅ Limpiando ludoInactivityTimeouts del socket ${socket.id}`);
+          }
+          
+          // 9. Limpiar registro global de penalización (para permitir reingreso)
+          const globalPenaltyKey = `${roomId}_${userId}`;
+          if (ludoGlobalPenaltyApplied[globalPenaltyKey]) {
+              delete ludoGlobalPenaltyApplied[globalPenaltyKey];
+              console.log(`[${roomId}] ✅ Limpiando ludoGlobalPenaltyApplied del usuario ${userId}`);
+          }
+          
+          // 10. BORRAR EL REGISTRO DE ELIMINACIÓN ANTES de mostrar el modal
+          // Esto permite que el jugador pueda volver a entrar como nuevo después de aceptar el modal
+          delete room.abandonmentFinalized[userId];
+          console.log(`[LUDO JOIN] ✅ Registro de eliminación borrado para ${userId}. Puede volver a unirse como nuevo jugador después de aceptar el modal.`);
+          // ▲▲▲ FIN DE LIMPIEZA COMPLETA ▲▲▲
+          
+          // 11. Emitir el evento que abre el modal y fuerza redirect
           socket.emit('gameEnded', { 
               reason: 'abandonment', 
               message: `Fuiste eliminado por ${abandonmentInfo.reason || 'abandono'}. Se aplicó la multa correspondiente.`,
@@ -7559,13 +7680,7 @@ socket.on('accionDescartar', async (data) => {
               forceExit: true // Flag extra por si el cliente lo necesita
           });
 
-          // 2. IMPORTANTE: Borrar el registro de eliminación AHORA.
-          // De esta forma, si el jugador vuelve al lobby y hace clic en "Entrar" de nuevo,
-          // ya no existirá en 'abandonmentFinalized' y será tratado como un jugador nuevo.
-          delete room.abandonmentFinalized[userId];
-          console.log(`[LUDO JOIN] Registro de eliminación borrado para ${userId}. Puede volver a unirse como nuevo jugador.`);
-
-          return; // Detener ejecución, no dejarle entrar en este intento
+          return; // Detener ejecución, no dejarle entrar en este intento (el jugador debe aceptar el modal primero)
       }
       // --- FIN VERIFICACIÓN ---
     
