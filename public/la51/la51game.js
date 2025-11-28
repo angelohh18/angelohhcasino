@@ -2627,7 +2627,7 @@ function showRoomsOverview() {
     if (initialState.isFirstTurn && initialState.currentPlayerId === socket.id) {
         console.log('[Cliente] Es el primer turno del jugador en revancha/nuevo juego, mostrando mensaje inmediatamente');
         setTimeout(() => {
-            showToast('¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.', 8000);
+            showToast('¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.', 8000, true); // Centrado en pantalla
             if (typeof addChatMessage === 'function') {
                 addChatMessage(null, '¡Es tu primer turno! Empiezas con 15 cartas. Debes descartar una carta para comenzar el juego.', 'system');
             }
