@@ -6783,8 +6783,6 @@ socket.on('accionDescartar', async (data) => {
     const room = la51Rooms[roomId];
     if (!room || socket.id !== room.hostId) return;
 
-    // ▼▼▼ REEMPLAZA EL CONTENIDO DE socket.on('startRematch',...) CON ESTE BLOQUE COMPLETO ▼▼▼
-
     // LÓGICA DE CONTEO CORRECTA (copiada de la sección 'rematchUpdate')
     const readyPlayerIds = new Set();
     room.rematchRequests.forEach(id => readyPlayerIds.add(id));
