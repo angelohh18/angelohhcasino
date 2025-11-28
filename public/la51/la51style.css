@@ -291,7 +291,7 @@ html {
     font-weight: 700;
     font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Columnas de mesa más flexibles */
+    grid-template-columns: 1fr; /* Fuerza una sola columna vertical */
     gap: 18px;
 }
 .tables-panel::-webkit-scrollbar {
@@ -1364,7 +1364,7 @@ html {
         min-height: 120px !important;
     }
     .tables-panel {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+        grid-template-columns: 1fr !important;
     }
     .chat-input textarea {
         padding: 8px;
@@ -1476,7 +1476,7 @@ html {
         min-height: 140px !important;
     }
     .tables-panel {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        grid-template-columns: 1fr !important;
     }
 }
 
