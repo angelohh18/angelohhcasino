@@ -1937,6 +1937,19 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
             return;
         }
         
+        // ▼▼▼ CRÍTICO: REGISTRAR EN abandonmentFinalized ANTES DE ELIMINAR ▼▼▼
+        // Esto permite que si el jugador regresa, se le muestre el modal
+        if (!room.abandonmentFinalized) {
+            room.abandonmentFinalized = {};
+        }
+        room.abandonmentFinalized[nextPlayer.userId] = {
+            reason: 'Abandono por inactividad',
+            penaltyApplied: true,
+            timestamp: Date.now()
+        };
+        console.log(`[${roomId}] ✅ Jugador ${nextPlayer.playerName} registrado en abandonmentFinalized para mostrar modal si regresa.`);
+        // ▲▲▲ FIN DE REGISTRO ▲▲▲
+        
         // Eliminar al jugador por inactividad usando la misma lógica que abandono voluntario
         console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${nextPlayer.playerName} (asiento ${nextPlayerIndex})`);
         ludoHandlePlayerDeparture(roomId, nextPlayer.playerId, io);
@@ -4638,17 +4651,48 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
         if (wasActive) {
             // --- JUGADOR ACTIVO: Se aplica multa y se gestiona el turno (igual que abandono voluntario) ---
             const abandonmentReason = `${playerName} ha abandonado la partida.`;
-            console.log(`Jugador activo ${playerName} ha abandonado. Se aplica multa.`);
+            console.log(`[${roomId}] 🚨 Jugador activo ${playerName} ha abandonado. Aplicando multa y registrando eliminación.`);
+
+            // ▼▼▼ CRÍTICO: REGISTRAR EN LISTA DE ELIMINADOS ANTES DE ENVIAR EVENTO ▼▼▼
+            // Esto permite que si el jugador regresa, se le muestre el modal
+            const eliminatedKey = `${roomId}_${leavingUserId}`;
+            const penaltyAmount = room.settings.penalty || 0;
+            
+            la51EliminatedPlayers[eliminatedKey] = {
+                playerName: playerName,
+                reason: 'Abandono / Inactividad',
+                faultData: { reason: abandonmentReason },
+                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' },
+                timestamp: Date.now()
+            };
+            console.log(`[${roomId}] ✅ Jugador ${playerName} registrado en la51EliminatedPlayers para mostrar modal si regresa.`);
+            // ▲▲▲ FIN DE REGISTRO ▲▲▲
 
             const reason = abandonmentReason;
-            // ▼▼▼ CAMBIO AQUÍ ▼▼▼
+            // ▼▼▼ ENVIAR EVENTO CON DATOS COMPLETOS ▼▼▼
             io.to(roomId).emit('playerEliminated', {
                 playerId: leavingPlayerId,
                 playerName: playerName,
                 reason: reason,
-                redirect: true // IMPORTANTE: Forzar salida al lobby
+                faultData: { reason: abandonmentReason },
+                redirect: true, // IMPORTANTE: Forzar salida al lobby
+                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
             });
-            // ▲▲▲ FIN DEL CAMBIO ▲▲▲
+            
+            // ▼▼▼ CRÍTICO: También enviar directamente al jugador eliminado para asegurar que reciba el evento ▼▼▼
+            const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (leavingSocket) {
+                leavingSocket.emit('playerEliminated', {
+                    playerId: leavingPlayerId,
+                    playerName: playerName,
+                    reason: reason,
+                    faultData: { reason: abandonmentReason },
+                    redirect: true, // IMPORTANTE: Forzar salida al lobby
+                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                });
+                console.log(`[${roomId}] ✅ Evento playerEliminated enviado directamente a ${playerName} (${leavingPlayerId}) con redirect: true`);
+            }
+            // ▲▲▲ FIN ENVÍO DIRECTO ▲▲▲
 
             if (leavingPlayerSeat && leavingPlayerSeat.userId) {
                 const penalty = room.settings.penalty || 0;

@@ -4355,48 +4355,48 @@ function reorderHand(draggedIndices, targetDropIndex) {
                 // Si estaba jugando Ludo o Parchís, redirigir al lobby de Ludo
                 console.log('[closeEliminationOverlay] Redirigiendo al lobby de Ludo/Parchís');
                 
-                // En móvil, usar redirección directa para asegurar que funcione
+                // ▼▼▼ REDIRECCIÓN OBLIGATORIA EN TODOS LOS DISPOSITIVOS (MÓVIL, PWA, NAVEGADOR) ▼▼▼
+                // Detectar si es móvil o PWA
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                if (isMobile) {
-                    console.log('[closeEliminationOverlay] Dispositivo móvil detectado, usando redirección directa a /ludo/');
-                    window.location.href = '/ludo/';
-                } else {
-                    if (socket && socket.connected) {
-                        socket.emit('enterLudoLobby');
-                        console.log('[closeEliminationOverlay] Evento enterLudoLobby emitido');
-                        // También forzar redirección visual
-                        window.location.href = '/ludo/';
-                    } else {
-                        console.warn('[closeEliminationOverlay] Socket no conectado, redirigiendo manualmente a /ludo/');
-                        window.location.href = '/ludo/';
-                    }
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
+                
+                // SIEMPRE usar redirección directa para asegurar que funcione en todos los dispositivos
+                console.log('[closeEliminationOverlay] Redirección OBLIGATORIA a /ludo/ (móvil:', isMobile, ', PWA:', isPWA, ')');
+                
+                // Notificar al servidor antes de redirigir (si el socket está conectado)
+                if (socket && socket.connected) {
+                    socket.emit('enterLudoLobby');
+                    console.log('[closeEliminationOverlay] Evento enterLudoLobby emitido');
                 }
+                
+                // Redirección directa OBLIGATORIA (funciona en móvil, PWA y navegador)
+                setTimeout(() => {
+                    window.location.href = '/ludo/';
+                }, 100);
+                // ▲▲▲ FIN DE REDIRECCIÓN OBLIGATORIA ▲▲▲
             } else {
                 // Si estaba jugando La 51, redirigir al lobby de La 51
                 console.log('[closeEliminationOverlay] Redirigiendo al lobby de La 51');
                 
-                // Mostrar el lobby de forma agresiva
-                showLobbyView();
-                console.log('[closeEliminationOverlay] Lobby mostrado');
-                
-                // En móvil, también usar redirección directa para asegurar que funcione
+                // ▼▼▼ REDIRECCIÓN OBLIGATORIA EN TODOS LOS DISPOSITIVOS (MÓVIL, PWA, NAVEGADOR) ▼▼▼
+                // Detectar si es móvil o PWA
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                if (isMobile) {
-                    console.log('[closeEliminationOverlay] Dispositivo móvil detectado, usando redirección directa a /la51/');
-                    // Pequeño delay para asegurar que el estado se limpie
-                    setTimeout(() => {
-                        window.location.href = '/la51/';
-                    }, 100);
-                } else {
-                    // Notificar al servidor que estamos en el lobby
-                    if (socket && socket.connected) {
-                        socket.emit('enterLa51Lobby');
-                        console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
-                    } else {
-                        console.warn('[closeEliminationOverlay] Socket no conectado, redirigiendo manualmente a /la51/');
-                        window.location.href = '/la51/';
-                    }
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
+                
+                // SIEMPRE usar redirección directa para asegurar que funcione en todos los dispositivos
+                console.log('[closeEliminationOverlay] Redirección OBLIGATORIA a /la51/ (móvil:', isMobile, ', PWA:', isPWA, ')');
+                
+                // Notificar al servidor antes de redirigir (si el socket está conectado)
+                if (socket && socket.connected) {
+                    socket.emit('enterLa51Lobby');
+                    console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
                 }
+                
+                // Redirección directa OBLIGATORIA (funciona en móvil, PWA y navegador)
+                setTimeout(() => {
+                    window.location.href = '/la51/';
+                }, 100);
+                // ▲▲▲ FIN DE REDIRECCIÓN OBLIGATORIA ▲▲▲
             }
             // ▲▲▲ FIN DE REDIRECCIÓN AL LOBBY CORRECTO ▲▲▲
             

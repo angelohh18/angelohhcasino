@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.136'; // Actualizado: MasterServer.js actualizado manualmente
+const CACHE_NAME = 'mutijuego-v1.12.137'; // Actualizado: Limpieza completa y redirección obligatoria para jugadores eliminados por inactividad
 const urlsToCache = [
   '/',
   '/index.html',
