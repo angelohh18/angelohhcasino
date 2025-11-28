@@ -7526,25 +7526,35 @@ socket.on('accionDescartar', async (data) => {
     
       const room = ludoRooms[roomId];
     
-      // ▼▼▼ CRÍTICO: Verificar si el jugador fue eliminado por abandono ANTES de permitir reconexión ▼▼▼
-      // Si el abandono fue finalizado, NO permitir reconexión - SIMPLE Y DIRECTO
+      // --- INICIO: VERIFICACIÓN DE ELIMINACIÓN PREVIA ---
+      // Si el jugador fue eliminado (está en abandonmentFinalized), le mostramos el modal Y LO BORRAMOS DE LA LISTA NEGRA
       if (room && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
-          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero fue eliminado por abandono después de 2 minutos. NO se permite reconexión.`);
+          console.log(`[LUDO JOIN] ${userId} intenta entrar pero fue eliminado. Enviando modal y REDIRIGIENDO.`);
           
+          const abandonmentInfo = room.abandonmentFinalized[userId];
           const username = userId.replace('user_', '');
           const bet = parseFloat(room.settings.bet) || 0;
           const roomCurrency = room.settings.betCurrency || 'USD';
           
+          // 1. Emitir el evento que abre el modal y fuerza redirect
           socket.emit('gameEnded', { 
               reason: 'abandonment', 
-              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
-              redirect: true,
+              message: `Fuiste eliminado por ${abandonmentInfo.reason || 'abandono'}. Se aplicó la multa correspondiente.`,
+              redirect: true, // <--- ESTO OBLIGA AL CLIENTE A IR AL LOBBY AL ACEPTAR
               penalty: bet,
-              currency: roomCurrency
+              currency: roomCurrency,
+              forceExit: true // Flag extra por si el cliente lo necesita
           });
-          return; // NO permitir reconexión - SIMPLE Y DIRECTO
+
+          // 2. IMPORTANTE: Borrar el registro de eliminación AHORA.
+          // De esta forma, si el jugador vuelve al lobby y hace clic en "Entrar" de nuevo,
+          // ya no existirá en 'abandonmentFinalized' y será tratado como un jugador nuevo.
+          delete room.abandonmentFinalized[userId];
+          console.log(`[LUDO JOIN] Registro de eliminación borrado para ${userId}. Puede volver a unirse como nuevo jugador.`);
+
+          return; // Detener ejecución, no dejarle entrar en este intento
       }
-      // ▲▲▲ FIN: BLOQUEO DE RECONEXIÓN DESPUÉS DE ABANDONO ▲▲▲
+      // --- FIN VERIFICACIÓN ---
     
       // ▼▼▼ CRÍTICO: Verificar reconexión SOLO si NO fue eliminado por abandono ▼▼▼
       // Si el jugador está en reconnectSeats (dentro de los 2 minutos), procesar reconexión
