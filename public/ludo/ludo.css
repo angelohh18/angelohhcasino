@@ -910,29 +910,6 @@ body.game-active {
     /* ▲▲▲ FIN LÍNEAS AÑADIDAS ▲▲▲ */
 }
 
-/* Animación de iluminación/parpadeo para dados cuando es el turno del jugador */
-.player-dice-container.dice-glow .player-dice {
-    animation: diceGlow 1.2s ease-in-out infinite;
-}
-
-@keyframes diceGlow {
-    0% {
-        filter: brightness(1);
-        box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-    50% {
-        filter: brightness(1.5);
-        box-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 215, 0, 0.8);
-        border-color: rgba(255, 255, 255, 1);
-    }
-    100% {
-        filter: brightness(1);
-        box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-}
-
 /* Puntos de los dados del jugador */
 .player-dice .dice-dot {
     width: 6px; /* Hacemos los puntos más grandes */
