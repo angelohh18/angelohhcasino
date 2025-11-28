@@ -4757,10 +4757,35 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             }
 
             // ▼▼▼ ACTUALIZAR ESTADO DEL USUARIO EN CONNECTEDUSERS ▼▼▼
+            // CRÍTICO: Mantener el nombre correcto y actualizar el estado
             if (connectedUsers[leavingPlayerId]) {
-                const currentLobby = connectedUsers[leavingPlayerId].currentLobby;
-                connectedUsers[leavingPlayerId].status = currentLobby ? `En el lobby de ${currentLobby}` : 'En el Lobby';
-                // NO eliminar de connectedUsers, solo actualizar el estado para que pueda volver a entrar
+                // Asegurar que el nombre se mantenga correcto (no se convierta en "Usuario")
+                if (!connectedUsers[leavingPlayerId].username || connectedUsers[leavingPlayerId].username === 'Usuario') {
+                    // Intentar recuperar el nombre real desde users o desde el asiento
+                    if (leavingUserId && users[leavingUserId]) {
+                        connectedUsers[leavingPlayerId].username = users[leavingUserId].username || playerName;
+                    } else {
+                        connectedUsers[leavingPlayerId].username = playerName;
+                    }
+                    console.log(`[${roomId}] ✅ Nombre corregido en connectedUsers para ${leavingPlayerId}: ${connectedUsers[leavingPlayerId].username}`);
+                }
+                
+                const currentLobby = connectedUsers[leavingPlayerId].currentLobby || 'La 51';
+                connectedUsers[leavingPlayerId].status = `En el lobby de ${currentLobby}`;
+                connectedUsers[leavingPlayerId].currentLobby = 'La 51'; // Asegurar que esté en el lobby de La 51
+                
+                // Actualizar la lista de usuarios para que todos vean el nombre correcto
+                broadcastUserListUpdate(io);
+            } else if (leavingUserId) {
+                // Si no existe en connectedUsers, crearlo con el nombre correcto
+                const realUsername = users[leavingUserId]?.username || playerName;
+                connectedUsers[leavingPlayerId] = {
+                    username: realUsername,
+                    status: 'En el lobby de La 51',
+                    currentLobby: 'La 51'
+                };
+                broadcastUserListUpdate(io);
+                console.log(`[${roomId}] ✅ Jugador ${realUsername} agregado a connectedUsers con nombre correcto`);
             }
             // ▲▲▲ FIN DE ACTUALIZACIÓN DE ESTADO ▲▲▲
             
