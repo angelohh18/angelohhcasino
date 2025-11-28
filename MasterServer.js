@@ -4816,11 +4816,8 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     io.to(roomId).emit('playerLeft', getSanitizedRoomForClient(room));
     checkAndCleanRoom(roomId, io);
 }
-// ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
-// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
 
-// ▼▼▼ AÑADE LA NUEVA FUNCIÓN COMPLETA AQUÍ ▼▼▼
-function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se añade 'avatar'
+function createAndStartPracticeGame(socket, username, avatar, io) {
     const roomId = `practice-${socket.id}`;
     const botAvatars = [ 'https://i.pravatar.cc/150?img=52', 'https://i.pravatar.cc/150?img=51', 'https://i.pravatar.cc/150?img=50' ];
 
@@ -4889,9 +4886,7 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
             console.log(`[createAndStartPracticeGame] ✅ firstTurnInfo enviado a ${humanPlayer.playerName}`);
         }, 1500); // Delay aumentado a 1500ms para asegurar que todo esté listo
     }
-    // ▲▲▲ FIN DEL MENSAJE ▲▲▲
 }
-// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
 
 // --- FIN: SECCIÓN DE ADMINISTRACIÓN ---
 
