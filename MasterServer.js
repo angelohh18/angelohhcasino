@@ -5606,23 +5606,43 @@ io.on('connection', (socket) => {
             
             // ▼▼▼ CRÍTICO: Actualizar connectedUsers con el nombre correcto ANTES de enviar el evento ▼▼▼
             // Esto previene que aparezca como "Usuario" en el lobby
+            // CRÍTICO: Obtener el nombre real desde users[userId] si está disponible
+            let realUsername = eliminationInfo.playerName || user.username;
+            if (userId && users[userId] && users[userId].username) {
+                realUsername = users[userId].username;
+                console.log(`[${roomId}] ✅ Nombre real obtenido desde users[${userId}]: ${realUsername}`);
+            }
+            
             if (connectedUsers[socket.id]) {
-                // Asegurar que el nombre se mantenga correcto
-                if (!connectedUsers[socket.id].username || connectedUsers[socket.id].username === 'Usuario') {
-                    connectedUsers[socket.id].username = eliminationInfo.playerName || user.username;
-                    console.log(`[${roomId}] ✅ Nombre corregido en connectedUsers para ${socket.id}: ${connectedUsers[socket.id].username}`);
-                }
+                // Asegurar que el nombre se mantenga correcto (forzar actualización)
+                connectedUsers[socket.id].username = realUsername;
                 connectedUsers[socket.id].status = 'En el lobby de La 51';
                 connectedUsers[socket.id].currentLobby = 'La 51';
+                console.log(`[${roomId}] ✅ Nombre actualizado en connectedUsers para ${socket.id}: ${realUsername}`);
             } else {
                 // Crear entrada si no existe
                 connectedUsers[socket.id] = {
-                    username: eliminationInfo.playerName || user.username,
+                    username: realUsername,
                     status: 'En el lobby de La 51',
                     currentLobby: 'La 51'
                 };
-                console.log(`[${roomId}] ✅ Jugador agregado a connectedUsers con nombre correcto: ${connectedUsers[socket.id].username}`);
+                console.log(`[${roomId}] ✅ Jugador agregado a connectedUsers con nombre correcto: ${realUsername}`);
             }
+            
+            // CRÍTICO: También actualizar por userId para evitar duplicados
+            if (userId) {
+                // Buscar cualquier otra entrada con el mismo userId y actualizarla
+                Object.keys(connectedUsers).forEach(socketId => {
+                    const socketObj = io.sockets.sockets.get(socketId);
+                    if (socketObj && socketObj.userId === userId && socketId !== socket.id) {
+                        connectedUsers[socketId].username = realUsername;
+                        connectedUsers[socketId].status = 'En el lobby de La 51';
+                        connectedUsers[socketId].currentLobby = 'La 51';
+                        console.log(`[${roomId}] ✅ Nombre actualizado en connectedUsers para socket duplicado ${socketId}: ${realUsername}`);
+                    }
+                });
+            }
+            
             broadcastUserListUpdate(io);
             // ▲▲▲ FIN DE ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
             
