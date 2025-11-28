@@ -4924,14 +4924,11 @@ io.on('connection', (socket) => {
   console.log('✅ Un jugador se ha conectado:', socket.id);
   console.log('ESTADO ACTUAL DE LAS MESAS EN EL SERVIDOR:', la51Rooms);
 
-  // ▼▼▼ AÑADE ESTA LÍNEA AQUÍ ▼▼▼
   // No enviamos historial aquí, se enviará cuando el usuario entre al lobby específico
-  // socket.emit('lobbyChatHistory', lobbyChatHistory); // REMOVIDO - se enviará por lobby específico
 
   // Envía la lista de salas de La 51
   socket.emit('updateRoomList', Object.values(la51Rooms));
   
-  // ▼▼▼ ¡AÑADE ESTA LÍNEA PARA LUDO! ▼▼▼
   // Envía la lista de salas de LUDO solo a este socket
   const ludoRoomsArray = Object.values(ludoRooms);
   console.log(`[io.on connection] Enviando ${ludoRoomsArray.length} salas de Ludo al nuevo socket ${socket.id}`);
@@ -5226,7 +5223,6 @@ io.on('connection', (socket) => {
         io.to('admin-room').emit('admin:userList', allUsers);
     });
 
-    // server.js -> Añade este bloque dentro de io.on('connection', ...)
     socket.on('admin:resetCommissions', async () => {
         console.log(`[Admin] Se han reiniciado las ganancias acumuladas.`);
         commissionLog = []; // Vaciamos el array del historial
@@ -6522,7 +6518,6 @@ socket.on('accionDescartar', async (data) => {
     }
   });
 
-  // ▼▼▼ AÑADE ESTE LISTENER COMPLETO DENTRO DE io.on('connection',...) ▼▼▼
   // Chat del lobby de La 51
   socket.on('sendLobbyChat', (data) => {
       if (!data || !data.text || !data.sender) return; // Validación básica
@@ -6548,7 +6543,6 @@ socket.on('accionDescartar', async (data) => {
   });
   // ▲▲▲ FIN DEL NUEVO LISTENER ▲▲▲
 
-  // ▼▼▼ REEMPLAZA TU LISTENER socket.on('disconnect', ...) ENTERO CON ESTE NUEVO CÓDIGO ▼▼▼
   socket.on('disconnect', () => {
     console.log(`❌ Jugador desconectado: ${socket.id}`);
     const username = connectedUsers[socket.id]?.username;
