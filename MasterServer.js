@@ -613,37 +613,9 @@ function broadcastUserListUpdate(io) {
 // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AL INICIO DE TU ARCHIVO ▼▼▼
-function getSanitizedRoomForClient(room) {
-    if (!room) return null;
-
-    // Calculamos los contadores de cartas aquí, una sola vez.
-    const playerHandCounts = {};
-    if (room.seats) {
-        room.seats.forEach(seat => {
-            if (seat && room.playerHands[seat.playerId]) {
-                playerHandCounts[seat.playerId] = room.playerHands[seat.playerId].length;
-            }
-        });
-    }
-
-    // Creamos un objeto "limpio" solo con la información pública y necesaria.
-    const sanitizedRoom = {
-        roomId: room.roomId,
-        hostId: room.hostId,
-        settings: room.settings,
-        seats: room.seats,
-        state: room.state,
-        discardPile: room.discardPile,
-        melds: room.melds,
-        spectators: room.spectators || [],
-        playerHandCounts: playerHandCounts, // <<-- Dato seguro para compartir
-        currentPlayerId: room.currentPlayerId
-    };
-    
-    // NUNCA enviamos 'deck' o 'playerHands'.
-    return sanitizedRoom;
-}
-// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
+// ▼▼▼ FUNCIÓN ELIMINADA (DUPLICADA) - SE USA LA VERSIÓN COMPLETA EN LÍNEA 3422 ▼▼▼
+// Esta función fue reemplazada por una versión más completa que incluye pot y chatHistory
+// ▲▲▲ FIN DE FUNCIÓN ELIMINADA ▲▲▲
 
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AQUÍ ▼▼▼
 function generateRoomId() {
