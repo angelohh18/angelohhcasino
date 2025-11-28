@@ -1602,10 +1602,10 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             room.abandonmentFinalized[leavingPlayerSeat.userId] = true;
             
             // Cancelar cualquier timeout de reconexión pendiente
-            const timeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
-            if (ludoReconnectTimeouts[timeoutKey]) {
-                clearTimeout(ludoReconnectTimeouts[timeoutKey]);
-                delete ludoReconnectTimeouts[timeoutKey];
+            const reconnectTimeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
+            if (ludoReconnectTimeouts[reconnectTimeoutKey]) {
+                clearTimeout(ludoReconnectTimeouts[reconnectTimeoutKey]);
+                delete ludoReconnectTimeouts[reconnectTimeoutKey];
             }
             if (room.abandonmentTimeouts && room.abandonmentTimeouts[leavingPlayerSeat.userId]) {
                 clearTimeout(room.abandonmentTimeouts[leavingPlayerSeat.userId]);
