@@ -238,6 +238,7 @@ let spectatorMode = 'wantsToPlay'; // Variable global para controlar el modo esp
 let clientExchangeRates = {}; // Para guardar las tasas
 let lastKnownRooms = []; // <-- AÑADE ESTA LÍNEA
 let shouldRedirectToLobbyAfterElimination = false; // Variable global para rastrear si debe redirigir al lobby después de cerrar el modal de eliminación
+let eliminationGameType = null; // Variable global para guardar el tipo de juego (la51, ludo, parchis) cuando el jugador es eliminado
 
 
 // Variables globales para el estado del usuario (migración segura)
@@ -2006,11 +2007,24 @@ function showRoomsOverview() {
                 console.log('⚠️ El jugador actual fue eliminado. Se mostrará el modal y luego se redirigirá al lobby al darle aceptar...');
                 // Marcar que debe redirigir al lobby cuando cierre el modal
                 shouldRedirectToLobbyAfterElimination = true;
+                
+                // ▼▼▼ DETECTAR TIPO DE JUEGO ACTUAL PARA REDIRIGIR AL LOBBY CORRECTO ▼▼▼
+                // Detectar el tipo de juego basándose en la URL actual
+                const currentPath = window.location.pathname;
+                if (currentPath.includes('/ludo/') || currentPath.includes('/parchis/')) {
+                    eliminationGameType = 'ludo'; // Ludo o Parchís
+                    console.log('[playerEliminated] Jugador estaba jugando Ludo/Parchís, se redirigirá al lobby de Ludo');
+                } else {
+                    eliminationGameType = 'la51'; // La 51 (por defecto)
+                    console.log('[playerEliminated] Jugador estaba jugando La 51, se redirigirá al lobby de La 51');
+                }
+                // ▲▲▲ FIN DE DETECCIÓN DE TIPO DE JUEGO ▲▲▲
             } else {
                 console.log('⚠️ El jugador actual fue eliminado pero puede seguir viendo el juego (redirect: false)');
                 // No redirigir, solo mostrar el mensaje de eliminación
                 // El jugador puede seguir viendo el resto del juego
                 shouldRedirectToLobbyAfterElimination = false;
+                eliminationGameType = null;
             }
             return; // Salir temprano para no procesar más
         }
@@ -4271,7 +4285,9 @@ function reorderHand(draggedIndices, targetDropIndex) {
         // ▼▼▼ SI DEBE REDIRIGIR AL LOBBY (jugador eliminado por inactividad) ▼▼▼
         if (shouldRedirectToLobbyAfterElimination) {
             console.log('⚠️ Redirigiendo al lobby después de cerrar el modal de eliminación...');
+            const gameType = eliminationGameType || 'la51'; // Por defecto La 51 si no se detectó
             shouldRedirectToLobbyAfterElimination = false; // Resetear la bandera
+            eliminationGameType = null; // Resetear el tipo de juego
             
             // Asegurar que el estado esté limpio
             resetClientGameState();
@@ -4283,17 +4299,34 @@ function reorderHand(draggedIndices, targetDropIndex) {
                 gameContainer.style.display = 'none';
             }
             
-            // Mostrar el lobby
-            showLobbyView();
-            console.log('[closeEliminationOverlay] Lobby mostrado');
-            
-            // Notificar al servidor que estamos en el lobby
-            if (socket && socket.connected) {
-                socket.emit('enterLa51Lobby');
-                console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
+            // ▼▼▼ REDIRIGIR AL LOBBY CORRECTO SEGÚN EL TIPO DE JUEGO ▼▼▼
+            if (gameType === 'ludo') {
+                // Si estaba jugando Ludo o Parchís, redirigir al lobby de Ludo
+                console.log('[closeEliminationOverlay] Redirigiendo al lobby de Ludo/Parchís');
+                if (socket && socket.connected) {
+                    socket.emit('enterLudoLobby');
+                    console.log('[closeEliminationOverlay] Evento enterLudoLobby emitido');
+                } else {
+                    console.warn('[closeEliminationOverlay] Socket no conectado, redirigiendo manualmente a /ludo/');
+                    window.location.href = '/ludo/';
+                }
             } else {
-                console.warn('[closeEliminationOverlay] Socket no conectado, no se puede emitir enterLa51Lobby');
+                // Si estaba jugando La 51, redirigir al lobby de La 51
+                console.log('[closeEliminationOverlay] Redirigiendo al lobby de La 51');
+                // Mostrar el lobby
+                showLobbyView();
+                console.log('[closeEliminationOverlay] Lobby mostrado');
+                
+                // Notificar al servidor que estamos en el lobby
+                if (socket && socket.connected) {
+                    socket.emit('enterLa51Lobby');
+                    console.log('[closeEliminationOverlay] Evento enterLa51Lobby emitido');
+                } else {
+                    console.warn('[closeEliminationOverlay] Socket no conectado, no se puede emitir enterLa51Lobby');
+                }
             }
+            // ▲▲▲ FIN DE REDIRECCIÓN AL LOBBY CORRECTO ▲▲▲
+            
             return; // Salir temprano, no procesar más
         }
         // ▲▲▲ FIN DE REDIRECCIÓN AL LOBBY ▲▲▲
