@@ -1988,6 +1988,7 @@ function showRoomsOverview() {
                 // ▼▼▼ CASO: ABANDONO POR INACTIVIDAD - Limpiar estado y expulsar ▼▼▼
                 console.log('⚠️ El jugador actual fue eliminado por ABANDONO POR INACTIVIDAD. Limpiando estado y expulsando al lobby...');
                 
+                // ▼▼▼ LIMPIEZA AGRESIVA DEL ESTADO DEL JUEGO ▼▼▼
                 // Limpiar estado del juego ANTES de mostrar el modal
                 resetClientGameState();
                 if (currentGameSettings && currentGameSettings.roomId) {
@@ -1995,13 +1996,35 @@ function showRoomsOverview() {
                 }
                 currentGameSettings = null;
                 
-                // Ocultar la vista del juego inmediatamente
+                // Ocultar la vista del juego inmediatamente y de forma agresiva
                 const gameContainer = document.getElementById('game-container');
                 if (gameContainer) {
                     gameContainer.style.display = 'none';
+                    gameContainer.style.visibility = 'hidden';
                 }
+                
+                // Remover clase game-active del body
+                document.body.classList.remove('game-active');
+                
+                // Ocultar cualquier overlay o modal del juego
+                const victoryOverlay = document.getElementById('victory-overlay');
+                if (victoryOverlay) {
+                    victoryOverlay.style.display = 'none';
+                }
+                const readyOverlay = document.getElementById('ready-overlay');
+                if (readyOverlay) {
+                    readyOverlay.style.display = 'none';
+                }
+                
+                // Asegurar que el lobby overlay esté visible
+                const lobbyOverlay = document.getElementById('lobby-overlay');
+                if (lobbyOverlay) {
+                    lobbyOverlay.style.display = 'flex';
+                }
+                
                 // Mostrar el lobby para que no quede en blanco
                 showLobbyView();
+                // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
                 
                 // Mostrar mensaje de eliminación
                 showEliminationMessage(data.playerName, faultInfo);
