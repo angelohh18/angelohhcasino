@@ -1128,40 +1128,70 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
     }
     
     const leavingPlayerSeat = { ...room.seats[seatIndex] };
-    const leavingPlayerUserId = leavingPlayerSeat.userId;
-    
-    // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD: El jugador está saliendo ▼▼▼
-    // Cancelar timeout usando userId (preferido)
-    if (leavingPlayerUserId) {
-        const inactivityTimeoutKey = `${roomId}_${leavingPlayerUserId}`;
-        if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
-            clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
-            delete ludoInactivityTimeouts[inactivityTimeoutKey];
-            console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${leavingPlayerUserId} (jugador está saliendo)`);
-        }
-    }
-    
-    // También cancelar usando leavingPlayerId (por si acaso)
-    const inactivityTimeoutKeyByPlayerId = `${roomId}_${leavingPlayerId}`;
-    if (ludoInactivityTimeouts[inactivityTimeoutKeyByPlayerId]) {
-        clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKeyByPlayerId]);
-        delete ludoInactivityTimeouts[inactivityTimeoutKeyByPlayerId];
-        console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${leavingPlayerId} (jugador está saliendo, por playerId)`);
-    }
-    
-    // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
-    if (leavingPlayerUserId) {
-        Object.keys(ludoInactivityTimeouts).forEach(key => {
-            if (key.startsWith(`${roomId}_`) && (key.includes(leavingPlayerUserId) || key.includes(leavingPlayerId))) {
-                clearTimeout(ludoInactivityTimeouts[key]);
-                delete ludoInactivityTimeouts[key];
-                console.log(`[${roomId}] ✓ Timeout adicional cancelado: ${key}`);
-            }
-        });
-    }
-    // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
+    const userId = leavingPlayerSeat.userId;
     const playerName = leavingPlayerSeat.playerName;
-    const playerColor = leavingPlayerSeat.color; 
+    const playerColor = leavingPlayerSeat.color;
+    
+    console.log(`[Ludo Departure] Eliminando totalmente a ${playerName} (${userId}) de mesa ${roomId}.`);
+
+    // 1. LIMPIEZA DE TIMEOUTS Y RECONEXIONES
+    const timeoutKey = `${roomId}_${userId}`;
+    if (ludoReconnectTimeouts[timeoutKey]) {
+        clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+        delete ludoReconnectTimeouts[timeoutKey];
+    }
+    const inactivityKey = `${roomId}_${leavingPlayerId}`; // Por socket
+    const inactivityKeyUser = `${roomId}_${userId}`; // Por usuario
+    if (ludoInactivityTimeouts[inactivityKey]) { 
+        clearTimeout(ludoInactivityTimeouts[inactivityKey]); 
+        delete ludoInactivityTimeouts[inactivityKey]; 
+    }
+    if (ludoInactivityTimeouts[inactivityKeyUser]) { 
+        clearTimeout(ludoInactivityTimeouts[inactivityKeyUser]); 
+        delete ludoInactivityTimeouts[inactivityKeyUser]; 
+    }
+    
+    if (room.reconnectSeats && room.reconnectSeats[userId]) delete room.reconnectSeats[userId];
+    if (ludoDisconnectedPlayers[`${roomId}_${userId}`]) delete ludoDisconnectedPlayers[`${roomId}_${userId}`];
+
+    // 2. LIBERAR ASIENTO (Acción destructiva inmediata)
+    room.seats[seatIndex] = null;
+
+    // 3. ELIMINAR FICHAS (Todas las fichas del color del jugador se borran del tablero)
+    if (room.gameState && room.gameState.pieces && room.gameState.pieces[playerColor]) {
+        // Opción A: Borrarlas completamente (jugador desaparece)
+        delete room.gameState.pieces[playerColor]; 
+        console.log(`[Ludo Departure] Fichas de ${playerColor} eliminadas permanentemente.`);
+    }
+
+    // 4. REGISTRAR ELIMINACIÓN PARA EL MODAL (Para cuando vuelva)
+    if (!room.abandonmentFinalized) room.abandonmentFinalized = {};
+    // Guardamos la razón específica
+    room.abandonmentFinalized[userId] = {
+        reason: isVoluntaryAbandonment ? 'Abandono voluntario' : 'Inactividad (Tiempo agotado)',
+        penaltyApplied: true,
+        timestamp: Date.now()
+    };
+
+    // 5. LIMPIAR REFERENCIAS DEL SOCKET
+    const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+    if (leavingSocket) {
+        if (leavingSocket.currentRoomId === roomId) {
+            delete leavingSocket.currentRoomId;
+            console.log(`[Ludo Departure] ✅ socket.currentRoomId eliminado para ${leavingPlayerId}`);
+        }
+        leavingSocket.leave(roomId);
+        console.log(`[Ludo Departure] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
+        
+        // Limpiar cualquier referencia a salas relacionadas
+        if (leavingSocket.rooms) {
+            for (const r of Array.from(leavingSocket.rooms)) {
+                if (r !== leavingSocket.id && r === roomId) {
+                    leavingSocket.leave(r);
+                }
+            }
+        }
+    } 
 
     // ▼▼▼ LÓGICA DE REASIGNACIÓN DE ANFITRIÓN DE REVANCHA ▼▼▼
     if (room.state === 'post-game' && room.rematchData && leavingPlayerSeat.playerId === room.rematchData.winnerId) {
@@ -5457,8 +5487,8 @@ io.on('connection', (socket) => {
         // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO POR INACTIVIDAD ▼▼▼
         const eliminatedKey = `${roomId}_${userId}`;
         if (la51EliminatedPlayers[eliminatedKey]) {
-            const eliminationInfo = la51EliminatedPlayers[eliminatedKey];
-            console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Mostrando modal de falta.`);
+            const info = la51EliminatedPlayers[eliminatedKey];
+            console.log(`[La51 Join] ${user.username} intenta volver tras eliminación. Enviando modal y limpiando.`);
             
             // ▼▼▼ LIMPIEZA ADICIONAL PARA ASEGURAR QUE PUEDA VOLVER A ENTRAR COMO NUEVO ▼▼▼
             // Asegurarse de que el socket no tenga referencias a esta sala
@@ -5480,27 +5510,21 @@ io.on('connection', (socket) => {
             }
             // ▲▲▲ FIN DE LIMPIEZA ADICIONAL ▲▲▲
             
-            // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
+            // 1. Enviar evento para mostrar modal y redirigir
             socket.emit('playerEliminated', {
                 playerId: socket.id,
-                playerName: eliminationInfo.playerName || user.username,
-                reason: eliminationInfo.reason || 'Abandono por inactividad',
-                faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
-                redirect: true, // Redirigir al lobby después de mostrar el modal (se maneja cuando cierra el modal)
-                penaltyInfo: eliminationInfo.penaltyInfo
+                playerName: info.playerName || user.username,
+                reason: info.reason || 'Abandono por inactividad',
+                faultData: info.faultData || { reason: 'Abandono por inactividad' },
+                redirect: true, // <--- OBLIGATORIO
+                penaltyInfo: info.penaltyInfo
             });
+
+            // 2. BORRAR EL REGISTRO para permitir reingreso futuro como nuevo
+            delete la51EliminatedPlayers[eliminatedKey];
+            console.log(`[La51 Join] Registro de eliminación borrado para ${userId}. Puede volver a unirse como nuevo jugador.`);
             
-            // Limpiar la entrada DESPUÉS de enviar el evento (para que el modal se muestre)
-            // Usar setTimeout para asegurar que el evento se envíe primero
-            setTimeout(() => {
-                delete la51EliminatedPlayers[eliminatedKey];
-                console.log(`[${roomId}] ✅ Entrada de la51EliminatedPlayers eliminada para ${userId}`);
-            }, 100);
-            
-            // NO redirigir automáticamente - la redirección se manejará cuando el usuario cierre el modal
-            // El cliente manejará la redirección cuando el usuario haga clic en "Aceptar" en el modal
-            
-            return; // No permitir que se una a la sala
+            return; // Bloquear este intento específico
         }
         // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN POR INACTIVIDAD ▲▲▲
 
