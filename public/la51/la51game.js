@@ -237,6 +237,7 @@ const socket = io(window.location.origin, { autoConnect: false });
 let spectatorMode = 'wantsToPlay'; // Variable global para controlar el modo espectador
 let clientExchangeRates = {}; // Para guardar las tasas
 let lastKnownRooms = []; // <-- AÑADE ESTA LÍNEA
+let shouldRedirectToLobbyAfterElimination = false; // Variable global para rastrear si debe redirigir al lobby después de cerrar el modal de eliminación
 
 
 // Variables globales para el estado del usuario (migración segura)
@@ -4259,9 +4260,7 @@ function reorderHand(draggedIndices, targetDropIndex) {
 
         showOverlay('elimination-overlay');
     }
-    // ▼▼▼ VARIABLE GLOBAL PARA RASTREAR SI DEBE REDIRIGIR AL LOBBY ▼▼▼
-    let shouldRedirectToLobbyAfterElimination = false;
-    // ▲▲▲ FIN DE VARIABLE GLOBAL ▲▲▲
+    // Nota: La variable shouldRedirectToLobbyAfterElimination está declarada al inicio del archivo (línea ~240)
     
     // ▼▼▼ REEMPLAZA LA FUNCIÓN ENTERA CON ESTA VERSIÓN ▼▼▼
     // ▼▼▼ REEMPLAZA ESTA FUNCIÓN COMPLETA ▼▼▼
