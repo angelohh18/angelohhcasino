@@ -6438,6 +6438,17 @@ socket.on('accionDescartar', async (data) => {
     const room = la51Rooms[roomId];
     if (!room) return;
 
+    // ▼▼▼ VERIFICAR SI EL JUEGO YA COMENZÓ ▼▼▼
+    if (room.state === 'playing') {
+        console.log(`[${roomId}] ⚠️ Jugador ${socket.id} intenta confirmar revancha pero el juego ya comenzó.`);
+        socket.emit('rematchGameAlreadyStarted', {
+            message: 'La revancha ya comenzó. No puedes confirmar ahora. Serás redirigido al lobby.',
+            redirectToLobby: true
+        });
+        return;
+    }
+    // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
+
     const playerSeat = room.seats.find(s => s && s.playerId === socket.id);
     if (!playerSeat || !playerSeat.userId) return;
 
@@ -6506,18 +6517,48 @@ socket.on('accionDescartar', async (data) => {
 
         // 1. IDENTIFICAR JUGADORES PARA LA NUEVA PARTIDA
         const nextGameParticipants = [];
+        const playersNotConfirmed = []; // Jugadores que no confirmaron a tiempo
+        
         room.seats.forEach(seat => {
-            if (seat && (room.rematchRequests.has(seat.playerId) || seat.status === 'waiting')) {
-                nextGameParticipants.push({
-                    playerId: seat.playerId,
-                    playerName: seat.playerName,
-                    avatar: seat.avatar,
-                    active: true,
-                    doneFirstMeld: false,
-                    userId: seat.userId // ¡Esta es la corrección!
-                });
+            if (seat) {
+                if (room.rematchRequests.has(seat.playerId) || seat.status === 'waiting') {
+                    // Jugador confirmó, lo incluimos en la nueva partida
+                    nextGameParticipants.push({
+                        playerId: seat.playerId,
+                        playerName: seat.playerName,
+                        avatar: seat.avatar,
+                        active: true,
+                        doneFirstMeld: false,
+                        userId: seat.userId
+                    });
+                } else {
+                    // Jugador NO confirmó a tiempo, lo marcamos para liberar su asiento
+                    playersNotConfirmed.push(seat);
+                }
             }
         });
+        
+        // ▼▼▼ LIBERAR ASIENTOS DE JUGADORES QUE NO CONFIRMARON A TIEMPO ▼▼▼
+        // Notificar a estos jugadores que la partida ya comenzó y deben volver al lobby
+        playersNotConfirmed.forEach(seat => {
+            console.log(`[${roomId}] Jugador ${seat.playerName} no confirmó a tiempo. Liberando asiento y notificando.`);
+            // Liberar el asiento
+            const seatIndex = room.seats.findIndex(s => s && s.playerId === seat.playerId);
+            if (seatIndex !== -1) {
+                room.seats[seatIndex] = null;
+            }
+            // Notificar al jugador que debe volver al lobby
+            io.to(seat.playerId).emit('rematchGameStartedWithoutYou', {
+                message: 'La revancha ya comenzó sin tu confirmación. Serás redirigido al lobby.',
+                redirectToLobby: true
+            });
+            // Actualizar estado del usuario
+            if (connectedUsers[seat.playerId]) {
+                const currentLobby = connectedUsers[seat.playerId].currentLobby;
+                connectedUsers[seat.playerId].status = currentLobby ? `En el lobby de ${currentLobby}` : 'En el Lobby';
+            }
+        });
+        // ▲▲▲ FIN DE LIBERAR ASIENTOS ▲▲▲
 
         // ▼▼▼ AÑADE ESTE NUEVO BLOQUE DE CÓDIGO AQUÍ ▼▼▼
         // 2. ✨ LIMPIEZA DEFINITIVA DE LA LISTA DE ESPECTADORES ✨

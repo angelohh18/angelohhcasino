@@ -2108,6 +2108,40 @@ function showRoomsOverview() {
     });
     // ▲▲▲ FIN DEL LISTENER ▲▲▲
 
+    // ▼▼▼ LISTENERS PARA MANEJAR JUGADORES QUE NO CONFIRMARON A TIEMPO ▼▼▼
+    socket.on('rematchGameStartedWithoutYou', (data) => {
+        console.log('[Cliente] La revancha comenzó sin tu confirmación:', data);
+        showToast(data.message || 'La revancha ya comenzó sin tu confirmación. Serás redirigido al lobby.', 5000);
+        if (data.redirectToLobby) {
+            setTimeout(() => {
+                resetClientGameState();
+                if (currentGameSettings && currentGameSettings.roomId) {
+                    socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+                }
+                currentGameSettings = null;
+                showLobbyView();
+                socket.emit('enterLa51Lobby');
+            }, 3000);
+        }
+    });
+
+    socket.on('rematchGameAlreadyStarted', (data) => {
+        console.log('[Cliente] Intento de confirmar revancha pero el juego ya comenzó:', data);
+        showToast(data.message || 'La revancha ya comenzó. No puedes confirmar ahora. Serás redirigido al lobby.', 5000);
+        if (data.redirectToLobby) {
+            setTimeout(() => {
+                resetClientGameState();
+                if (currentGameSettings && currentGameSettings.roomId) {
+                    socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+                }
+                currentGameSettings = null;
+                showLobbyView();
+                socket.emit('enterLa51Lobby');
+            }, 3000);
+        }
+    });
+    // ▲▲▲ FIN DE LISTENERS ▲▲▲
+
     socket.on('rematchUpdate', (data) => {
         const statusEl = document.getElementById('rematch-status');
         if (statusEl) {
