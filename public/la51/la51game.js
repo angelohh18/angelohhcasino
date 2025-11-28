@@ -415,6 +415,13 @@ function showPwaInstallModal() {
     });
     
     socket.on('joinedRoomSuccessfully', (roomData) => {
+        // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO ANTES DE MOSTRAR LA VISTA DEL JUEGO ▼▼▼
+        // Si shouldRedirectToLobbyAfterElimination está activo, no mostrar la vista del juego
+        if (shouldRedirectToLobbyAfterElimination) {
+            console.log('[joinedRoomSuccessfully] Jugador fue eliminado, ignorando unión a la sala');
+            return; // No mostrar la vista del juego
+        }
+        // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
         showGameView({ ...roomData, isPractice: false });
     });
 
@@ -1969,6 +1976,25 @@ function showRoomsOverview() {
         // ▼▼▼ VERIFICAR SI EL JUGADOR ELIMINADO ES EL USUARIO ACTUAL ▼▼▼
         const isCurrentPlayer = data.playerId === socket.id;
         if (isCurrentPlayer) {
+            console.log('⚠️ El jugador actual fue eliminado. Limpiando estado y mostrando modal...');
+            
+            // ▼▼▼ LIMPIAR ESTADO INMEDIATAMENTE PARA PREVENIR QUE SE MUESTRE EL JUEGO ▼▼▼
+            // Limpiar estado del juego ANTES de mostrar el modal
+            resetClientGameState();
+            if (currentGameSettings && currentGameSettings.roomId) {
+                socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+            }
+            currentGameSettings = null;
+            
+            // Ocultar la vista del juego inmediatamente
+            const gameContainer = document.getElementById('game-container');
+            if (gameContainer) {
+                gameContainer.style.display = 'none';
+            }
+            // Mostrar el lobby para que no quede en blanco
+            showLobbyView();
+            // ▲▲▲ FIN DE LIMPIEZA INMEDIATA ▲▲▲
+            
             // Mostrar mensaje de eliminación
             showEliminationMessage(data.playerName, faultInfo);
             
@@ -1976,23 +2002,14 @@ function showRoomsOverview() {
             const shouldRedirect = data.redirect !== false; // Por defecto true si no se especifica
             
             if (shouldRedirect) {
-                console.log('⚠️ El jugador actual fue eliminado. Redirigiendo al lobby...');
-                // Limpiar estado del juego
-                resetClientGameState();
-                if (currentGameSettings && currentGameSettings.roomId) {
-                    socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
-                }
-                currentGameSettings = null;
-                
-                // Redirigir al lobby después de un breve delay
-                setTimeout(() => {
-                    showLobbyView();
-                    socket.emit('enterLa51Lobby');
-                }, 3000);
+                console.log('⚠️ El jugador actual fue eliminado. Se mostrará el modal y luego se redirigirá al lobby al darle aceptar...');
+                // Marcar que debe redirigir al lobby cuando cierre el modal
+                shouldRedirectToLobbyAfterElimination = true;
             } else {
                 console.log('⚠️ El jugador actual fue eliminado pero puede seguir viendo el juego (redirect: false)');
                 // No redirigir, solo mostrar el mensaje de eliminación
                 // El jugador puede seguir viendo el resto del juego
+                shouldRedirectToLobbyAfterElimination = false;
             }
             return; // Salir temprano para no procesar más
         }
@@ -2585,6 +2602,14 @@ function showRoomsOverview() {
 
 // ▼▼▼ REEMPLAZO COMPLETO Y DEFINITIVO ▼▼▼
     socket.on('gameStarted', (initialState) => {
+    
+    // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO ANTES DE MOSTRAR LA VISTA DEL JUEGO ▼▼▼
+    // Si shouldRedirectToLobbyAfterElimination está activo, no mostrar la vista del juego
+    if (shouldRedirectToLobbyAfterElimination) {
+        console.log('[gameStarted] Jugador fue eliminado, ignorando inicio de juego');
+        return; // No mostrar la vista del juego
+    }
+    // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
     
     // CORRECCIÓN CLAVE: Si es una partida de práctica, inicializamos manualmente
     // las configuraciones que las mesas reales inicializan por otra vía.
@@ -4234,10 +4259,34 @@ function reorderHand(draggedIndices, targetDropIndex) {
 
         showOverlay('elimination-overlay');
     }
+    // ▼▼▼ VARIABLE GLOBAL PARA RASTREAR SI DEBE REDIRIGIR AL LOBBY ▼▼▼
+    let shouldRedirectToLobbyAfterElimination = false;
+    // ▲▲▲ FIN DE VARIABLE GLOBAL ▲▲▲
+    
     // ▼▼▼ REEMPLAZA LA FUNCIÓN ENTERA CON ESTA VERSIÓN ▼▼▼
     // ▼▼▼ REEMPLAZA ESTA FUNCIÓN COMPLETA ▼▼▼
     window.closeEliminationOverlay = function() { 
         hideOverlay('elimination-overlay'); 
+        
+        // ▼▼▼ SI DEBE REDIRIGIR AL LOBBY (jugador eliminado por inactividad) ▼▼▼
+        if (shouldRedirectToLobbyAfterElimination) {
+            console.log('⚠️ Redirigiendo al lobby después de cerrar el modal de eliminación...');
+            shouldRedirectToLobbyAfterElimination = false; // Resetear la bandera
+            
+            // Asegurar que el estado esté limpio
+            resetClientGameState();
+            currentGameSettings = null;
+            
+            // Mostrar el lobby
+            showLobbyView();
+            
+            // Notificar al servidor que estamos en el lobby
+            if (socket.connected) {
+                socket.emit('enterLa51Lobby');
+            }
+            return; // Salir temprano, no procesar más
+        }
+        // ▲▲▲ FIN DE REDIRECCIÓN AL LOBBY ▲▲▲
         
         // Verificamos si la partida de práctica terminó por nuestra falta.
         if (practiceGameEndedByHumanFault) {

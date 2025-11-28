@@ -5591,6 +5591,30 @@ io.on('connection', (socket) => {
     }
     // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
+    // ▼▼▼ VERIFICAR NUEVAMENTE SI FUE ELIMINADO ANTES DE UNIRSE A LA SALA ▼▼▼
+    // Esta verificación adicional previene que el jugador se una si fue eliminado
+    const eliminatedKeyCheck = `${roomId}_${userId}`;
+    if (la51EliminatedPlayers[eliminatedKeyCheck]) {
+        const eliminationInfo = la51EliminatedPlayers[eliminatedKeyCheck];
+        console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Mostrando modal de falta.`);
+        
+        // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
+        socket.emit('playerEliminated', {
+            playerId: socket.id,
+            playerName: eliminationInfo.playerName || user.username,
+            reason: eliminationInfo.reason || 'Abandono por inactividad',
+            faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
+            redirect: true, // Redirigir al lobby después de mostrar el modal
+            penaltyInfo: eliminationInfo.penaltyInfo
+        });
+        
+        // Limpiar la entrada después de enviar el evento
+        delete la51EliminatedPlayers[eliminatedKeyCheck];
+        
+        return; // No permitir que se una a la sala
+    }
+    // ▲▲▲ FIN DE VERIFICACIÓN ADICIONAL ▲▲▲
+    
     socket.join(roomId);
     
     // ▼▼▼ CAMBIAR ESTADO A "JUGANDO" ▼▼▼
