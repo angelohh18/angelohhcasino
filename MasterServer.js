@@ -3485,16 +3485,7 @@ function resetRoomForNewGame(room) {
     room.drewFromDiscard = null;
     room.firstMeldCompletedByAnyone = false;
     
-    // ▼▼▼ ELIMINA ESTE BLOQUE 'forEach' COMPLETO ▼▼▼
-    /*
-    room.seats.forEach(seat => {
-        if (seat) {
-            seat.active = true;
-            seat.doneFirstMeld = false;
-            delete seat.status; // <-- AÑADE ESTA LÍNEA
-        }
-    });
-    */
+    // ▼▼▼ BLOQUE OBSOLETO ELIMINADO - Ya no se usa esta lógica de reset manual ▼▼▼
     console.log(`Sala ${room.roomId} reseteada para una nueva partida.`);
 }
 
