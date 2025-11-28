@@ -1278,7 +1278,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             const finalWinnings = totalPot - commission;
 
             // Guardar comisión en el log de administración (solo una vez por partida)
-            const roomCurrency = room.settings.betCurrency || 'USD';
+            // roomCurrency ya está declarado al inicio de la función
             if (!room.commissionSaved) {
                 const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
                 await saveCommission(commissionInCOP, 'COP');
@@ -1494,7 +1494,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             const finalWinnings = totalPot - commission;
 
             // Guardar comisión en el log de administración (solo una vez por partida)
-            const roomCurrency = room.settings.betCurrency || 'USD';
+            // roomCurrency ya está declarado al inicio de la función
             if (!room.commissionSaved) {
                 const commissionInCOP = convertCurrency(commission, roomCurrency, 'COP', exchangeRates);
                 await saveCommission(commissionInCOP, 'COP');
