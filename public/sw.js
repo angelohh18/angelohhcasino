@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.131'; // Actualizado: Permitir salir del navegador/PWA sin eliminar inmediatamente - esperar 2 minutos de inactividad (igual que Ludo)
+const CACHE_NAME = 'mutijuego-v1.12.132'; // Actualizado: Limpieza completa de estados residuales para permitir reingreso de jugadores eliminados sin bloquear el juego
 const urlsToCache = [
   '/',
   '/index.html',
