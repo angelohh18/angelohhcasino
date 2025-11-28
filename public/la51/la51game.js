@@ -121,8 +121,16 @@ function showToast(msg, duration = 3000, isFirstTurn = false) {
     // Si es el mensaje del primer turno, agregar la clase especial para centrarlo
     if (isFirstTurn) {
         toast.classList.add('first-turn');
+        // Asegurar que se mantenga centrado con estilos inline
+        toast.style.top = '50%';
+        toast.style.bottom = 'auto';
+        toast.style.transform = 'translate(-50%, -50%)';
     } else {
         toast.classList.remove('first-turn');
+        // Restaurar estilos por defecto
+        toast.style.top = 'auto';
+        toast.style.bottom = '26px';
+        toast.style.transform = 'translateX(-50%)';
     }
     
     // Forzar visibilidad antes de agregar la clase
@@ -140,13 +148,16 @@ function showToast(msg, duration = 3000, isFirstTurn = false) {
     });
     
     // Usamos un temporizador para ocultar el toast después de la duración
-    setTimeout(() => {
-        toast.classList.remove('show');
-        if (isFirstTurn) {
-            toast.classList.remove('first-turn');
-        }
-        console.log('[showToast] Clase "show" removida después de', duration, 'ms');
-    }, duration);
+    // Solo si NO es el primer turno (el primer turno se oculta manualmente al descartar)
+    if (!isFirstTurn) {
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.style.display = 'none';
+            toast.style.opacity = '0';
+            toast.style.visibility = 'hidden';
+            console.log('[showToast] Clase "show" removida después de', duration, 'ms');
+        }, duration);
+    }
 }
 // ▲▲▲ FIN DEL CÓDIGO A PEGAR ▲▲▲
 
@@ -1702,12 +1713,16 @@ function showRoomsOverview() {
                 const toast = document.getElementById('toast');
                 if (toast) {
                     const toastText = toast.textContent || '';
-                    if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('show')) {
+                    if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('first-turn')) {
+                        // Ocultar completamente el toast del primer turno
                         toast.classList.remove('show');
-                        toast.classList.remove('first-turn'); // Remover también la clase de centrado
+                        toast.classList.remove('first-turn');
                         toast.style.display = 'none';
                         toast.style.opacity = '0';
                         toast.style.visibility = 'hidden';
+                        toast.style.top = 'auto';
+                        toast.style.bottom = '26px';
+                        toast.style.transform = 'translateX(-50%)';
                         toast.textContent = '';
                         console.log('[Cliente] ✅ Mensaje del primer turno ocultado al confirmar el descarte');
                     }
@@ -3220,12 +3235,16 @@ function updatePlayersView(seats, inGame = false) {
             if (toast) {
                 const toastText = toast.textContent || '';
                 // Verificar si el toast contiene el mensaje del primer turno
-                if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('show')) {
+                if (toastText.includes('primer turno') || toastText.includes('15 cartas') || toast.classList.contains('first-turn')) {
+                    // Ocultar completamente el toast del primer turno y restaurar posición por defecto
                     toast.classList.remove('show');
-                    toast.classList.remove('first-turn'); // Remover también la clase de centrado
+                    toast.classList.remove('first-turn');
                     toast.style.display = 'none';
                     toast.style.opacity = '0';
                     toast.style.visibility = 'hidden';
+                    toast.style.top = 'auto';
+                    toast.style.bottom = '26px';
+                    toast.style.transform = 'translateX(-50%)';
                     toast.textContent = ''; // Limpiar el texto también
                     console.log('[Cliente] ✅ Mensaje del primer turno ocultado al descartar la primera carta');
                 }
