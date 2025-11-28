@@ -1710,9 +1710,6 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                     redirect: true, // CRÍTICO: Forzar redirección al lobby
                     forceExit: true, // Flag extra para forzar salida
                     penalty: 0,
-                    currency: roomCurrency
-                    redirect: true,
-                    penalty: 0,
                     currency: roomCurrency,
                     // Incluir datos del usuario para preservar sesión
                     username: leavingPlayerUsername,
