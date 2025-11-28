@@ -5646,15 +5646,21 @@ io.on('connection', (socket) => {
             broadcastUserListUpdate(io);
             // ▲▲▲ FIN DE ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
             
-            // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
-            socket.emit('playerEliminated', {
-                playerId: socket.id,
+            // ▼▼▼ CRÍTICO: Enviar evento playerEliminated con toda la información para que vea el modal ▼▼▼
+            // IMPORTANTE: Usar socket.id como playerId para que el cliente pueda identificar que es él
+            const eliminationEvent = {
+                playerId: socket.id, // CRÍTICO: Usar el socket.id actual para que el cliente lo identifique
                 playerName: eliminationInfo.playerName || user.username,
                 reason: eliminationInfo.reason || 'Abandono por inactividad',
                 faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
                 redirect: true, // CRÍTICO: Redirigir al lobby después de mostrar el modal
                 penaltyInfo: eliminationInfo.penaltyInfo
-            });
+            };
+            
+            console.log(`[${roomId}] 🚨 Enviando playerEliminated a jugador que regresó:`, eliminationEvent);
+            socket.emit('playerEliminated', eliminationEvent);
+            console.log(`[${roomId}] ✅ Evento playerEliminated enviado a ${socket.id} con redirect: true`);
+            // ▲▲▲ FIN DE ENVÍO DE EVENTO ▲▲▲
             
             // Limpiar la entrada DESPUÉS de enviar el evento (para que el modal se muestre)
             // Usar setTimeout para asegurar que el evento se envíe primero

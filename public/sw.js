@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.139'; // Actualizado: Eliminar handlers duplicados, corregir modal de victoria y nombre "Usuario"
+const CACHE_NAME = 'mutijuego-v1.12.140'; // Actualizado: Corregir notificación y redirección para jugadores eliminados por inactividad
 const urlsToCache = [
   '/',
   '/index.html',

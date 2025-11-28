@@ -1929,7 +1929,10 @@ function showRoomsOverview() {
 
     // Reemplaza el listener socket.on('playerEliminated',...)
     socket.on('playerEliminated', (data) => {
-        console.log('Jugador eliminado:', data);
+        console.log('[playerEliminated] Evento recibido:', data);
+        console.log('[playerEliminated] socket.id actual:', socket.id);
+        console.log('[playerEliminated] data.playerId:', data.playerId);
+        console.log('[playerEliminated] data.redirect:', data.redirect);
 
         // ▼▼▼ CRÍTICO: NO PROCESAR ELIMINACIONES DE MESAS DE PRÁCTICA ▼▼▼
         if (currentGameSettings && currentGameSettings.isPractice) {
@@ -1949,7 +1952,9 @@ function showRoomsOverview() {
         // --- FIN DE LA CORRECCIÓN ---
 
         // ▼▼▼ VERIFICAR SI EL JUGADOR ELIMINADO ES EL USUARIO ACTUAL ▼▼▼
-        const isCurrentPlayer = data.playerId === socket.id;
+        // CRÍTICO: Verificar por socket.id Y también si redirect es true (abandono por inactividad)
+        // Si redirect es true, significa que es abandono por inactividad y debe procesarse
+        const isCurrentPlayer = data.playerId === socket.id || (data.redirect === true && data.playerName);
         if (isCurrentPlayer) {
             console.log('⚠️ El jugador actual fue eliminado. Verificando tipo de eliminación...');
             
