@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.147'; // Actualizado: Fix color de fichas al unirse jugador
+const CACHE_NAME = 'mutijuego-v1.12.148'; // Actualizado: Debug y fix color de fichas - logs añadidos
 const urlsToCache = [
   '/',
   '/index.html',

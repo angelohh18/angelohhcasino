@@ -7655,8 +7655,9 @@ socket.on('accionDescartar', async (data) => {
           if (newSeatIndex !== -1) {
 
                // Crear nuevo asiento
-
+               // CORRECCIÓN: Asegurar que el color viene del colorMap correcto
                const assignedColor = room.settings.colorMap[newSeatIndex];
+               console.log(`[${roomId}] 🔍 Asignando asiento ${newSeatIndex} con color ${assignedColor} del colorMap:`, room.settings.colorMap);
 
                const playerName = userId.replace('user_', '');
 
@@ -7695,20 +7696,26 @@ socket.on('accionDescartar', async (data) => {
                    color: assignedColor
 
                };
+               
+               console.log(`[${roomId}] ✅ Asiento ${newSeatIndex} creado con color: ${room.seats[newSeatIndex].color} para jugador ${playerName}`);
 
                
 
                // Inicializar piezas si entra tarde
-               // CORRECCIÓN: Asegurar que las piezas usen el color del asiento asignado, no el diagonal
+               // CORRECCIÓN CRÍTICA: Asegurar que las piezas usen el color del asiento asignado
+               // El color debe venir del asiento que acabamos de crear, no del colorMap directamente
                if (room.state === 'playing' && room.gameState?.pieces) {
-                    // Usar el color del asiento asignado explícitamente
-                    const seatColor = room.seats[newSeatIndex]?.color || assignedColor;
-                    if (!room.gameState.pieces[seatColor]?.length) {
+                    // Obtener el color del asiento que acabamos de asignar (debe ser assignedColor)
+                    const correctColor = room.seats[newSeatIndex]?.color;
+                    if (correctColor && !room.gameState.pieces[correctColor]?.length) {
                          const pieceCount = room.settings.pieceCount || 4;
-                         room.gameState.pieces[seatColor] = [];
+                         room.gameState.pieces[correctColor] = [];
                          for(let i=0; i<pieceCount; i++) {
-                              room.gameState.pieces[seatColor].push({ id: `${seatColor}-${i+1}`, color: seatColor, state: 'base', position: -1 });
+                              room.gameState.pieces[correctColor].push({ id: `${correctColor}-${i+1}`, color: correctColor, state: 'base', position: -1 });
                          }
+                         console.log(`[${roomId}] ✅ Piezas inicializadas para asiento ${newSeatIndex} con color ${correctColor} (jugador: ${playerName})`);
+                    } else if (correctColor && room.gameState.pieces[correctColor]?.length) {
+                         console.log(`[${roomId}] ℹ️ Piezas ya existentes para color ${correctColor} en asiento ${newSeatIndex}`);
                     }
                }
 
