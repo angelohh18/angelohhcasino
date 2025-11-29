@@ -304,8 +304,31 @@ function showPwaInstallModal() {
 
     socket.on('updateLudoRoomList', (serverRooms) => {
         console.log('[CLIENTE LUDO] Recibida lista de salas de Ludo:', serverRooms ? serverRooms.length : 0, 'salas');
-        lastKnownRooms = serverRooms || [];
+        
+        // ▼▼▼ CORRECCIÓN: Filtrar salas inválidas o sin datos esenciales ▼▼▼
+        const validRooms = (serverRooms || []).filter(room => {
+            // Validar que la sala tenga los datos esenciales
+            if (!room || !room.roomId) {
+                console.warn('[Lobby] Sala inválida detectada (sin roomId):', room);
+                return false;
+            }
+            // Validar que tenga settings
+            if (!room.settings) {
+                console.warn(`[Lobby] Sala ${room.roomId} sin settings, filtrando...`);
+                return false;
+            }
+            // Validar que tenga seats (aunque estén vacíos)
+            if (!Array.isArray(room.seats)) {
+                console.warn(`[Lobby] Sala ${room.roomId} sin seats válidos, filtrando...`);
+                return false;
+            }
+            return true;
+        });
+        
+        lastKnownRooms = validRooms;
+        console.log(`[Lobby] ${serverRooms?.length || 0} salas recibidas, ${validRooms.length} válidas después del filtrado`);
         renderRoomsOverview(lastKnownRooms);
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     });
 
     socket.on('userStateUpdated', (userState) => {

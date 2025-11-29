@@ -941,10 +941,19 @@ function ludoCheckAndCleanRoom(roomId, io) {
 function broadcastLudoRoomListUpdate(io) {
     // 1. Emite a un evento NUEVO llamado 'updateLudoRoomList'
     // 2. Envía la lista de 'ludoRooms' (NO la51Rooms)
-    const roomsArray = Object.values(ludoRooms);
-    console.log(`[Broadcast LUDO] Emitiendo ${roomsArray.length} salas de Ludo a todos los clientes.`);
+    // ▼▼▼ CORRECCIÓN: Filtrar salas inválidas antes de enviar ▼▼▼
+    const roomsArray = Object.values(ludoRooms).filter(room => {
+        // Validar que la sala tenga los datos esenciales
+        if (!room || !room.roomId || !room.settings || !Array.isArray(room.seats)) {
+            console.warn(`[Broadcast LUDO] Filtrando sala inválida:`, room?.roomId || 'sin roomId');
+            return false;
+        }
+        return true;
+    });
+    console.log(`[Broadcast LUDO] Emitiendo ${roomsArray.length} salas válidas de Ludo a todos los clientes (de ${Object.keys(ludoRooms).length} totales).`);
     io.emit('updateLudoRoomList', roomsArray);
     console.log('[Broadcast LUDO] Lista de mesas de LUDO actualizada y emitida.');
+    // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 }
 // ▲▲▲ FIN DE LA FUNCIÓN ▲▲▲
 
