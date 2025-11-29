@@ -224,18 +224,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const { seats, mySeatIndex, settings } = state;
-        const colorMap = settings.colorMap; // ['red', 'blue', 'yellow', 'green'] del servidor
-        const myColor = colorMap[mySeatIndex];
+        const colorMap = settings.colorMap; // ['yellow', 'green', 'red', 'blue'] del servidor
+        
+        // ▼▼▼ CORRECCIÓN: Obtener el color del jugador desde el objeto seat, no desde colorMap ▼▼▼
+        // Esto asegura que usamos el color real asignado al jugador, no el color del asiento físico
+        const mySeat = (mySeatIndex !== -1 && mySeatIndex < seats.length) ? seats[mySeatIndex] : null;
+        const myColor = mySeat?.color || colorMap[mySeatIndex] || 'yellow';
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
-        // Calcular rotación CSS basada en mySeatIndex
-        // Objetivo: que MI asiento siempre quede en la posición física de yellow (abajo-derecha)
+        // ▼▼▼ CORRECCIÓN: Calcular rotación CSS basada en el COLOR, no en el asiento físico ▼▼▼
+        // Objetivo: que MI COLOR siempre quede en la posición física de yellow (abajo-derecha)
+        // PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'] (orden físico del HTML)
+        // Necesitamos rotar para que nuestro color quede en la posición de yellow (índice 3 en PHYSICAL_SLOTS)
+        const PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'];
+        const myColorPhysicalIndex = PHYSICAL_SLOTS.indexOf(myColor);
+        
         let rotationDegrees = 0;
-        switch (mySeatIndex) {
-            case 0: rotationDegrees = 0; break;
-            case 1: rotationDegrees = -90; break;
-            case 2: rotationDegrees = 180; break;
-            case 3: rotationDegrees = 90; break;
+        if (myColorPhysicalIndex !== -1) {
+            // Calcular cuántos grados necesitamos rotar para que nuestro color quede en la posición de yellow (índice 3)
+            // yellow está en índice 3, así que necesitamos rotar (3 - myColorPhysicalIndex) * 90 grados
+            const targetIndex = 3; // yellow (abajo-derecha)
+            const rotationSteps = (targetIndex - myColorPhysicalIndex + 4) % 4;
+            rotationDegrees = rotationSteps * -90; // Negativo porque rotamos en sentido horario
+        } else {
+            // Fallback: usar mySeatIndex si el color no se encuentra
+            switch (mySeatIndex) {
+                case 0: rotationDegrees = 0; break;
+                case 1: rotationDegrees = -90; break;
+                case 2: rotationDegrees = 180; break;
+                case 3: rotationDegrees = 90; break;
+                default: rotationDegrees = 0;
+            }
         }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
         // Aplicar rotación CSS al tablero
         const boardElement = document.getElementById('ludo-board');
@@ -250,20 +271,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log(`Soy Asiento ${mySeatIndex} (Color ${myColor}). Rotando tablero ${rotationDegrees}deg.`);
 
-        // Mapear cada asiento del servidor a su slot físico en el HTML
+        // ▼▼▼ CORRECCIÓN: Mapear cada asiento usando el color REAL del jugador, no el colorMap ▼▼▼
         // PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'] (orden físico del HTML)
-        // colorMap = ['red', 'blue', 'yellow', 'green'] (orden del servidor)
         for (let seatIndex = 0; seatIndex < 4; seatIndex++) {
             const seat = seats[seatIndex];
             if (!seat) continue;
             
-            // Obtener el color de este asiento según el colorMap del servidor
-            const seatColor = colorMap[seatIndex];
+            // Obtener el color REAL del jugador desde el objeto seat, no desde colorMap
+            // Esto asegura que usamos el color que realmente tiene el jugador
+            const seatColor = seat.color || colorMap[seatIndex];
             
             // Encontrar el índice del slot físico en el HTML que corresponde a este color
             const physicalSlotIndex = PHYSICAL_SLOTS.indexOf(seatColor);
             if (physicalSlotIndex === -1) {
-                console.warn(`Color ${seatColor} no encontrado en PHYSICAL_SLOTS`);
+                console.warn(`Color ${seatColor} no encontrado en PHYSICAL_SLOTS para asiento ${seatIndex}`);
                 continue;
             }
             
@@ -271,6 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const physicalSlotColor = PHYSICAL_SLOTS[physicalSlotIndex];
             updatePlayerInfoBox(physicalSlotColor, seat);
         }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
         updatePairLabels(state);
     }
