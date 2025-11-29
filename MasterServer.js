@@ -6853,6 +6853,7 @@ socket.on('accionDescartar', async (data) => {
   // ▼▼▼ HANDLERS DE SOCKET DE LUDO (copiados de ludoserver.js, cambiando rooms por ludoRooms) ▼▼▼
     socket.on('createLudoRoom', (settings) => {
       // ▼▼▼ LÓGICA DE `createLudoRoom` ACTUALIZADA ▼▼▼
+      console.log(`🔵 [CREATE ROOM] Recibido createLudoRoom con settings:`, JSON.stringify(settings, null, 2));
       const username = connectedUsers[socket.id]?.username;
 
       if (!username) {
@@ -7041,6 +7042,7 @@ socket.on('accionDescartar', async (data) => {
       console.log(`  - Color del asiento: ${newRoom.seats[hostSeatIndex].color}`);
       console.log(`  - colorMap: [${newRoom.settings.colorMap.join(', ')}]`);
       console.log(`  - Piezas inicializadas para color ${hostColor}:`, newRoom.gameState.pieces[hostColor]?.length || 0, 'piezas');
+      console.log(`  - Verificación: Piezas[${hostColor}] =`, newRoom.gameState.pieces[hostColor]?.map(p => p.id).join(', ') || 'NINGUNA');
       
       socket.emit('roomCreatedSuccessfully', {
           roomId: roomId,
