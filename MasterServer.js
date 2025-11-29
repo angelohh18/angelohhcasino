@@ -970,6 +970,55 @@ function ludoGenerateRoomId() {
   return `ludo-room-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// ▼▼▼ NUEVA FUNCIÓN HELPER PARA ASIGNACIÓN INTELIGENTE DE ASIENTOS ▼▼▼
+
+/**
+ * Encuentra el mejor índice de asiento disponible basándose en reglas de Ludo/Parchís:
+ * 1. Si hay 1 jugador, busca la diagonal.
+ * 2. Si no, busca equilibrar la mesa relativo al host.
+ * 3. Fallback al primer hueco vacío.
+ */
+function findBestLudoSeat(room) {
+    if (!room || !room.seats) return -1;
+
+    // 1. Definir asientos ocupados
+    const seatedPlayers = room.seats.filter(s => s !== null);
+    const hostSeatIndex = room.settings.hostSeatIndex;
+
+    // REGLA 1: DIAGONAL OBLIGATORIA (Si solo hay 1 jugador sentado)
+    if (seatedPlayers.length === 1) {
+        const existingPlayerIndex = room.seats.findIndex(s => s !== null);
+        if (existingPlayerIndex !== -1) {
+            const diagonalSeat = (existingPlayerIndex + 2) % 4;
+            if (room.seats[diagonalSeat] === null) {
+                console.log(`[SeatLogic] Asignando diagonal: ${existingPlayerIndex} -> ${diagonalSeat}`);
+                return diagonalSeat;
+            }
+        }
+    }
+
+    // REGLA 2: PRIORIDAD RELATIVA AL HOST (Para 3 o 4 jugadores)
+    // Intentamos llenar en orden: Diagonal del Host -> Izquierda del Host -> Derecha del Host
+    // Esto asegura que la mesa se llene visualmente equilibrada.
+    const priorityOrder = [
+        (hostSeatIndex + 2) % 4, // Diagonal (Frente)
+        (hostSeatIndex + 1) % 4, // Izquierda
+        (hostSeatIndex + 3) % 4  // Derecha
+    ];
+
+    for (const index of priorityOrder) {
+        if (room.seats[index] === null) {
+            return index;
+        }
+    }
+
+    // REGLA 3: FALLBACK (Cualquier asiento vacío)
+    // Si la lógica anterior falla (ej. el host se fue y los índices cambiaron),
+    // devolvemos el primer hueco que encontremos.
+    return room.seats.findIndex(s => s === null);
+}
+// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
+
 // Función para verificar si hay salas vacías esperando limpieza
 function ludoHasEmptyRooms(io) {
     const roomIds = Object.keys(ludoRooms);
@@ -7502,65 +7551,25 @@ socket.on('accionDescartar', async (data) => {
       }
       // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
 
-      // ▼▼▼ INICIO DEL BLOQUE REEMPLAZADO ▼▼▼
-      // --- LÓGICA DE ASIGNACIÓN DE ASIENTOS (DIAGONAL OBLIGATORIA PARA 2 JUGADORES) ---
+      // ▼▼▼ USO DE LA NUEVA LÓGICA DE ASIENTOS ▼▼▼
       let emptySeatIndex = -1;
+      
+      // 1. Intentar usar un asiento reservado por reconexión (si existe y es válido)
       if (effectiveReconnectSeatInfo && room.seats[effectiveReconnectSeatInfo.seatIndex] === null) {
           emptySeatIndex = effectiveReconnectSeatInfo.seatIndex;
+          console.log(`[${roomId}] Asignando asiento reservado por reconexión: ${emptySeatIndex}`);
       }
-    
-      // Contar jugadores actuales
-      const seatedPlayers = room.seats.filter(s => s !== null);
-      const hostSeatIndex = room.settings.hostSeatIndex; // Asiento del anfitrión (puede estar vacío si se fue)
-
-      if (emptySeatIndex === -1 && seatedPlayers.length === 1) {
-          // ¡SOLO HAY UN JUGADOR! Forzar asiento diagonal.
-          const existingPlayerSeatIndex = room.seats.findIndex(s => s !== null);
-          const diagonalSeat = (existingPlayerSeatIndex + 2) % 4;
-
-          if (room.seats[diagonalSeat] === null) {
-              console.log(`[${roomId}] Asignación diagonal obligatoria: Jugador 1 en ${existingPlayerSeatIndex}, Jugador 2 asignado a ${diagonalSeat}.`);
-              emptySeatIndex = diagonalSeat;
-          } else {
-              // Esto no debería pasar si solo hay 1 jugador, pero es un fallback
-               console.warn(`[${roomId}] Error en lógica diagonal: Se detectó 1 jugador, pero el asiento diagonal ${diagonalSeat} está ocupado.`);
-               // Continuar con la lógica normal...
-          }
-      }
-
-      // Si la lógica diagonal no se aplicó (o falló), usar la lógica de prioridad normal
+      
+      // 2. Si no hay reserva, usar la función inteligente findBestLudoSeat
       if (emptySeatIndex === -1) {
-          // 1. Calcular el orden de prioridad de los asientos RELATIVO al host
-          const diagonalSeatHost = (hostSeatIndex + 2) % 4;
-          const leftSeat = (hostSeatIndex + 1) % 4; // Izquierda del host (sentido horario)
-          const rightSeat = (hostSeatIndex + 3) % 4; // Derecha del host (sentido horario)
-
-          // 2. Buscar asiento diagonal (relativo al host)
-          if (room.seats[diagonalSeatHost] === null) {
-              emptySeatIndex = diagonalSeatHost;
-          } else if (room.seats[leftSeat] === null) {
-              emptySeatIndex = leftSeat;
-          } else if (room.seats[rightSeat] === null) {
-              emptySeatIndex = rightSeat;
-          }
+          emptySeatIndex = findBestLudoSeat(room);
       }
-
+      
+      // 3. Validación final
       if (emptySeatIndex === -1) {
-          // Si no hay asientos vacíos (o la lógica anterior falló), buscar el primer asiento disponible
-          for (let i = 0; i < 4; i++) {
-              if (room.seats[i] === null) {
-                  emptySeatIndex = i;
-                  break;
-              }
-          }
-        
-          // Si aún no hay asientos, la sala está llena
-          if (emptySeatIndex === -1) {
-              return socket.emit('joinRoomFailed', { message: 'La sala está llena.' });
-          }
+          return socket.emit('joinRoomFailed', { message: 'La sala está llena.' });
       }
-      // --- FIN DE LÓGICA DE ASIGNACIÓN ---
-  // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
+      // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
 
       // Obtener el color asignado a este asiento físico
       const reservedSeatData = (effectiveReconnectSeatInfo && effectiveReconnectSeatInfo.seatIndex === emptySeatIndex) ? effectiveReconnectSeatInfo.seatData : null;
@@ -7932,57 +7941,19 @@ socket.on('accionDescartar', async (data) => {
           }
           // ▲▲▲ FIN DE LA VERIFICACIÓN DEL CREADOR ▲▲▲
         
-          // ▼▼▼ INICIO DEL BLOQUE REEMPLAZADO ▼▼▼
-          // CORRECCIÓN: Usar la misma lógica de asignación que en joinLudoRoom
-        
-          // Contar jugadores actuales
-          const seatedPlayers = room.seats.filter(s => s !== null);
-
-          if (seatedPlayers.length === 1 && room.state === 'waiting') {
-              // ¡SOLO HAY UN JUGADOR Y ESTAMOS EN ESPERA! Forzar asiento diagonal.
-              const existingPlayerSeatIndex = room.seats.findIndex(s => s !== null);
-              const diagonalSeat = (existingPlayerSeatIndex + 2) % 4;
-
-              if (room.seats[diagonalSeat] === null) {
-                  console.log(`[${roomId}] (joinLudoGame) Asignación diagonal obligatoria: Jugador 1 en ${existingPlayerSeatIndex}, Jugador 2 asignado a ${diagonalSeat}.`);
-                  mySeatIndex = diagonalSeat;
-              } else {
-                   console.warn(`[${roomId}] (joinLudoGame) Error en lógica diagonal: Se detectó 1 jugador, pero el asiento diagonal ${diagonalSeat} está ocupado.`);
-                   // Continuar con la lógica normal...
-              }
-          }
-
-          // Si la lógica diagonal no se aplicó (o falló), usar la lógica de prioridad normal
+          // ▼▼▼ LÓGICA CENTRALIZADA DE ASIGNACIÓN ▼▼▼
+          
+          // Si el creador ya fue asignado arriba, no hacer nada más
+          // Si no, usar la función inteligente findBestLudoSeat
           if (mySeatIndex === -1) {
-              // 1. Calcular el orden de prioridad de los asientos RELATIVO al host
-              const diagonalSeatHost = (hostSeatIndex + 2) % 4;
-              const leftSeat = (hostSeatIndex + 1) % 4; // Izquierda del host (sentido horario)
-              const rightSeat = (hostSeatIndex + 3) % 4; // Derecha del host (sentido horario)
+              mySeatIndex = findBestLudoSeat(room);
+          }
 
-              // 2. Buscar asiento diagonal (relativo al host)
-              if (room.seats[diagonalSeatHost] === null) {
-                  mySeatIndex = diagonalSeatHost;
-              } 
-              // 3. Buscar asiento 'izquierda' (del host)
-              else if (room.seats[leftSeat] === null) {
-                  mySeatIndex = leftSeat;
-              } 
-              // 4. Buscar asiento 'derecha' (del host)
-              else if (room.seats[rightSeat] === null) {
-                  mySeatIndex = rightSeat;
-              }
-          }
-        
-          // 5. Si no hay asientos con prioridad, buscar cualquier asiento disponible
+          // Validación final
           if (mySeatIndex === -1) {
-              for (let i = 0; i < 4; i++) {
-                  if (room.seats[i] === null) {
-                      mySeatIndex = i;
-                      break;
-                  }
-              }
+              return socket.emit('joinRoomFailed', { message: 'La sala está llena.' });
           }
-          // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
+          // ▲▲▲ FIN LÓGICA CENTRALIZADA ▲▲▲
         
           if (mySeatIndex !== -1) {
               // Asignar asiento disponible
