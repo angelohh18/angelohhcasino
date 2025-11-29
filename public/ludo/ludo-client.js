@@ -40,8 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // ▲▲▲ FIN DE LOS SELECTORES ▲▲▲
 
     // Constantes de los slots físicos del HTML
+    // CORRECCIÓN: PHYSICAL_SLOTS debe coincidir con el colorMap del servidor: ['red', 'blue', 'yellow', 'green']
     // (El orden es el sentido horario desde la base del jugador local)
-    const PHYSICAL_SLOTS = ['yellow', 'green', 'red', 'blue'];
+    const PHYSICAL_SLOTS = ['red', 'blue', 'yellow', 'green'];
     
     // Variable para controlar si el sonido está silenciado
     // Sincroniza con localStorage para compartir el estado con ludogame.js
