@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.154'; // Actualizado: Corregir updatePlayerInfoBoxes para usar mapeo por color
+const CACHE_NAME = 'mutijuego-v1.12.155'; // Actualizado: Corrección de error de sintaxis en MasterServer.js
 const urlsToCache = [
   '/',
   '/index.html',

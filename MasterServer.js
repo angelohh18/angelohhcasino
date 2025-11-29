@@ -593,18 +593,18 @@ function broadcastUserListUpdate(io) {
             delete connectedUsers[socketId];
         }
     });
-
+    
     const userList = Object.keys(connectedUsers).map(socketId => {
-        const user = { ...connectedUsers[socketId] };
+            const user = { ...connectedUsers[socketId] };
         // Aseguramos que el estado visual coincida con la lógica interna
         if (user.currentLobby === 'Ludo' && !user.status.includes('Jugando')) {
             user.status = 'En el lobby de Ludo';
         } else if (user.currentLobby === 'La 51' && !user.status.includes('Jugando')) {
             user.status = 'En el lobby de La 51';
         }
-        return user;
+            return user;
     }).filter(u => u && u.username); // Filtro simple
-
+    
     console.log(`[User List] Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
     console.log(`[User List] Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status })));
     io.emit('updateUserList', userList);
@@ -612,51 +612,17 @@ function broadcastUserListUpdate(io) {
 }
 // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
-// ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AL INICIO DE TU ARCHIVO ▼▼▼
-function getSanitizedRoomForClient(room) {
-    if (!room) return null;
+// Nota: getSanitizedRoomForClient está definida en línea 3392 (versión completa con pot y chatHistory)
 
-    // Calculamos los contadores de cartas aquí, una sola vez.
-    const playerHandCounts = {};
-    if (room.seats) {
-        room.seats.forEach(seat => {
-            if (seat && room.playerHands[seat.playerId]) {
-                playerHandCounts[seat.playerId] = room.playerHands[seat.playerId].length;
-            }
-        });
-    }
-
-    // Creamos un objeto "limpio" solo con la información pública y necesaria.
-    const sanitizedRoom = {
-        roomId: room.roomId,
-        hostId: room.hostId,
-        settings: room.settings,
-        seats: room.seats,
-        state: room.state,
-        discardPile: room.discardPile,
-        melds: room.melds,
-        spectators: room.spectators || [],
-        playerHandCounts: playerHandCounts, // <<-- Dato seguro para compartir
-        currentPlayerId: room.currentPlayerId
-    };
-    
-    // NUNCA enviamos 'deck' o 'playerHands'.
-    return sanitizedRoom;
-}
-// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
-
-// ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA AQUÍ ▼▼▼
 function generateRoomId() {
   // Crea un ID aleatorio y único para cada mesa, ej: 'room-a1b2c3d4'
   return `room-${Math.random().toString(36).slice(2, 10)}`;
 }
-// ▲▲▲ FIN DEL CÓDIGO A AÑADIR ▲▲▲
 
 let la51Rooms = {}; // Estado de las mesas de La 51 se mantiene en memoria
 let ludoRooms = {}; // Estado de las mesas de Ludo se mantiene en memoria
 let connectedUsers = {}; // Objeto para rastrear usuarios activos
 
-// ▼▼▼ AÑADE ESTAS LÍNEAS AL INICIO, JUNTO A TUS OTRAS VARIABLES GLOBALES ▼▼▼
 let lobbyChatHistory = []; // Chat del lobby general (compartido)
 let ludoLobbyChatHistory = []; // Chat específico del lobby de Ludo
 let la51LobbyChatHistory = []; // Chat específico del lobby de La 51
@@ -685,14 +651,12 @@ let la51DisconnectedPlayers = {}; // { `${roomId}_${userId}`: { disconnectedAt: 
 // ▼▼▼ TIMEOUT DE INACTIVIDAD: 2 minutos sin acción durante el turno ▼▼▼
 const LA51_INACTIVITY_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) de inactividad antes de eliminar por falta
 let la51InactivityTimeouts = {}; // { `${roomId}_${playerId}`: timeoutId }
-let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: true } - Para rastrear jugadores eliminados por inactividad
+let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: { playerName, reason, faultData, penaltyInfo } } - Para rastrear jugadores eliminados por inactividad
 // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 // ▲▲▲ FIN VARIABLES GLOBALES PARA LA 51 ▲▲▲
 
-// ▼▼▼ ¡AÑADE ESTAS DOS LÍNEAS PARA RECONEXIÓN! ▼▼▼
 let reconnectTimeouts = {}; // Para rastrear los tiempos de reconexión
 const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar en partida activa
-// ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
 // ▼▼▼ FUNCIONES HELPER PARA TIMEOUT DE INACTIVIDAD EN LA 51 ▼▼▼
 function startLa51InactivityTimeout(room, playerId, io) {
@@ -732,9 +696,17 @@ function startLa51InactivityTimeout(room, playerId, io) {
         // Eliminar al jugador por inactividad (igual que abandono voluntario)
         console.log(`[${roomId}] 🚨 Eliminando ${playerSeat.playerName} por inactividad (2 minutos sin acción).`);
         
+        // Guardar información completa de la eliminación ANTES de eliminar al jugador
         if (playerSeat.userId) {
             const eliminatedKey = `${roomId}_${playerSeat.userId}`;
-            la51EliminatedPlayers[eliminatedKey] = true;
+            const penaltyInfo = currentRoom.penaltiesPaid && currentRoom.penaltiesPaid[playerSeat.userId] ? currentRoom.penaltiesPaid[playerSeat.userId] : null;
+            la51EliminatedPlayers[eliminatedKey] = {
+                playerName: playerSeat.playerName,
+                reason: 'Abandono por inactividad',
+                faultData: { reason: 'Abandono por inactividad' },
+                penaltyInfo: penaltyInfo,
+                roomId: roomId
+            };
         }
         
         // Contar jugadores activos antes de eliminar
@@ -1200,23 +1172,18 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
     }
     // ▲▲▲ FIN: LÓGICA DE REASIGNACIÓN DE ANFITRIÓN DE REVANCHA ▲▲▲
 
-    // ▼▼▼ CORRECCIÓN CRÍTICA: Verificar si hay un timeout de desconexión activo antes de procesar abandono ▼▼▼
+    // ▼▼▼ CORRECCIÓN: Verificar si hay un timeout de reconexión activo antes de procesar abandono ▼▼▼
     // Si el jugador se desconectó durante una partida activa, el timeout de 2 minutos ya está configurado
     // NO debemos procesar el abandono inmediatamente aquí
     // PERO si es un abandono voluntario (leaveGame), procesar INMEDIATAMENTE sin esperar timeouts
     const timeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
     const hasActiveReconnectTimeout = ludoReconnectTimeouts[timeoutKey] || (room.abandonmentTimeouts && room.abandonmentTimeouts[leavingPlayerSeat.userId]);
     const isInReconnectSeats = room.reconnectSeats && room.reconnectSeats[leavingPlayerSeat.userId];
-    // Verificar también si hay un timeout de inactividad activo (para desconexiones)
-    const hasActiveInactivityTimeout = ludoInactivityTimeouts[timeoutKey];
-    // Verificar si el jugador está marcado como desconectado
-    const disconnectKey = `${roomId}_${leavingPlayerSeat.userId}`;
-    const isMarkedAsDisconnected = ludoDisconnectedPlayers[disconnectKey];
     
-    // Si hay un timeout activo, está en reconnectSeats, o está marcado como desconectado, NO procesar el abandono aquí
+    // Si hay un timeout activo o está en reconnectSeats, NO procesar el abandono aquí
     // EXCEPTO si es un abandono voluntario (leaveGame), en cuyo caso procesar INMEDIATAMENTE
-    if (!isVoluntaryAbandonment && (hasActiveReconnectTimeout || isInReconnectSeats || hasActiveInactivityTimeout || isMarkedAsDisconnected)) {
-        console.log(`[${roomId}] Jugador ${playerName} tiene timeout de reconexión/desconexión activo. NO procesando abandono inmediato (esperando timeout de 2 minutos).`);
+    if (!isVoluntaryAbandonment && (hasActiveReconnectTimeout || isInReconnectSeats)) {
+        console.log(`[${roomId}] Jugador ${playerName} tiene timeout de reconexión activo. NO procesando abandono inmediato (esperando timeout de 2 minutos).`);
         return; // Salir de la función - el timeout se encargará del abandono
     }
     
@@ -1353,9 +1320,9 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
 
             // 3. Usar los datos del HOST ÚNICO para 'rematchData'
             room.rematchData = {
-                winnerId: rematchHostId,       // <-- CORREGIDO
-                winnerName: rematchHostName,   // <-- CORREGIDO
-                winnerColor: rematchHostColor, // <-- CORREGIDO
+                winnerId: rematchHostId,
+                winnerName: rematchHostName,
+                winnerColor: rematchHostColor,
                 confirmedPlayers: [],
                 canStart: false,
                 expectedPlayers: playersWhoPlayed.length
@@ -1364,7 +1331,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             // 4. Usar el NOMBRE DE VISUALIZACIÓN para 'ludoGameOver'
             io.to(roomId).emit('playSound', 'victory');
             io.to(roomId).emit('ludoGameOver', {
-                winnerName: winnerDisplayName, // <-- Muestra "JugadorA & JugadorB"
+                winnerName: winnerDisplayName,
                 winnerColor: rematchHostColor,
                 winnerAvatar: rematchHostAvatar,
                 playersWhoPlayed: playersWhoPlayed,
@@ -1452,25 +1419,25 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▼▼▼ CORRECCIÓN: NO DESCONTAR LA APUESTA AL ABANDONAR (YA SE DESCONTÓ AL INICIAR) ▼▼▼
         // La apuesta ya se descontó al iniciar la partida en ludoStartGame, por lo que NO se debe descontar de nuevo al abandonar
         // Solo notificar al jugador que abandonó (sin descontar créditos)
-        if (userInfo) {
+            if (userInfo) {
             // Notificar al jugador que abandonó de su saldo actual (sin cambios)
-            let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
-            if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
-                for (const [socketId, socket] of io.sockets.sockets.entries()) {
-                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-                    if (socketUserId === leavingPlayerSeat.userId) {
-                        leavingPlayerSocket = socket;
-                        break;
+                let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+                if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === leavingPlayerSeat.userId) {
+                            leavingPlayerSocket = socket;
+                            break;
+                        }
                     }
                 }
-            }
-            if (leavingPlayerSocket) {
-                leavingPlayerSocket.emit('userStateUpdated', userInfo);
+                if (leavingPlayerSocket) {
+                    leavingPlayerSocket.emit('userStateUpdated', userInfo);
                 console.log(`[${roomId}] userStateUpdated enviado al jugador que abandonó ${username} (credits: ${userInfo.credits} ${userInfo.currency}) - SIN DESCONTAR APUESTA (ya se descontó al iniciar)`);
-            }
-        } else {
+                }
+            } else {
             console.warn(`[${roomId}] No se encontró userInfo para ${username} (ID: ${leavingPlayerSeat.userId}).`);
-        }
+            }
         // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         
         // Emitir notificación de falta por abandono
@@ -1600,7 +1567,12 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             if (!room.abandonmentFinalized) {
                 room.abandonmentFinalized = {};
             }
-            room.abandonmentFinalized[leavingPlayerSeat.userId] = true;
+            room.abandonmentFinalized[leavingPlayerSeat.userId] = {
+                reason: 'Abandono por inactividad',
+                penaltyApplied: true,
+                timestamp: Date.now()
+            };
+            console.log(`[${roomId}] ✅ Jugador ${playerName} registrado en abandonmentFinalized para mostrar modal si regresa.`);
             
             // Cancelar cualquier timeout de reconexión pendiente
             const timeoutKey = `${roomId}_${leavingPlayerSeat.userId}`;
@@ -1699,7 +1671,8 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                     reason: 'abandonment', 
                     winner: winnerName,
                     message: `Has sido eliminado por abandono. La apuesta ya fue descontada al iniciar la partida.`,
-                    redirect: true,
+                    redirect: true, // CRÍTICO: Forzar redirección al lobby
+                    forceExit: true, // Flag extra para forzar salida
                     penalty: 0,
                     currency: roomCurrency,
                     // Incluir datos del usuario para preservar sesión
@@ -1895,27 +1868,20 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
     const globalPenaltyKey = `${roomId}_${nextPlayer.userId}`;
     const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey] || (room.penaltyApplied && room.penaltyApplied[nextPlayer.userId]);
     
-    // Verificar si ya existe un timeout de desconexión activo (usando userId como clave)
-    const disconnectTimeoutKey = `${roomId}_${nextPlayer.userId}`;
-    const hasActiveDisconnectTimeout = ludoInactivityTimeouts[disconnectTimeoutKey];
-    
     if (alreadyPenalized) {
         console.log(`[${roomId}] ⚠️ El jugador ${nextPlayer.playerName} ya fue eliminado y penalizado. NO se inicia timeout de inactividad.`);
         // No iniciar timeout si ya fue eliminado
         // Continuar con el flujo normal del turno
-    } else if (isDisconnected && hasActiveDisconnectTimeout) {
-        console.log(`[${roomId}] ⚠️ El jugador ${nextPlayer.playerName} está desconectado y ya tiene un timeout de desconexión activo. NO se inicia un segundo timeout.`);
-        // No iniciar timeout si ya tiene uno activo por desconexión
     } else if (isDisconnected) {
         console.log(`[${roomId}] ⚠️ El jugador ${nextPlayer.playerName} está desconectado y le toca el turno. Iniciando timeout de inactividad de 2 minutos.`);
     }
     // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     
-    // Iniciar timeout de inactividad para el nuevo jugador SOLO si NO fue eliminado y NO tiene timeout de desconexión activo
+    // Iniciar timeout de inactividad para el nuevo jugador SOLO si NO fue eliminado
     const newTimeoutKey = `${roomId}_${nextPlayer.playerId}`;
     
-    // Solo iniciar timeout si el jugador NO fue eliminado y NO tiene timeout de desconexión activo
-    if (!alreadyPenalized && !hasActiveDisconnectTimeout) {
+    // Solo iniciar timeout si el jugador NO fue eliminado
+    if (!alreadyPenalized) {
         ludoInactivityTimeouts[newTimeoutKey] = setTimeout(() => {
         console.log(`[${roomId}] ⏰ TIMEOUT DE INACTIVIDAD: El jugador ${nextPlayer.playerName} (asiento ${nextPlayerIndex}) no hizo nada en 2 minutos. Eliminando por falta.`);
         
@@ -1941,6 +1907,19 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
             return;
         }
         
+        // ▼▼▼ CRÍTICO: REGISTRAR EN abandonmentFinalized ANTES DE ELIMINAR ▼▼▼
+        // Esto permite que si el jugador regresa, se le muestre el modal
+        if (!room.abandonmentFinalized) {
+            room.abandonmentFinalized = {};
+        }
+        room.abandonmentFinalized[nextPlayer.userId] = {
+            reason: 'Abandono por inactividad',
+            penaltyApplied: true,
+            timestamp: Date.now()
+        };
+        console.log(`[${roomId}] ✅ Jugador ${nextPlayer.playerName} registrado en abandonmentFinalized para mostrar modal si regresa.`);
+        // ▲▲▲ FIN DE REGISTRO ▲▲▲
+        
         // Eliminar al jugador por inactividad usando la misma lógica que abandono voluntario
         console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${nextPlayer.playerName} (asiento ${nextPlayerIndex})`);
         ludoHandlePlayerDeparture(roomId, nextPlayer.playerId, io);
@@ -1950,9 +1929,9 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         delete ludoDisconnectedPlayers[nextPlayerDisconnectKey];
     }, LUDO_INACTIVITY_TIMEOUT_MS);
     
-    if (isDisconnected && !alreadyPenalized && !hasActiveDisconnectTimeout) {
+    if (isDisconnected && !alreadyPenalized) {
         console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (DESCONECTADO, asiento ${nextPlayerIndex}). Si no vuelve y actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-    } else if (!alreadyPenalized && !hasActiveDisconnectTimeout) {
+    } else if (!alreadyPenalized) {
         console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (asiento ${nextPlayerIndex}). Si no actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     }
     // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
@@ -1972,20 +1951,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
         return;
     }
 
-    // Buscar asiento por socket.id primero, luego por userId (para casos de reconexión)
-    const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-    let mySeatIndex = room.seats.findIndex((s) => s && s.playerId === socket.id);
-    
-    // Si no se encuentra por socket.id, buscar por userId (reconexión)
-    if (mySeatIndex === -1 && userId) {
-        mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
-        // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id
-        if (mySeatIndex !== -1) {
-            room.seats[mySeatIndex].playerId = socket.id;
-            console.log(`[${room.roomId}] Actualizado playerId del asiento ${mySeatIndex} a ${socket.id} para userId ${userId} en ludoHandleParchisRoll`);
-        }
-    }
-    
+    const mySeatIndex = room.seats.findIndex((s) => s && s.playerId === socket.id);
     if (mySeatIndex === -1) {
         return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
     }
@@ -2070,7 +2036,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
 
     let diceUsedForExit = [];
     let piecesAvailableToExit = piecesInBase.length;
-    let blockadeJustCreatedOnStart = false; // <-- AÑADE ESTA LÍNEA
+    let blockadeJustCreatedOnStart = false;
 
     if (piecesAvailableToExit > 0) {
         let availableSlots = Math.max(0, 2 - piecesOnStart);
@@ -2214,7 +2180,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
             } catch (e) {
                 console.error("Error en Timeout Parchis Roll:", e);
             }
-        }, 2500); // <-- CAMBIADO DE 1200 A 2500
+        }, 2500);
         // ▲▲▲ FIN MODIFICACIÓN ▲▲▲
     }
 
@@ -2405,7 +2371,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
                     if (finalPosition !== null) {
                         blockadeBreakMoves.push({
                             type: 'move_active_piece',
-                            startPosition: pos, // <-- AÑADE ESTA LÍNEA
+                            startPosition: pos,
                             pieceId: piece.id,
                             diceValue: dieValue,
                             targetPosition: finalPosition,
@@ -2661,7 +2627,7 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
                         pieceId: piece.id,
                         diceValue: dieValue,
                         targetPosition: finalPosition,
-                        isKill: isKill // <-- ¡PROPIEDAD AÑADIDA!
+                        isKill: isKill
                     });
                 }
             });
@@ -3069,7 +3035,7 @@ function ludoCheckWinCondition(room, playerColor) {
 const adminAuth = (req, res, next) => {
     // Define aquí tu usuario y contraseña. ¡Cámbialos por algo seguro!
     const ADMIN_USER = "angelohh18";
-    const ADMIN_PASS = "ANGELO51"; // <-- CAMBIA ESTA CONTRASEÑA
+    const ADMIN_PASS = "ANGELO51";
 
     const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
     const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
@@ -3101,8 +3067,8 @@ app.post('/register', async (req, res) => {
         password, 
         avatar, 
         currency,
-        acceptedTerms,    // <--- NUEVO CAMPO
-        acceptedPrivacy   // <--- NUEVO CAMPO
+        acceptedTerms,
+        acceptedPrivacy
     } = req.body;
 
     // VALIDACIÓN BÁSICA: Asegúrate de que los campos vengan
@@ -3130,8 +3096,8 @@ app.post('/register', async (req, res) => {
         currency,
         credits: 0.0,
         created_at: new Date().toISOString(),
-        accepted_terms_at: acceptedTerms,      // <--- NUEVO CAMPO
-        accepted_privacy_at: acceptedPrivacy  // <--- NUEVO CAMPO
+        accepted_terms_at: acceptedTerms,
+        accepted_privacy_at: acceptedPrivacy
       });
       
       // Actualizar panel de administración en tiempo real
@@ -3494,7 +3460,7 @@ function resetTurnState(room) {
         room.turnPoints = 0;
         room.hasDrawn = false;
         room.drewFromDiscard = null;
-        room.discardCardRequirementMet = false; // <-- AÑADE ESTA LÍNEA
+        room.discardCardRequirementMet = false;
     }
 }
 
@@ -3511,16 +3477,7 @@ function resetRoomForNewGame(room) {
     room.drewFromDiscard = null;
     room.firstMeldCompletedByAnyone = false;
     
-    // ▼▼▼ ELIMINA ESTE BLOQUE 'forEach' COMPLETO ▼▼▼
-    /*
-    room.seats.forEach(seat => {
-        if (seat) {
-            seat.active = true;
-            seat.doneFirstMeld = false;
-            delete seat.status; // <-- AÑADE ESTA LÍNEA
-        }
-    });
-    */
+    // ▼▼▼ BLOQUE OBSOLETO ELIMINADO - Ya no se usa esta lógica de reset manual ▼▼▼
     console.log(`Sala ${room.roomId} reseteada para una nueva partida.`);
 }
 
@@ -3640,7 +3597,7 @@ function analyzeAndSuggestCorrection(cards) {
 
     // Intenta corregir como si fuera una escalera
     if (suits.size === 1) {
-        const sortedCards = sortCardsForRun([...cards]); // <--- CORRECCIÓN APLICADA
+        const sortedCards = sortCardsForRun([...cards]);
         if (isValidRun(sortedCards)) {
             const correctOrder = sortedCards.map(c => c.value).join('-');
             if (originalOrder !== correctOrder) {
@@ -3792,7 +3749,7 @@ function canBeAddedToServerMeld(card, meld) {
 
 // ▼▼▼ REEMPLAZA LA FUNCIÓN endGameAndCalculateScores ENTERA CON ESTA VERSIÓN ▼▼▼
 async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo = null) {
-    io.to(room.roomId).emit('playSound', 'victory'); // <--- AÑADE ESTA LÍNEA AQUÍ
+    io.to(room.roomId).emit('playSound', 'victory');
     if (room.isPractice) {
         const humanPlayer = room.seats.find(s => s && !s.isBot);
         if (!humanPlayer) return;
@@ -3901,9 +3858,14 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
             let color = '#ffff00';
 
             if (!finalSeatState) {
-                // Jugador abandonó
+                // Jugador abandonó (incluye inactividad)
                 if (penaltyInfo) {
-                    reasonText = 'por abandonar (multa aplicada)';
+                    // Verificar si la razón es específica de inactividad
+                    if (penaltyInfo.reason && (penaltyInfo.reason.includes('inactividad') || penaltyInfo.reason.includes('Abandono'))) {
+                        reasonText = 'por abandono por inactividad (multa aplicada)';
+                    } else {
+                        reasonText = 'por abandonar (multa aplicada)';
+                    }
                     baseText = 'Pagó apuesta y multa';
                     amountPaid = bet + penalty;
                     color = '#ff4444';
@@ -3914,7 +3876,7 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                     color = '#ffff00';
                 }
             } else if (finalSeatState.active === false) {
-                // Jugador eliminado por falta
+                // Jugador eliminado por falta (no inactividad)
                 if (penaltyInfo) {
                     reasonText = `por falta: ${penaltyInfo.reason}`;
                     baseText = 'Pagó apuesta y multa';
@@ -3954,7 +3916,7 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                         <p style="font-size: 0.9rem; margin-left: 10px; color: #ff4444;">• Multas aplicadas: +${totalPenalties.toFixed(2)} ${currencySymbol}</p>
                         <p style="font-size: 0.9rem; margin-left: 10px;"><strong>Total recaudado: ${totalPot.toFixed(2)} ${currencySymbol}</strong></p>`;
     }
-    
+
     let winningsSummary = `<div style="border-top: 1px solid #c5a56a; margin-top: 15px; padding-top: 10px; text-align: left;">
                             ${potBreakdown}
                             <p><strong>Bote Total Recaudado:</strong> ${totalPot.toFixed(2)} ${currencySymbol}</p>
@@ -4028,7 +3990,7 @@ async function checkVictoryCondition(room, roomId, io) {
 // ▼▼▼ REEMPLAZA ESTA FUNCIÓN COMPLETA ▼▼▼
 async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
     if (!room) return;
-    io.to(room.roomId).emit('playSound', 'fault'); // <--- AÑADE ESTA LÍNEA AQUÍ
+    io.to(room.roomId).emit('playSound', 'fault');
     const roomId = room.roomId;
     const playerSeat = room.seats.find(s => s && s.playerId === faultingPlayerId);
 
@@ -4039,7 +4001,7 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         // CASO ESPECIAL: Es una partida de práctica Y la falta la cometió el jugador humano.
         console.log(`[Práctica] Falta del jugador humano. Terminando la partida.`);
 
-        io.to(room.roomId).emit('playSound', 'fault'); // <--- AÑADE ESTA LÍNEA AQUÍ
+        io.to(room.roomId).emit('playSound', 'fault');
         
         // 1. Notificamos al jugador de su eliminación para que vea el modal de la falta.
         io.to(faultingPlayerId).emit('playerEliminated', {
@@ -4378,7 +4340,7 @@ async function botPlay(room, botPlayerId, io) {
             }
             if (cardToAdd) {
                 io.to(room.roomId).emit('animateCardAdd', { melderId: botPlayerId, card: cardToAdd, targetMeldIndex: targetMeldIndex });
-                io.to(room.roomId).emit('playSound', 'add'); // <--- AÑADE ESTA LÍNEA AQUÍ
+                io.to(room.roomId).emit('playSound', 'add');
                 const addPosition = canBeAddedToServerMeld(cardToAdd, room.melds[targetMeldIndex]);
                 if (addPosition === 'prepend') room.melds[targetMeldIndex].cards.unshift(cardToAdd);
                 else room.melds[targetMeldIndex].cards.push(cardToAdd);
@@ -4420,7 +4382,7 @@ async function botPlay(room, botPlayerId, io) {
 
             if (shouldProceedWithMeld) {
                 // El bot cumple las reglas, procede a bajar las combinaciones.
-                io.to(room.roomId).emit('playSound', 'meld'); // <--- AÑADE ESTA LÍNEA AQUÍ
+                io.to(room.roomId).emit('playSound', 'meld');
                 const allMeldedCardIds = new Set();
 
                 for (const meld of meldsToPlay) {
@@ -4535,7 +4497,7 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
 async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     const room = la51Rooms[roomId];
-    
+
     // Cancelar timeout de inactividad: el jugador está saliendo
     cancelLa51InactivityTimeout(roomId, leavingPlayerId);
 
@@ -4602,26 +4564,123 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     const leavingPlayerSeat = { ...room.seats[seatIndex] };
     const playerName = leavingPlayerSeat.playerName;
     const wasActive = leavingPlayerSeat.active === true && leavingPlayerSeat.status !== 'waiting';
+    const leavingUserId = leavingPlayerSeat.userId; // Guardar userId antes de eliminar
 
+    // ▼▼▼ LIMPIEZA AGRESIVA DE REGISTROS DEL JUGADOR ▼▼▼
+    // 1. Liberar el asiento
     room.seats[seatIndex] = null;
     leavingPlayerSeat.active = false; // Marcar como inactivo
+    
+    // 2. Limpiar referencia en el socket del jugador
+    const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+    if (leavingSocket) {
+        // Eliminar currentRoomId
+        if (leavingSocket.currentRoomId === roomId) {
+            delete leavingSocket.currentRoomId;
+            console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${leavingPlayerId}`);
+        }
+        // Forzar salida de la sala de socket.io
+        leavingSocket.leave(roomId);
+        console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
+        
+        // Limpiar cualquier referencia a salas relacionadas
+        if (leavingSocket.rooms) {
+            for (const r of Array.from(leavingSocket.rooms)) {
+                if (r !== leavingSocket.id && (r === roomId || r.startsWith('practice-'))) {
+                    leavingSocket.leave(r);
+                }
+            }
+        }
+    }
+    
+    // 3. Limpiar de initialSeats si existe
+    if (room.initialSeats) {
+        const initialSeatIndex = room.initialSeats.findIndex(s => s && s.playerId === leavingPlayerId);
+        if (initialSeatIndex !== -1) {
+            room.initialSeats[initialSeatIndex] = null;
+        }
+    }
+    
+    // 4. Limpiar de playerHands si existe (ELIMINAR TODAS LAS CARTAS)
+    if (room.playerHands && room.playerHands[leavingPlayerId]) {
+        console.log(`[${roomId}] ✅ Eliminando ${room.playerHands[leavingPlayerId].length} cartas del jugador ${playerName}`);
+        delete room.playerHands[leavingPlayerId];
+    }
+    
+    // 5. Limpiar de rematchRequests si existe
+    if (room.rematchRequests && room.rematchRequests.has(leavingPlayerId)) {
+        room.rematchRequests.delete(leavingPlayerId);
+        console.log(`[${roomId}] ✅ Eliminando solicitud de revancha del jugador ${playerName}`);
+    }
+    
+    // 6. Limpiar de penaltiesPaid si existe (para permitir reingreso como nuevo)
+    if (room.penaltiesPaid && room.penaltiesPaid[leavingUserId]) {
+        // NO eliminar aquí, se necesita para el cálculo final del bote
+        // Pero se limpiará cuando el jugador regrese como nuevo
+        console.log(`[${roomId}] ⚠️ penaltiesPaid conservado para cálculo de bote: ${playerName}`);
+    }
+    
+    // 7. Limpiar desconexiones si existe
+    const disconnectKey = `${roomId}_${leavingUserId}`;
+    if (la51DisconnectedPlayers && la51DisconnectedPlayers[disconnectKey]) {
+        delete la51DisconnectedPlayers[disconnectKey];
+        console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers del usuario ${leavingUserId}`);
+    }
+    
+    // 8. Cancelar cualquier timeout de inactividad pendiente
+    cancelLa51InactivityTimeout(roomId, leavingPlayerId);
+    if (leavingUserId) {
+        cancelLa51InactivityTimeout(roomId, leavingUserId);
+    }
+    // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
 
     if (room.state === 'playing') {
         // VALIDACIÓN CLAVE: Solo aplicamos lógica de abandono si el jugador estaba ACTIVO.
         if (wasActive) {
             // --- JUGADOR ACTIVO: Se aplica multa y se gestiona el turno (igual que abandono voluntario) ---
             const abandonmentReason = `${playerName} ha abandonado la partida.`;
-            console.log(`Jugador activo ${playerName} ha abandonado. Se aplica multa.`);
+            console.log(`[${roomId}] 🚨 Jugador activo ${playerName} ha abandonado. Aplicando multa y registrando eliminación.`);
+
+            // ▼▼▼ CRÍTICO: REGISTRAR EN LISTA DE ELIMINADOS ANTES DE ENVIAR EVENTO ▼▼▼
+            // Esto permite que si el jugador regresa, se le muestre el modal
+            const eliminatedKey = `${roomId}_${leavingUserId}`;
+            const penaltyAmount = room.settings.penalty || 0;
+            
+            la51EliminatedPlayers[eliminatedKey] = {
+                playerName: playerName,
+                reason: 'Abandono / Inactividad',
+                faultData: { reason: abandonmentReason },
+                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' },
+                timestamp: Date.now()
+            };
+            console.log(`[${roomId}] ✅ Jugador ${playerName} registrado en la51EliminatedPlayers para mostrar modal si regresa.`);
+            // ▲▲▲ FIN DE REGISTRO ▲▲▲
 
             const reason = abandonmentReason;
-            // ▼▼▼ CAMBIO AQUÍ ▼▼▼
+            // ▼▼▼ ENVIAR EVENTO CON DATOS COMPLETOS ▼▼▼
             io.to(roomId).emit('playerEliminated', {
                 playerId: leavingPlayerId,
                 playerName: playerName,
                 reason: reason,
-                redirect: true // IMPORTANTE: Forzar salida al lobby
+                faultData: { reason: abandonmentReason },
+                redirect: true, // IMPORTANTE: Forzar salida al lobby
+                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
             });
-            // ▲▲▲ FIN DEL CAMBIO ▲▲▲
+            
+            // ▼▼▼ CRÍTICO: También enviar directamente al jugador eliminado para asegurar que reciba el evento ▼▼▼
+            const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (leavingSocket) {
+                leavingSocket.emit('playerEliminated', {
+                    playerId: leavingPlayerId,
+                    playerName: playerName,
+                    reason: reason,
+                    faultData: { reason: abandonmentReason },
+                    redirect: true, // IMPORTANTE: Forzar salida al lobby
+                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                });
+                console.log(`[${roomId}] ✅ Evento playerEliminated enviado directamente a ${playerName} (${leavingPlayerId}) con redirect: true`);
+            }
+            // ▲▲▲ FIN ENVÍO DIRECTO ▲▲▲
 
             if (leavingPlayerSeat && leavingPlayerSeat.userId) {
                 const penalty = room.settings.penalty || 0;
@@ -4657,6 +4716,39 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                 console.log(`[${roomId}] ⚠️ No se aplicó multa: leavingPlayerSeat=${!!leavingPlayerSeat}, userId=${leavingPlayerSeat?.userId}`);
             }
 
+            // ▼▼▼ ACTUALIZAR ESTADO DEL USUARIO EN CONNECTEDUSERS ▼▼▼
+            // CRÍTICO: Mantener el nombre correcto y actualizar el estado
+            if (connectedUsers[leavingPlayerId]) {
+                // Asegurar que el nombre se mantenga correcto (no se convierta en "Usuario")
+                if (!connectedUsers[leavingPlayerId].username || connectedUsers[leavingPlayerId].username === 'Usuario') {
+                    // Intentar recuperar el nombre real desde users o desde el asiento
+                    if (leavingUserId && users[leavingUserId]) {
+                        connectedUsers[leavingPlayerId].username = users[leavingUserId].username || playerName;
+                    } else {
+                        connectedUsers[leavingPlayerId].username = playerName;
+                    }
+                    console.log(`[${roomId}] ✅ Nombre corregido en connectedUsers para ${leavingPlayerId}: ${connectedUsers[leavingPlayerId].username}`);
+                }
+                
+                const currentLobby = connectedUsers[leavingPlayerId].currentLobby || 'La 51';
+                connectedUsers[leavingPlayerId].status = `En el lobby de ${currentLobby}`;
+                connectedUsers[leavingPlayerId].currentLobby = 'La 51'; // Asegurar que esté en el lobby de La 51
+                
+                // Actualizar la lista de usuarios para que todos vean el nombre correcto
+                broadcastUserListUpdate(io);
+            } else if (leavingUserId) {
+                // Si no existe en connectedUsers, crearlo con el nombre correcto
+                const realUsername = users[leavingUserId]?.username || playerName;
+                connectedUsers[leavingPlayerId] = {
+                    username: realUsername,
+                    status: 'En el lobby de La 51',
+                    currentLobby: 'La 51'
+                };
+                broadcastUserListUpdate(io);
+                console.log(`[${roomId}] ✅ Jugador ${realUsername} agregado a connectedUsers con nombre correcto`);
+            }
+            // ▲▲▲ FIN DE ACTUALIZACIÓN DE ESTADO ▲▲▲
+            
             const activePlayers = room.seats.filter(s => s && s.active !== false);
             if (activePlayers.length === 1) {
                 await endGameAndCalculateScores(room, activePlayers[0], io, { name: playerName });
@@ -4716,11 +4808,8 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     io.to(roomId).emit('playerLeft', getSanitizedRoomForClient(room));
     checkAndCleanRoom(roomId, io);
 }
-// ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
-// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
 
-// ▼▼▼ AÑADE LA NUEVA FUNCIÓN COMPLETA AQUÍ ▼▼▼
-function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se añade 'avatar'
+function createAndStartPracticeGame(socket, username, avatar, io) {
     const roomId = `practice-${socket.id}`;
     const botAvatars = [ 'https://i.pravatar.cc/150?img=52', 'https://i.pravatar.cc/150?img=51', 'https://i.pravatar.cc/150?img=50' ];
 
@@ -4764,7 +4853,7 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
 
     const humanPlayer = newRoom.seats.find(s => s && !s.isBot);
     const isStartingPlayer = humanPlayer && humanPlayer.playerId === startingPlayerId;
-    
+
     io.to(socket.id).emit('gameStarted', {
         hand: newRoom.playerHands[socket.id],
         discardPile: newRoom.discardPile,
@@ -4789,9 +4878,7 @@ function createAndStartPracticeGame(socket, username, avatar, io) { // <-- Se a�
             console.log(`[createAndStartPracticeGame] ✅ firstTurnInfo enviado a ${humanPlayer.playerName}`);
         }, 1500); // Delay aumentado a 1500ms para asegurar que todo esté listo
     }
-    // ▲▲▲ FIN DEL MENSAJE ▲▲▲
 }
-// ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
 
 // --- FIN: SECCIÓN DE ADMINISTRACIÓN ---
 
@@ -4837,14 +4924,11 @@ io.on('connection', (socket) => {
   console.log('✅ Un jugador se ha conectado:', socket.id);
   console.log('ESTADO ACTUAL DE LAS MESAS EN EL SERVIDOR:', la51Rooms);
 
-  // ▼▼▼ AÑADE ESTA LÍNEA AQUÍ ▼▼▼
   // No enviamos historial aquí, se enviará cuando el usuario entre al lobby específico
-  // socket.emit('lobbyChatHistory', lobbyChatHistory); // REMOVIDO - se enviará por lobby específico
 
   // Envía la lista de salas de La 51
   socket.emit('updateRoomList', Object.values(la51Rooms));
   
-  // ▼▼▼ ¡AÑADE ESTA LÍNEA PARA LUDO! ▼▼▼
   // Envía la lista de salas de LUDO solo a este socket
   const ludoRoomsArray = Object.values(ludoRooms);
   console.log(`[io.on connection] Enviando ${ludoRoomsArray.length} salas de Ludo al nuevo socket ${socket.id}`);
@@ -5032,11 +5116,11 @@ io.on('connection', (socket) => {
         finalUsername = finalUsername || 'Usuario';
 
         // 2. Actualizar estado CLARAMENTE
-        connectedUsers[socket.id] = {
+            connectedUsers[socket.id] = {
             username: finalUsername,
-            status: 'En el lobby de Ludo',
-            currentLobby: 'Ludo'
-        };
+                status: 'En el lobby de Ludo',
+                currentLobby: 'Ludo'
+            };
         
         // 3. Limpiar duplicados viejos de este mismo usuario
         if (finalUsername !== 'Usuario') {
@@ -5047,7 +5131,7 @@ io.on('connection', (socket) => {
             });
         }
 
-        broadcastUserListUpdate(io);
+            broadcastUserListUpdate(io);
     });
 
     socket.on('enterLa51Lobby', () => {
@@ -5065,11 +5149,11 @@ io.on('connection', (socket) => {
         finalUsername = finalUsername || 'Usuario';
 
         // 2. Actualizar estado CLARAMENTE
-        connectedUsers[socket.id] = {
+            connectedUsers[socket.id] = {
             username: finalUsername,
-            status: 'En el lobby de La 51',
-            currentLobby: 'La 51'
-        };
+                status: 'En el lobby de La 51',
+                currentLobby: 'La 51'
+            };
 
         // 3. Limpiar duplicados viejos
         if (finalUsername !== 'Usuario') {
@@ -5139,7 +5223,6 @@ io.on('connection', (socket) => {
         io.to('admin-room').emit('admin:userList', allUsers);
     });
 
-    // server.js -> Añade este bloque dentro de io.on('connection', ...)
     socket.on('admin:resetCommissions', async () => {
         console.log(`[Admin] Se han reiniciado las ganancias acumuladas.`);
         commissionLog = []; // Vaciamos el array del historial
@@ -5422,27 +5505,198 @@ io.on('connection', (socket) => {
         // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO POR INACTIVIDAD ▼▼▼
         const eliminatedKey = `${roomId}_${userId}`;
         if (la51EliminatedPlayers[eliminatedKey]) {
-            console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Redirigiendo al lobby.`);
-            delete la51EliminatedPlayers[eliminatedKey];
+            const eliminationInfo = la51EliminatedPlayers[eliminatedKey];
+            console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Mostrando modal de falta.`);
             
-            socket.emit('playerEliminatedByInactivity', {
-                message: 'Fuiste eliminado por inactividad. Serás redirigido al lobby.',
-                redirectToLobby: true
-            });
+            // ▼▼▼ LIMPIEZA ADICIONAL PARA ASEGURAR QUE PUEDA VOLVER A ENTRAR COMO NUEVO ▼▼▼
+            // Asegurarse de que el socket no tenga referencias a esta sala
+            if (socket.currentRoomId === roomId) {
+                delete socket.currentRoomId;
+                console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${socket.id} antes de mostrar modal`);
+            }
+            // Asegurarse de que el socket salga de la sala
+            socket.leave(roomId);
             
-            setTimeout(() => {
-                socket.emit('redirectToLobby', {
-                    reason: 'Fuiste eliminado por inactividad durante la partida.'
+            // Limpiar cualquier asiento que pueda tener este userId en la sala
+            if (room.seats) {
+                for (let i = 0; i < room.seats.length; i++) {
+                    if (room.seats[i] && room.seats[i].userId === userId) {
+                        console.log(`[${roomId}] ✅ Limpiando asiento [${i}] del usuario ${userId}`);
+                        room.seats[i] = null;
+                    }
+                }
+            }
+            
+            // Limpiar initialSeats también
+            if (room.initialSeats) {
+                for (let i = 0; i < room.initialSeats.length; i++) {
+                    if (room.initialSeats[i] && room.initialSeats[i].userId === userId) {
+                        console.log(`[${roomId}] ✅ Limpiando initialSeats[${i}] del usuario ${userId}`);
+                        room.initialSeats[i] = null;
+                    }
+                }
+            }
+            
+            // Limpiar playerHands
+            if (room.playerHands && room.playerHands[socket.id]) {
+                delete room.playerHands[socket.id];
+                console.log(`[${roomId}] ✅ Limpiando playerHands del socket ${socket.id}`);
+            }
+            
+            // Limpiar rematchRequests
+            if (room.rematchRequests && room.rematchRequests.has(socket.id)) {
+                room.rematchRequests.delete(socket.id);
+                console.log(`[${roomId}] ✅ Limpiando rematchRequests del socket ${socket.id}`);
+            }
+            // ▲▲▲ FIN DE LIMPIEZA ADICIONAL ▲▲▲
+            
+            // ▼▼▼ CRÍTICO: Actualizar connectedUsers con el nombre correcto ANTES de enviar el evento ▼▼▼
+            // Esto previene que aparezca como "Usuario" en el lobby
+            // CRÍTICO: Obtener el nombre real desde users[userId] si está disponible
+            let realUsername = eliminationInfo.playerName || user.username;
+            if (userId && users[userId] && users[userId].username) {
+                realUsername = users[userId].username;
+                console.log(`[${roomId}] ✅ Nombre real obtenido desde users[${userId}]: ${realUsername}`);
+            }
+            
+            if (connectedUsers[socket.id]) {
+                // Asegurar que el nombre se mantenga correcto (forzar actualización)
+                connectedUsers[socket.id].username = realUsername;
+                connectedUsers[socket.id].status = 'En el lobby de La 51';
+                connectedUsers[socket.id].currentLobby = 'La 51';
+                console.log(`[${roomId}] ✅ Nombre actualizado en connectedUsers para ${socket.id}: ${realUsername}`);
+            } else {
+                // Crear entrada si no existe
+                connectedUsers[socket.id] = {
+                    username: realUsername,
+                    status: 'En el lobby de La 51',
+                    currentLobby: 'La 51'
+                };
+                console.log(`[${roomId}] ✅ Jugador agregado a connectedUsers con nombre correcto: ${realUsername}`);
+            }
+            
+            // CRÍTICO: También actualizar por userId para evitar duplicados
+            if (userId) {
+                // Buscar cualquier otra entrada con el mismo userId y actualizarla
+                Object.keys(connectedUsers).forEach(socketId => {
+                    const socketObj = io.sockets.sockets.get(socketId);
+                    if (socketObj && socketObj.userId === userId && socketId !== socket.id) {
+                        connectedUsers[socketId].username = realUsername;
+                        connectedUsers[socketId].status = 'En el lobby de La 51';
+                        connectedUsers[socketId].currentLobby = 'La 51';
+                        console.log(`[${roomId}] ✅ Nombre actualizado en connectedUsers para socket duplicado ${socketId}: ${realUsername}`);
+                    }
                 });
-            }, 1000);
+            }
+            
+            broadcastUserListUpdate(io);
+            // ▲▲▲ FIN DE ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
+            
+            // ▼▼▼ CRÍTICO: Enviar evento playerEliminated con toda la información para que vea el modal ▼▼▼
+            // IMPORTANTE: Usar socket.id como playerId para que el cliente pueda identificar que es él
+            const eliminationEvent = {
+                playerId: socket.id, // CRÍTICO: Usar el socket.id actual para que el cliente lo identifique
+                playerName: eliminationInfo.playerName || user.username,
+                reason: eliminationInfo.reason || 'Abandono por inactividad',
+                faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
+                redirect: true, // CRÍTICO: Redirigir al lobby después de mostrar el modal
+                penaltyInfo: eliminationInfo.penaltyInfo
+            };
+            
+            console.log(`[${roomId}] 🚨 Enviando playerEliminated a jugador que regresó:`, eliminationEvent);
+            socket.emit('playerEliminated', eliminationEvent);
+            console.log(`[${roomId}] ✅ Evento playerEliminated enviado a ${socket.id} con redirect: true`);
+            // ▲▲▲ FIN DE ENVÍO DE EVENTO ▲▲▲
+            
+            // Limpiar la entrada DESPUÉS de enviar el evento (para que el modal se muestre)
+            // Usar setTimeout para asegurar que el evento se envíe primero
+            setTimeout(() => {
+                delete la51EliminatedPlayers[eliminatedKey];
+                console.log(`[${roomId}] ✅ Entrada de la51EliminatedPlayers eliminada para ${userId}. Puede volver a unirse como nuevo jugador.`);
+            }, 100);
+            
+            // NO redirigir automáticamente - la redirección se manejará cuando el usuario cierre el modal
+            // El cliente manejará la redirección cuando el usuario haga clic en "Aceptar" en el modal
             
             return; // No permitir que se una a la sala
         }
         // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN POR INACTIVIDAD ▲▲▲
 
+        // ▼▼▼ CRÍTICO: VERIFICAR SI EL JUGADOR YA ESTABA EN LA MESA (RECONEXIÓN) ▼▼▼
+        // Si el jugador ya estaba en la mesa, permitirle reconectarse a su asiento
+        let existingSeatIndex = -1;
+        let existingSeat = null;
+        
+        // Buscar si el jugador ya tiene un asiento en la mesa
+        for (let i = 0; i < room.seats.length; i++) {
+            if (room.seats[i] && room.seats[i].userId === userId) {
+                existingSeatIndex = i;
+                existingSeat = room.seats[i];
+                console.log(`[${roomId}] ✅ Jugador ${user.username} ya tiene asiento [${i}] en la mesa. Permitir reconexión.`);
+                break;
+            }
+        }
+        
+        // Si el jugador ya estaba en la mesa, actualizar su socket.id y permitir reconexión
+        if (existingSeat && existingSeatIndex !== -1) {
+            console.log(`[${roomId}] 🔄 Jugador ${user.username} reconectándose a su asiento [${existingSeatIndex}]. Actualizando socket.id de ${existingSeat.playerId} a ${socket.id}`);
+            
+            // Actualizar el playerId con el nuevo socket.id
+            existingSeat.playerId = socket.id;
+            
+            // Asegurar que el socket esté en la sala
+            socket.join(roomId);
+            socket.currentRoomId = roomId;
+            
+            // Cancelar cualquier timeout de inactividad que pueda estar activo
+            cancelLa51InactivityTimeout(roomId, existingSeat.playerId);
+            if (userId) {
+                cancelLa51InactivityTimeout(roomId, userId);
+            }
+            
+            // Limpiar de la lista de desconectados si existe
+            const disconnectKey = `${roomId}_${userId}`;
+            if (la51DisconnectedPlayers && la51DisconnectedPlayers[disconnectKey]) {
+                delete la51DisconnectedPlayers[disconnectKey];
+                console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers para ${userId}`);
+            }
+            
+            // Enviar el estado actual de la sala al jugador reconectado
+            const sanitizedRoom = getSanitizedRoomForClient(room);
+            socket.emit('joinedRoomSuccessfully', sanitizedRoom);
+            
+            // Si el juego está en curso, enviar el estado del juego
+            if (room.state === 'playing') {
+                if (room.playerHands && room.playerHands[existingSeat.playerId]) {
+                    // Actualizar la clave en playerHands al nuevo socket.id
+                    room.playerHands[socket.id] = room.playerHands[existingSeat.playerId];
+                    delete room.playerHands[existingSeat.playerId];
+                }
+                
+                // Enviar estado del juego actual
+                const playerHandCounts = {};
+                room.seats.forEach(s => { 
+                    if(s) playerHandCounts[s.playerId] = room.playerHands[s.playerId]?.length || 0; 
+                });
+                
+                socket.emit('gameStarted', {
+                    hand: room.playerHands[socket.id] || [],
+                    discardPile: room.discardPile || [],
+                    seats: room.seats,
+                    currentPlayerId: room.currentPlayerId,
+                    playerHandCounts: playerHandCounts,
+                    melds: room.melds || [],
+                    isPractice: room.isPractice || false
+                });
+            }
+            
+            console.log(`[${roomId}] ✅ Jugador ${user.username} reconectado exitosamente a su asiento [${existingSeatIndex}]`);
+            return; // Salir temprano, no procesar más
+        }
+        // ▲▲▲ FIN DE VERIFICACIÓN DE RECONEXIÓN ▲▲▲
 
-        // --- LÓGICA ANTI-ROBO DE IDENTIDAD: LIMPIEZA AGRESIVA ---
-        // 1. Limpiamos CUALQUIER asiento que tenga el mismo userId
+        // --- LÓGICA ANTI-ROBO DE IDENTIDAD: LIMPIEZA AGRESIVA (SOLO SI NO ES RECONEXIÓN) ---
+        // 1. Limpiamos CUALQUIER asiento que tenga el mismo userId (solo si no es reconexión)
         for (let i = 0; i < room.seats.length; i++) {
             if (room.seats[i] && room.seats[i].userId === userId) {
                 console.log(`[ANTI-ROBO] Eliminando asiento [${i}] del usuario '${user.username}' para prevenir robo de identidad.`);
@@ -5554,7 +5808,7 @@ io.on('connection', (socket) => {
 
     // Convertimos ese requisito total a la moneda del jugador
     const requiredAmountInPlayerCurrency = convertCurrency(totalRequirementInRoomCurrency, roomCurrency, playerInfo.currency, exchangeRates);
-    
+
     if (playerInfo.credits < requiredAmountInPlayerCurrency) {
         const friendlyBet = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
         const friendlyPenalty = convertCurrency(roomPenalty, roomCurrency, playerInfo.currency, exchangeRates);
@@ -5599,6 +5853,30 @@ io.on('connection', (socket) => {
     }
     // ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲
 
+    // ▼▼▼ VERIFICAR NUEVAMENTE SI FUE ELIMINADO ANTES DE UNIRSE A LA SALA ▼▼▼
+    // Esta verificación adicional previene que el jugador se una si fue eliminado
+    const eliminatedKeyCheck = `${roomId}_${userId}`;
+    if (la51EliminatedPlayers[eliminatedKeyCheck]) {
+        const eliminationInfo = la51EliminatedPlayers[eliminatedKeyCheck];
+        console.log(`[${roomId}] ⚠️ Jugador ${user.username} (${userId}) intenta unirse pero fue eliminado por inactividad. Mostrando modal de falta.`);
+        
+        // Enviar evento playerEliminated con toda la información para que vea el modal igual que los demás
+        socket.emit('playerEliminated', {
+            playerId: socket.id,
+            playerName: eliminationInfo.playerName || user.username,
+            reason: eliminationInfo.reason || 'Abandono por inactividad',
+            faultData: eliminationInfo.faultData || { reason: 'Abandono por inactividad' },
+            redirect: true, // Redirigir al lobby después de mostrar el modal
+            penaltyInfo: eliminationInfo.penaltyInfo
+        });
+        
+        // Limpiar la entrada después de enviar el evento
+        delete la51EliminatedPlayers[eliminatedKeyCheck];
+        
+        return; // No permitir que se una a la sala
+    }
+    // ▲▲▲ FIN DE VERIFICACIÓN ADICIONAL ▲▲▲
+    
     socket.join(roomId);
     
     // ▼▼▼ CAMBIAR ESTADO A "JUGANDO" ▼▼▼
@@ -5654,61 +5932,61 @@ io.on('connection', (socket) => {
     
     console.log(`[startGame] ✅ Validaciones pasadas. Iniciando juego en la mesa ${roomId} con ${seatedPlayers.length} jugadores`);
     
-    room.state = 'playing';
-    if (!room.chatHistory) room.chatHistory = [];
-    room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
-    room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
-    room.melds = [];
+        room.state = 'playing';
+        if (!room.chatHistory) room.chatHistory = [];
+        room.chatHistory.push({ sender: 'Sistema', message: 'Ha comenzado una nueva partida.' });
+        room.initialSeats = JSON.parse(JSON.stringify(room.seats.filter(s => s !== null))); // Guardamos quiénes empezaron
+        room.melds = [];
     room.pot = 0; // Inicializar el bote
     room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
-    
-    room.seats.forEach(async (seat) => {
-        if (seat) {
-            seat.active = true;
-            seat.doneFirstMeld = false;
+        
+        room.seats.forEach(async (seat) => {
+            if (seat) {
+                seat.active = true;
+                seat.doneFirstMeld = false;
 
-            const playerInfo = users[seat.userId];
-            if (playerInfo) {
-                const roomBet = room.settings.bet;
-                const roomCurrency = room.settings.betCurrency;
+                const playerInfo = users[seat.userId];
+                if (playerInfo) {
+                    const roomBet = room.settings.bet;
+                    const roomCurrency = room.settings.betCurrency;
 
-                // Convertir la apuesta a la moneda del jugador para descontarla
-                const betInPlayerCurrency = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
+                    // Convertir la apuesta a la moneda del jugador para descontarla
+                    const betInPlayerCurrency = convertCurrency(roomBet, roomCurrency, playerInfo.currency, exchangeRates);
 
-                playerInfo.credits -= betInPlayerCurrency;
-                
-                // ▼▼▼ LÍNEA AÑADIDA: Guardar en la Base de Datos ▼▼▼
-                await updateUserCredits(seat.userId, playerInfo.credits, playerInfo.currency);
-                // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
+                    playerInfo.credits -= betInPlayerCurrency;
+                    
+                    // ▼▼▼ LÍNEA AÑADIDA: Guardar en la Base de Datos ▼▼▼
+                    await updateUserCredits(seat.userId, playerInfo.credits, playerInfo.currency);
+                    // ▲▲▲ FIN DE LA LÍNEA AÑADIDA ▲▲▲
 
-                // El bote siempre se mantiene en la moneda de la mesa
-                room.pot += roomBet;
+                    // El bote siempre se mantiene en la moneda de la mesa
+                    room.pot += roomBet;
 
-                io.to(seat.playerId).emit('userStateUpdated', playerInfo);
+                    io.to(seat.playerId).emit('userStateUpdated', playerInfo);
+                }
             }
-        }
-    });
+        });
     
     // Emitir bote inicial a todos los jugadores después de que todas las apuestas se hayan sumado
     io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
     console.log(`[${roomId}] 💰 Bote inicial: ${room.pot} ${room.settings.betCurrency} (${seatedPlayers.length} apuestas de ${room.settings.bet} cada una)`);
-    
-    const newDeck = buildDeck();
-    shuffle(newDeck);
-    seatedPlayers.forEach(player => {
-        room.playerHands[player.playerId] = newDeck.splice(0, 14);
-    });
+        
+        const newDeck = buildDeck();
+        shuffle(newDeck);
+        seatedPlayers.forEach(player => {
+            room.playerHands[player.playerId] = newDeck.splice(0, 14);
+        });
 
-    const startingPlayerId = seatedPlayers[0].playerId;
-    room.playerHands[startingPlayerId].push(newDeck.shift());
-    
-    // --- LÍNEA A AÑADIR ---
-    room.hasDrawn = true; // El primer jugador ya "robó" su carta inicial.
-    // --- FIN DE LA CORRECCIÓN ---
+        const startingPlayerId = seatedPlayers[0].playerId;
+        room.playerHands[startingPlayerId].push(newDeck.shift());
+        
+        // --- LÍNEA A AÑADIR ---
+        room.hasDrawn = true; // El primer jugador ya "robó" su carta inicial.
+        // --- FIN DE LA CORRECCIÓN ---
 
-    room.discardPile = [newDeck.shift()];
-    room.deck = newDeck;
-    room.currentPlayerId = startingPlayerId;
+        room.discardPile = [newDeck.shift()];
+        room.deck = newDeck;
+        room.currentPlayerId = startingPlayerId;
 
     const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
     if (startingPlayerSeat && startingPlayerSeat.isBot) {
@@ -5720,30 +5998,30 @@ io.on('connection', (socket) => {
         console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
     }
 
-    const playerHandCounts = {};
-    seatedPlayers.forEach(player => {
-        playerHandCounts[player.playerId] = room.playerHands[player.playerId].length;
-    });
+        const playerHandCounts = {};
+        seatedPlayers.forEach(player => {
+            playerHandCounts[player.playerId] = room.playerHands[player.playerId].length;
+        });
 
-    // ▼▼▼ AÑADE ESTE BLOQUE AQUÍ ▼▼▼
-    // Notifica a TODOS en la sala (jugadores y espectadores) que reseteen su chat y lista de espectadores.
-    io.to(roomId).emit('resetForNewGame', { 
-        spectators: room.spectators || [] // Envía la lista de espectadores actualizada
-    });
-    // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
+        // ▼▼▼ AÑADE ESTE BLOQUE AQUÍ ▼▼▼
+        // Notifica a TODOS en la sala (jugadores y espectadores) que reseteen su chat y lista de espectadores.
+        io.to(roomId).emit('resetForNewGame', { 
+            spectators: room.spectators || [] // Envía la lista de espectadores actualizada
+        });
+        // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
 
-    seatedPlayers.forEach(player => {
+        seatedPlayers.forEach(player => {
         const isStartingPlayer = player.playerId === startingPlayerId;
-        io.to(player.playerId).emit('gameStarted', {
-            hand: room.playerHands[player.playerId],
-            discardPile: room.discardPile,
-            seats: room.seats,
-            currentPlayerId: room.currentPlayerId,
-            playerHandCounts: playerHandCounts,
+            io.to(player.playerId).emit('gameStarted', {
+                hand: room.playerHands[player.playerId],
+                discardPile: room.discardPile,
+                seats: room.seats,
+                currentPlayerId: room.currentPlayerId,
+                playerHandCounts: playerHandCounts,
             melds: room.melds, // <-- AÑADE ESTA LÍNEA
             isFirstTurn: isStartingPlayer && !startingPlayerSeat.isBot // Indicar si es el primer turno
+            });
         });
-    });
     
     // ▼▼▼ MENSAJE PARA EL JUGADOR QUE INICIA ▼▼▼
     // Enviar mensaje informativo al jugador que inicia (si no es bot)
@@ -5759,12 +6037,12 @@ io.on('connection', (socket) => {
         }, 1500); // Delay aumentado a 1500ms para asegurar que todo esté listo
     }
     // ▲▲▲ FIN DEL MENSAJE ▲▲▲
-    
-    console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
-    // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
-    io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
-    // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
-    broadcastRoomListUpdate(io);
+        
+        console.log(`Partida iniciada en ${roomId}. Bote inicial: ${room.pot}.`);
+        // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+        io.to(roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: false });
+        // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
+        broadcastRoomListUpdate(io);
   });
 
   socket.on('meldAction', async (data) => {
@@ -5793,7 +6071,8 @@ io.on('connection', (socket) => {
     const playerHand = room.playerHands[socket.id];
     const cards = cardIds.map(id => playerHand.find(c => c.id === id)).filter(Boolean);
 
-    if (cards.length !== cardIds.length) {
+    
+if (cards.length !== cardIds.length) {
         return console.log('Falta: El jugador intentó bajar cartas que no tiene.');
     }
 
@@ -6239,7 +6518,6 @@ socket.on('accionDescartar', async (data) => {
     }
   });
 
-  // ▼▼▼ AÑADE ESTE LISTENER COMPLETO DENTRO DE io.on('connection',...) ▼▼▼
   // Chat del lobby de La 51
   socket.on('sendLobbyChat', (data) => {
       if (!data || !data.text || !data.sender) return; // Validación básica
@@ -6265,7 +6543,6 @@ socket.on('accionDescartar', async (data) => {
   });
   // ▲▲▲ FIN DEL NUEVO LISTENER ▲▲▲
 
-  // ▼▼▼ REEMPLAZA TU LISTENER socket.on('disconnect', ...) ENTERO CON ESTE NUEVO CÓDIGO ▼▼▼
   socket.on('disconnect', () => {
     console.log(`❌ Jugador desconectado: ${socket.id}`);
     const username = connectedUsers[socket.id]?.username;
@@ -6329,34 +6606,7 @@ socket.on('accionDescartar', async (data) => {
             const leavingPlayerSeat = room.seats[seatIndex];
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
-                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. NO se elimina inmediatamente - esperando timeout de 2 minutos.`);
-                
-                // ▼▼▼ CRÍTICO: NO liberar el asiento - mantenerlo ocupado hasta que expire el timeout ▼▼▼
-                // El asiento NO se libera aquí, permanece ocupado para permitir reconexión
-                
-                // ▼▼▼ CRÍTICO: NO liberar el asiento - mantenerlo ocupado con userId ▼▼▼
-                // El asiento permanece ocupado, pero el playerId (socket.id) ya no es válido
-                // Manteneremos el asiento ocupado con el userId para permitir reconexión
-                // IMPORTANTE: NO hacer room.seats[seatIndex] = null aquí
-                
-                // ▼▼▼ CRÍTICO: Guardar asiento en reconnectSeats para permitir reconexión ▼▼▼
-                if (!room.reconnectSeats) {
-                    room.reconnectSeats = {};
-                }
-                room.reconnectSeats[userId] = {
-                    seatIndex: seatIndex,
-                    seatData: {
-                        playerName: leavingPlayerSeat.playerName,
-                        avatar: leavingPlayerSeat.avatar,
-                        userId: userId,
-                        status: leavingPlayerSeat.status || 'playing',
-                        color: leavingPlayerSeat.color,
-                        playerId: leavingPlayerSeat.playerId // Guardar el playerId anterior (por si acaso)
-                    },
-                    timestamp: Date.now()
-                };
-                console.log(`[LUDO DISCONNECT] Asiento ${seatIndex} NO liberado - reservado en reconnectSeats para ${username}. Podrá reconectar dentro de 2 minutos.`);
-                // ▲▲▲ FIN: Guardar en reconnectSeats ▲▲▲
+                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos de inactividad cuando le toque el turno.`);
                 
                 // Marcar como desconectado (pero NO eliminar aún)
                 const disconnectKey = `${roomId}_${userId}`;
@@ -6367,73 +6617,63 @@ socket.on('accionDescartar', async (data) => {
                     userId: userId
                 };
                 
-                // ▼▼▼ CRÍTICO: Iniciar timeout de desconexión INMEDIATAMENTE sin importar si es su turno o no ▼▼▼
-                // El timeout de 2 minutos debe iniciarse INMEDIATAMENTE cuando el jugador se desconecta
-                const disconnectTimeoutKey = `${roomId}_${userId}`;
-                console.log(`[LUDO DISCONNECT] ${username} se desconectó durante partida activa. Iniciando timeout de desconexión de 2 minutos (independiente del turno).`);
+                // Verificar si es su turno actualmente
+                const isCurrentTurn = room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === seatIndex;
                 
-                // Cancelar timeout anterior si existe
-                if (ludoInactivityTimeouts[disconnectTimeoutKey]) {
-                    clearTimeout(ludoInactivityTimeouts[disconnectTimeoutKey]);
-                    delete ludoInactivityTimeouts[disconnectTimeoutKey];
-                    console.log(`[LUDO DISCONNECT] Timeout anterior cancelado para ${username} (userId: ${userId})`);
-                }
-                
-                // Iniciar timeout de desconexión INMEDIATAMENTE (2 minutos desde ahora)
-                ludoInactivityTimeouts[disconnectTimeoutKey] = setTimeout(() => {
-                    console.log(`[LUDO DISCONNECT TIMEOUT] ⏰ Han pasado 2 minutos desde que ${username} se desconectó. Verificando si eliminar por abandono.`);
+                if (isCurrentTurn) {
+                    // Si es su turno, iniciar timeout de inactividad INMEDIATAMENTE
+                    console.log(`[LUDO DISCONNECT] ${username} se desconectó durante su turno. Iniciando timeout de inactividad de 2 minutos.`);
+                    const inactivityTimeoutKey = `${roomId}_${userId}`;
                     
-                    // Verificar que el jugador sigue desconectado
-                    const currentRoom = ludoRooms[roomId];
-                    if (!currentRoom) {
-                        delete ludoInactivityTimeouts[disconnectTimeoutKey];
-                        delete ludoDisconnectedPlayers[disconnectKey];
-                        return;
+                    // Cancelar timeout anterior si existe
+                    if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+                        clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+                        delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                        console.log(`[LUDO DISCONNECT] Timeout anterior cancelado para ${username} (userId: ${userId})`);
                     }
                     
-                    // Verificar si el jugador ya reconectó (ya no está en reconnectSeats o ya no está desconectado)
-                    const stillDisconnected = ludoDisconnectedPlayers[disconnectKey];
-                    const stillInReconnectSeats = currentRoom.reconnectSeats && currentRoom.reconnectSeats[userId];
-                    const seatOccupiedByPlayer = currentRoom.seats[seatIndex] && currentRoom.seats[seatIndex].userId === userId;
-                    
-                    // Si el jugador reconectó, NO eliminar
-                    if (!stillDisconnected || !stillInReconnectSeats || seatOccupiedByPlayer) {
-                        console.log(`[LUDO DISCONNECT TIMEOUT] ${username} se reconectó antes del timeout. No se elimina.`);
-                        delete ludoInactivityTimeouts[disconnectTimeoutKey];
-                        if (ludoDisconnectedPlayers[disconnectKey]) {
+                    // Iniciar nuevo timeout de inactividad
+                    ludoInactivityTimeouts[inactivityTimeoutKey] = setTimeout(() => {
+                        console.log(`[LUDO DISCONNECT TIMEOUT] ⏰ Han pasado 2 minutos desde que ${username} se desconectó. Eliminando por abandono.`);
+                        
+                        // Verificar que el jugador sigue desconectado
+                        const currentRoom = ludoRooms[roomId];
+                        if (!currentRoom) {
+                            delete ludoInactivityTimeouts[inactivityTimeoutKey];
                             delete ludoDisconnectedPlayers[disconnectKey];
+                            return;
                         }
-                        return;
-                    }
-                    
-                    // Eliminar al jugador por abandono (el timeout de 2 minutos se cumplió completamente)
-                    console.log(`[LUDO DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN (2 minutos completos): ${username} (asiento ${seatIndex})`);
-                    
-                    // Limpiar reconnectSeats ANTES de eliminar para que ludoHandlePlayerDeparture procese el abandono
-                    if (currentRoom.reconnectSeats && currentRoom.reconnectSeats[userId]) {
-                        delete currentRoom.reconnectSeats[userId];
-                        if (Object.keys(currentRoom.reconnectSeats).length === 0) {
-                            delete currentRoom.reconnectSeats;
+                        
+                        // Verificar que el jugador todavía está marcado como desconectado
+                        if (!ludoDisconnectedPlayers[disconnectKey]) {
+                            console.log(`[LUDO DISCONNECT TIMEOUT] ${username} se reconectó antes del timeout. No se elimina.`);
+                            delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                            return;
                         }
-                    }
+                        
+                        // Verificar que el turno todavía es de este jugador
+                        const currentTurnIndex = currentRoom.gameState && currentRoom.gameState.turn ? currentRoom.gameState.turn.playerIndex : -1;
+                        if (currentTurnIndex !== seatIndex) {
+                            console.log(`[LUDO DISCONNECT TIMEOUT] El turno ya cambió. No se elimina al jugador por inactividad.`);
+                            delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                            delete ludoDisconnectedPlayers[disconnectKey];
+                            return;
+                        }
+                        
+                        // Eliminar al jugador por abandono
+                        console.log(`[LUDO DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN: ${username} (asiento ${seatIndex})`);
+                        ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io, false);
+                        
+                        // Limpiar
+                        delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                        delete ludoDisconnectedPlayers[disconnectKey];
+                    }, LUDO_INACTIVITY_TIMEOUT_MS);
                     
-                    // Limpiar timeouts y estado antes de eliminar
-                    delete ludoInactivityTimeouts[disconnectTimeoutKey];
-                    delete ludoDisconnectedPlayers[disconnectKey];
-                    
-                    // Buscar el asiento por userId (porque el playerId/socket.id puede haber cambiado)
-                    const currentSeatIndex = currentRoom.seats.findIndex(s => s && s.userId === userId);
-                    if (currentSeatIndex !== -1) {
-                        // Ahora llamar a ludoHandlePlayerDeparture usando el playerId actual del asiento
-                        const currentPlayerId = currentRoom.seats[currentSeatIndex].playerId;
-                        ludoHandlePlayerDeparture(roomId, currentPlayerId, io, false);
-                    } else {
-                        console.warn(`[LUDO DISCONNECT TIMEOUT] No se encontró el asiento para ${username} (userId: ${userId}) al intentar eliminarlo.`);
-                    }
-                }, LUDO_INACTIVITY_TIMEOUT_MS);
-                
-                console.log(`[LUDO DISCONNECT] ⏰ Timeout de desconexión iniciado para ${username} (userId: ${userId}). Si no vuelve en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-                // ▲▲▲ FIN: Timeout de desconexión iniciado inmediatamente ▲▲▲
+                    console.log(`[LUDO DISCONNECT] ⏰ Timeout de inactividad iniciado para ${username} (userId: ${userId}). Si no vuelve en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+                } else {
+                    // Si NO es su turno, esperar a que le toque el turno
+                    console.log(`[LUDO DISCONNECT] ${username} se desconectó pero NO es su turno. Se eliminará cuando le toque el turno y no actúe en 2 minutos.`);
+                }
                 
                 // Notificar a todos que el jugador se desconectó (pero aún puede volver)
                 io.to(roomId).emit('playerDisconnected', {
@@ -6461,7 +6701,7 @@ socket.on('accionDescartar', async (data) => {
             // ESTABA EN EL LOBBY DE LA 51 (ESPERANDO)
             // Liberar asiento inmediatamente sin reserva de reconexión
             console.log(`[LA 51 DISCONNECT] ${username} se desconectó de la sala ${roomId} (esperando). Asiento liberado inmediatamente.`);
-            handlePlayerDeparture(roomId, socket.id, io);
+        handlePlayerDeparture(roomId, socket.id, io);
             
         } else if (seatIndex !== -1 && la51Room.state === 'playing') {
             // Durante partida activa: NO hacer nada. El timeout ya está activo si es su turno
@@ -6482,6 +6722,17 @@ socket.on('accionDescartar', async (data) => {
     const { roomId } = data;
     const room = la51Rooms[roomId];
     if (!room) return;
+
+    // ▼▼▼ VERIFICAR SI EL JUEGO YA COMENZÓ ▼▼▼
+    if (room.state === 'playing') {
+        console.log(`[${roomId}] ⚠️ Jugador ${socket.id} intenta confirmar revancha pero el juego ya comenzó.`);
+        socket.emit('rematchGameAlreadyStarted', {
+            message: 'La revancha ya comenzó. No puedes confirmar ahora. Serás redirigido al lobby.',
+            redirectToLobby: true
+        });
+        return;
+    }
+    // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
 
     const playerSeat = room.seats.find(s => s && s.playerId === socket.id);
     if (!playerSeat || !playerSeat.userId) return;
@@ -6532,8 +6783,6 @@ socket.on('accionDescartar', async (data) => {
     const room = la51Rooms[roomId];
     if (!room || socket.id !== room.hostId) return;
 
-    // ▼▼▼ REEMPLAZA EL CONTENIDO DE socket.on('startRematch',...) CON ESTE BLOQUE COMPLETO ▼▼▼
-
     // LÓGICA DE CONTEO CORRECTA (copiada de la sección 'rematchUpdate')
     const readyPlayerIds = new Set();
     room.rematchRequests.forEach(id => readyPlayerIds.add(id));
@@ -6551,18 +6800,58 @@ socket.on('accionDescartar', async (data) => {
 
         // 1. IDENTIFICAR JUGADORES PARA LA NUEVA PARTIDA
         const nextGameParticipants = [];
+        const playersNotConfirmed = []; // Jugadores que no confirmaron a tiempo
+        
         room.seats.forEach(seat => {
-            if (seat && (room.rematchRequests.has(seat.playerId) || seat.status === 'waiting')) {
-                nextGameParticipants.push({
-                    playerId: seat.playerId,
-                    playerName: seat.playerName,
-                    avatar: seat.avatar,
-                    active: true,
-                    doneFirstMeld: false,
-                    userId: seat.userId // ¡Esta es la corrección!
-                });
+            if (seat) {
+                if (room.rematchRequests.has(seat.playerId) || seat.status === 'waiting') {
+                    // Jugador confirmó, lo incluimos en la nueva partida
+                    nextGameParticipants.push({
+                        playerId: seat.playerId,
+                        playerName: seat.playerName,
+                        avatar: seat.avatar,
+                        active: true,
+                        doneFirstMeld: false,
+                        userId: seat.userId
+                    });
+                } else {
+                    // Jugador NO confirmó a tiempo, lo marcamos para liberar su asiento
+                    playersNotConfirmed.push(seat);
+                }
             }
         });
+        
+        // ▼▼▼ LIBERAR ASIENTOS DE JUGADORES QUE NO CONFIRMARON A TIEMPO ▼▼▼
+        // Notificar a estos jugadores que la partida ya comenzó y deben volver al lobby
+        playersNotConfirmed.forEach(seat => {
+            console.log(`[${roomId}] Jugador ${seat.playerName} no confirmó a tiempo. Liberando asiento y notificando.`);
+            // Liberar el asiento
+            const seatIndex = room.seats.findIndex(s => s && s.playerId === seat.playerId);
+            if (seatIndex !== -1) {
+                room.seats[seatIndex] = null;
+            }
+            // Notificar al jugador que debe volver al lobby
+            io.to(seat.playerId).emit('rematchGameStartedWithoutYou', {
+                message: 'La revancha ya comenzó sin tu confirmación. Serás redirigido al lobby.',
+                redirectToLobby: true
+            });
+            // Actualizar estado del usuario
+            if (connectedUsers[seat.playerId]) {
+                const currentLobby = connectedUsers[seat.playerId].currentLobby;
+                connectedUsers[seat.playerId].status = currentLobby ? `En el lobby de ${currentLobby}` : 'En el Lobby';
+            }
+            // Limpiar referencia de la sala en el socket
+            const playerSocket = io.sockets.sockets.get(seat.playerId);
+            if (playerSocket) {
+                delete playerSocket.currentRoomId;
+                playerSocket.leave(roomId);
+            }
+        });
+        // Actualizar lista de usuarios después de liberar asientos
+        if (playersNotConfirmed.length > 0) {
+            broadcastUserListUpdate(io);
+        }
+        // ▲▲▲ FIN DE LIBERAR ASIENTOS ▲▲▲
 
         // ▼▼▼ AÑADE ESTE NUEVO BLOQUE DE CÓDIGO AQUÍ ▼▼▼
         // 2. ✨ LIMPIEZA DEFINITIVA DE LA LISTA DE ESPECTADORES ✨
@@ -6689,7 +6978,7 @@ socket.on('accionDescartar', async (data) => {
 
         // Encontrar el asiento del jugador que inicia
         const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
-        
+
         seatedPlayers.forEach(player => {
             if (player) {
                 const isStartingPlayer = player.playerId === startingPlayerId;
@@ -6758,7 +7047,7 @@ socket.on('accionDescartar', async (data) => {
         if (roomId) {
             socket.leave(roomId);
         }
-        delete socket.currentRoomId;
+            delete socket.currentRoomId;
         
         // Actualizar estado del usuario
         if (connectedUsers[socket.id]) {
@@ -6853,7 +7142,6 @@ socket.on('accionDescartar', async (data) => {
   // ▼▼▼ HANDLERS DE SOCKET DE LUDO (copiados de ludoserver.js, cambiando rooms por ludoRooms) ▼▼▼
     socket.on('createLudoRoom', (settings) => {
       // ▼▼▼ LÓGICA DE `createLudoRoom` ACTUALIZADA ▼▼▼
-      console.log(`🔵 [CREATE ROOM] Recibido createLudoRoom con settings:`, JSON.stringify(settings, null, 2));
       const username = connectedUsers[socket.id]?.username;
 
       if (!username) {
@@ -6885,25 +7173,22 @@ socket.on('accionDescartar', async (data) => {
 
       // --- INICIO DE LÓGICA DE ASIGNACIÓN DE ASIENTOS ---
       const hostColor = settings.chosenColor || 'yellow';
-      console.log(`[${roomId}] 🎨 Color elegido por el host recibido: "${hostColor}" (desde settings.chosenColor: ${settings.chosenColor})`);
 
       // 1. El colorMap es ESTÁTICO: define el color de cada asiento físico.
-      // Asiento 0 = red
-      // Asiento 1 = blue
-      // Asiento 2 = yellow
-      // Asiento 3 = green
-      // ▼▼▼ CORRECCIÓN: CAMBIAMOS EL ORDEN PARA COINCIDIR CON LO VISUAL ▼▼▼
-      const colorMap = ['red', 'blue', 'yellow', 'green'];
-      // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+      // Asiento 0 = yellow (Abajo-Derecha)
+      // Asiento 1 = green (Abajo-Izquierda)
+      // Asiento 2 = red (Arriba-Izquierda)
+      // Asiento 3 = blue (Arriba-Derecha)
+      const colorMap = ['yellow', 'green', 'red', 'blue'];
 
       // 2. El host elige su color, lo que determina su asiento (seatIndex).
       const hostSeatIndex = colorMap.indexOf(hostColor);
       if (hostSeatIndex === -1) {
-          console.error(`[${roomId}] ❌ Error: Color de host inválido "${hostColor}". ColorMap disponible:`, colorMap);
+          console.error(`Error: Color de host inválido "${hostColor}"`);
           return socket.emit('roomCreationFailed', { message: 'Color de host inválido.' });
       }
 
-      console.log(`[${roomId}] ✅ Anfitrión eligió ${hostColor} -> Asiento ${hostSeatIndex} (colorMap: [${colorMap.join(', ')}])`);
+      console.log(`[Sala ${roomId}] Anfitrión eligió ${hostColor} (Asiento ${hostSeatIndex}).`);
       // --- FIN DE LÓGICA DE ASIGNACIÓN ---
 
       // ▼▼▼ BLOQUE REEMPLAZADO (INICIALIZACIÓN DEL JUEGO) ▼▼▼
@@ -7027,9 +7312,8 @@ socket.on('accionDescartar', async (data) => {
           avatar: hostAvatar, // Avatar con fallback mejorado
           userId: settings.userId,
           status: 'waiting',
-          color: hostColor // Asignar el color elegido
+          color: hostColor // Asignar el color
       };
-      console.log(`[${roomId}] ✅ Asiento ${hostSeatIndex} del host creado con color: ${newRoom.seats[hostSeatIndex].color}`);
 
       ludoRooms[roomId] = newRoom;
       socket.join(roomId);
@@ -7037,13 +7321,6 @@ socket.on('accionDescartar', async (data) => {
 
       console.log(`✅ Mesa creada: ${roomId} por ${username}`);
 
-      console.log(`[${roomId}] 📤 Enviando roomCreatedSuccessfully al host:`);
-      console.log(`  - mySeatIndex: ${hostSeatIndex}`);
-      console.log(`  - Color del asiento: ${newRoom.seats[hostSeatIndex].color}`);
-      console.log(`  - colorMap: [${newRoom.settings.colorMap.join(', ')}]`);
-      console.log(`  - Piezas inicializadas para color ${hostColor}:`, newRoom.gameState.pieces[hostColor]?.length || 0, 'piezas');
-      console.log(`  - Verificación: Piezas[${hostColor}] =`, newRoom.gameState.pieces[hostColor]?.map(p => p.id).join(', ') || 'NINGUNA');
-      
       socket.emit('roomCreatedSuccessfully', {
           roomId: roomId,
           roomName: settings.username,
@@ -7403,420 +7680,507 @@ socket.on('accionDescartar', async (data) => {
     // --- LÓGICA DEL JUEGO LUDO ---
 
     socket.on('joinLudoGame', (data) => {
-
-      // ▼▼▼ FUNCIÓN 'joinLudoGame': FIX DESCONEXIÓN + LÓGICA DE ASIENTOS RESTAURADA ▼▼▼
-
+      // ▼▼▼ FUNCIÓN 'joinLudoGame' ACTUALIZADA ▼▼▼
       const { roomId, userId } = data;
-
     
-
       if (!userId) {
-
           return socket.emit('ludoError', { message: 'Usuario no identificado.' });
-
       }
-
-      
-
-      // 1. Identidad
-
-      socket.userId = userId;
-
-      socket.currentRoomId = roomId;
-
     
-
       const room = ludoRooms[roomId];
-
     
-
-      // 2. Validación de sala
-
-      if (!room) {
-
-          const globalPenaltyKey = `${roomId}_${userId}`;
-
-          const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey];
-
+      // ▼▼▼ CRÍTICO: Verificar si el jugador fue eliminado por abandono ANTES de permitir reconexión ▼▼▼
+      // Si el abandono fue finalizado, NO permitir reconexión - SIMPLE Y DIRECTO
+      if (room && room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero fue eliminado por abandono después de 2 minutos. NO se permite reconexión.`);
           
-
-          socket.emit('gameEnded', { 
-
-              reason: 'room_not_found', 
-
-              message: 'La sala ya no existe.',
-
-              redirect: true,
-
-              alreadyPenalized: !!alreadyPenalized
-
-          });
-
-          return;
-
-      }
-
-
-
-      // 3. Validación de abandono previo
-
-      if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
-
+          const username = userId.replace('user_', '');
           const bet = parseFloat(room.settings.bet) || 0;
-
           const roomCurrency = room.settings.betCurrency || 'USD';
-
+          
           socket.emit('gameEnded', { 
-
               reason: 'abandonment', 
-
-              message: `Has sido eliminado por abandono.`,
-
+              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
               redirect: true,
-
               penalty: bet,
-
               currency: roomCurrency
-
           });
-
-          return;
-
+          return; // NO permitir reconexión - SIMPLE Y DIRECTO
       }
-
-
-
-      // 4. FIX CRÍTICO DE RECONEXIÓN Y TIMEOUTS
-
-      // Buscamos si el usuario ya tiene asiento para obtener su ID anterior
-
-      let mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
-
-      
-
-      if (mySeatIndex !== -1) {
-
-          const oldSocketId = room.seats[mySeatIndex].playerId;
-
+      // ▲▲▲ FIN: BLOQUEO DE RECONEXIÓN DESPUÉS DE ABANDONO ▲▲▲
+    
+      // ▼▼▼ CRÍTICO: Verificar reconexión SOLO si NO fue eliminado por abandono ▼▼▼
+      // Si el jugador está en reconnectSeats (dentro de los 2 minutos), procesar reconexión
+      const timeoutKey = `${roomId}_${userId}`;
+      if (room && room.reconnectSeats && room.reconnectSeats[userId]) {
+          // El jugador está intentando reconectar DENTRO de los 2 minutos, procesar reconexión INMEDIATAMENTE
+          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} DENTRO de los 2 minutos. Procesando reconexión...`);
           
-
-          // A. Matar el timeout del socket VIEJO (Evita desconexión fantasma)
-
-          const oldTimeoutKey = `${roomId}_${oldSocketId}`;
-
-          if (ludoInactivityTimeouts[oldTimeoutKey]) {
-
-              clearTimeout(ludoInactivityTimeouts[oldTimeoutKey]);
-
-              delete ludoInactivityTimeouts[oldTimeoutKey];
-
-              console.log(`[${roomId}] 🔥 Timeout del socket VIEJO (${oldSocketId}) eliminado para ${userId}.`);
-
-          }
-
-
-
-          // B. Matar timeout de userID si existe
-
-          const userTimeoutKey = `${roomId}_${userId}`;
-
-          if (ludoInactivityTimeouts[userTimeoutKey]) {
-
-              clearTimeout(ludoInactivityTimeouts[userTimeoutKey]);
-
-              delete ludoInactivityTimeouts[userTimeoutKey];
-
-          }
-
-
-
-          // C. Actualizar el asiento con el NUEVO socket (Evita "No estás sentado")
-
-          console.log(`[${roomId}] 🔄 Actualizando asiento ${mySeatIndex}: ${oldSocketId} -> ${socket.id}`);
-
-          room.seats[mySeatIndex].playerId = socket.id;
-
+          const reservedInfo = room.reconnectSeats[userId];
+          const originalSeatIndex = reservedInfo.seatIndex;
           
-
-          // D. Limpiar estado de desconexión
-
-          const disconnectKey = `${roomId}_${userId}`;
-
-          if (ludoDisconnectedPlayers[disconnectKey]) {
-
-              delete ludoDisconnectedPlayers[disconnectKey];
-
+          // Cancelar timeout de abandono ANTES de restaurar el asiento
+          if (ludoReconnectTimeouts[timeoutKey]) {
+              clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+              delete ludoReconnectTimeouts[timeoutKey];
+              console.log(`[Cleanup] Timeout de abandono cancelado para ${userId} en sala ${roomId}`);
           }
-
-      }
-
-
-
-      // Limpiezas generales
-
-      if (room.reconnectSeats && room.reconnectSeats[userId]) {
-
+          
+          if (room.abandonmentTimeouts && room.abandonmentTimeouts[userId]) {
+              clearTimeout(room.abandonmentTimeouts[userId]);
+              delete room.abandonmentTimeouts[userId];
+          }
+          
+          // Restaurar el asiento si está libre - IMPORTANTE: mantener el status original (playing, no waiting)
+          if (room.seats[originalSeatIndex] === null) {
+              room.seats[originalSeatIndex] = {
+                  ...reservedInfo.seatData,
+                  playerId: socket.id, // Actualizar con el nuevo socket.id
+                  status: reservedInfo.seatData.status || 'playing' // Mantener el status original (playing, no waiting)
+              };
+              console.log(`[${roomId}] ${userId} recuperó su asiento ${originalSeatIndex} al reconectarse. Status: ${room.seats[originalSeatIndex].status}, playerId: ${socket.id}`);
+          } else {
+              // Si el asiento está ocupado, verificar si es el mismo jugador con otro socket.id
+              const currentSeat = room.seats[originalSeatIndex];
+              if (currentSeat && currentSeat.userId === userId) {
+                  // Es el mismo jugador, solo actualizar el playerId
+                  currentSeat.playerId = socket.id;
+                  console.log(`[${roomId}] ${userId} actualizó su playerId a ${socket.id} en asiento ${originalSeatIndex}`);
+              } else {
+                  console.warn(`[${roomId}] El asiento ${originalSeatIndex} ya está ocupado por otro jugador. No se puede restaurar.`);
+              }
+          }
+          
+          // Limpiar datos de reconexión
           delete room.reconnectSeats[userId];
-
-          if (Object.keys(room.reconnectSeats).length === 0) delete room.reconnectSeats;
-
+          if (Object.keys(room.reconnectSeats).length === 0) {
+              delete room.reconnectSeats;
+          }
+          
+          // ▼▼▼ LIMPIAR ESTADO DE DESCONEXIÓN: El jugador se reconectó ▼▼▼
+          const disconnectKey = `${roomId}_${userId}`;
+          if (ludoDisconnectedPlayers[disconnectKey]) {
+              delete ludoDisconnectedPlayers[disconnectKey];
+              console.log(`[${roomId}] ✓ Estado de desconexión limpiado para ${userId} (jugador se reconectó)`);
+          }
+          // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts de inactividad usando userId (no socket.id) ▼▼▼
+          const inactivityTimeoutKey = `${roomId}_${userId}`;
+          if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+              clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+              delete ludoInactivityTimeouts[inactivityTimeoutKey];
+              console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${userId} (jugador se reconectó, por userId)`);
+          }
+          // También buscar y cancelar cualquier timeout con socket.id (por si acaso)
+          const inactivityTimeoutKeyBySocket = `${roomId}_${socket.id}`;
+          if (ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]) {
+              clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]);
+              delete ludoInactivityTimeouts[inactivityTimeoutKeyBySocket];
+              console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${socket.id} (jugador se reconectó, por socket.id)`);
+          }
+          // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
+          Object.keys(ludoInactivityTimeouts).forEach(key => {
+              if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id))) {
+                  clearTimeout(ludoInactivityTimeouts[key]);
+                  delete ludoInactivityTimeouts[key];
+                  console.log(`[${roomId}] ✓ Timeout adicional cancelado: ${key}`);
+              }
+          });
+          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+          // ▲▲▲ FIN LIMPIEZA ESTADO DESCONEXIÓN ▲▲▲
+          
+          // Notificar a todos que el jugador se reconectó
+          io.to(roomId).emit('playerReconnected', {
+              playerName: reservedInfo.seatData.playerName,
+              message: `${reservedInfo.seatData.playerName} se reconectó.`
+          });
+          
+          // Actualizar estado del juego para sincronizar al jugador reconectado
+          const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+          socket.emit('joinedRoomSuccessfully', {
+              roomId: roomId,
+              roomName: room.settings.roomName,
+              seats: room.seats,
+              settings: room.settings,
+              mySeatIndex: originalSeatIndex,
+              gameState: room.gameState
+          });
+          
+          io.to(roomId).emit('playerJoined', sanitizedRoom);
+          
+          // ▼▼▼ CRÍTICO: Emitir ludoGameStateUpdated para sincronizar completamente el estado del juego ▼▼▼
+          if (room.state === 'playing' && room.gameState) {
+              console.log(`[${roomId}] Enviando ludoGameStateUpdated al jugador reconectado ${userId} para sincronizar estado completo.`);
+              socket.emit('ludoGameStateUpdated', {
+                  newGameState: room.gameState,
+                  seats: room.seats,
+                  moveInfo: { type: 'reconnect_sync' }
+              });
+          }
+          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+          
+          // IMPORTANTE: Actualizar socket.currentRoomId para que el jugador pueda interactuar
+          socket.currentRoomId = roomId;
+          socket.join(roomId);
+          
+          // IMPORTANTE: No continuar con la lógica de asignación de asientos, ya que el asiento fue restaurado
+          return;
       }
-
-      if (room.abandonmentTimeouts && room.abandonmentTimeouts[userId]) {
-
-          clearTimeout(room.abandonmentTimeouts[userId]);
-
-          delete room.abandonmentTimeouts[userId];
-
-      }
-
-      if (room._cleanupScheduled) delete room._cleanupScheduled;
-
+      // ▲▲▲ FIN DEL BLOQUE DE RECONEXIÓN INMEDIATA ▲▲▲
       
+      // Si no está en reconnectSeats, verificar si la sala existe
+      if (!room) {
+          // La sala ya no existe (probablemente fue limpiada después de abandono)
+          console.log(`[LUDO RECONNECT] ${userId} intentó reconectar a sala ${roomId} que ya no existe.`);
+          
+          // ▼▼▼ CRÍTICO: Verificar si ya fue penalizado antes de enviar gameEnded ▼▼▼
+          const globalPenaltyKey = `${roomId}_${userId}`;
+          const alreadyPenalized = ludoGlobalPenaltyApplied[globalPenaltyKey];
+          
+          if (alreadyPenalized) {
+              console.log(`[LUDO RECONNECT] ${userId} ya fue penalizado anteriormente. NO se vuelve a cobrar la apuesta.`);
+              socket.emit('gameEnded', { 
+                  reason: 'room_not_found', 
+                  message: 'La sala ya no existe. Ya fuiste penalizado por abandono anteriormente.',
+                  redirect: true,
+                  alreadyPenalized: true // Indicar que ya fue penalizado
+              });
+          } else {
+              socket.emit('gameEnded', { 
+                  reason: 'room_not_found', 
+                  message: 'La sala ya no existe. Puede que hayas sido eliminado por abandono.',
+                  redirect: true
+              });
+          }
+          // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+          return;
+      }
+      
+      // Verificar si el jugador fue eliminado por abandono (incluso si la sala existe)
+      if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+          console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero fue eliminado por abandono. Redirigiendo al lobby.`);
+          
+          const username = userId.replace('user_', '');
+          const bet = parseFloat(room.settings.bet) || 0;
+          const roomCurrency = room.settings.betCurrency || 'USD';
+          
+          socket.emit('gameEnded', { 
+              reason: 'abandonment', 
+              message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+              redirect: true,
+              penalty: bet,
+              currency: roomCurrency
+          });
+          return; // NO permitir reconexión
+      }
+
+      // ¡CLAVE! Si la sala estaba marcada para eliminación, cancelar
+      if (room._cleanupScheduled) {
+          console.log(`[${roomId}] Jugador ${userId} se ha reconectado. Cancelando eliminación.`);
+          delete room._cleanupScheduled;
+      }
 
       socket.join(roomId);
+    
+      // ▼▼▼ FIX CRÍTICO: Verificación ya se hizo arriba, pero verificamos también si el juego terminó por abandono ▼▼▼
+      // Si el juego está en post-game por abandono, verificar si este jugador fue el que abandonó
+      if (room.state === 'post-game' && room.rematchData && room.rematchData.abandonment) {
+          // Verificar si este jugador fue el que abandonó (no está en los asientos activos o está marcado como abandonado)
+          const wasAbandoner = (room.abandonmentFinalized && room.abandonmentFinalized[userId]) || 
+                               !room.seats.some(s => s && s.userId === userId && s.status === 'playing');
+          if (wasAbandoner) {
+              console.log(`[LUDO RECONNECT BLOCKED] ${userId} intentó reconectar pero el juego ya terminó por su abandono. Redirigiendo al lobby.`);
+              
+              const username = userId.replace('user_', '');
+              const bet = parseFloat(room.settings.bet) || 0;
+              const roomCurrency = room.settings.betCurrency || 'USD';
+              
+              socket.emit('gameEnded', { 
+                  reason: 'abandonment', 
+                  message: `Has sido eliminado por abandono. Se te ha descontado la apuesta de ${bet} ${roomCurrency}.`,
+                  redirect: true,
+                  penalty: bet,
+                  currency: roomCurrency
+              });
+              return; // NO permitir reconexión
+          }
+      }
+      // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+      
+      // Si llegamos aquí, el jugador no está en reconnectSeats y la sala existe
+      // Continuar con la lógica normal de asignación de asientos (nuevo jugador)
+    
+      // Buscar el asiento del jugador por su 'userId' (que es el username)
+      let mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
 
-
-
-      // 5. ASIGNACIÓN DE NUEVO ASIENTO (LÓGICA REVERTIDA A ORIGINAL)
+      let playerName = null; // Variable para guardar el nombre
 
       if (mySeatIndex === -1) {
-
-          let newSeatIndex = -1;
-
-          // --- INICIO LÓGICA DE ASIGNACIÓN (EXTRAÍDA) ---
-
-          
-
-          // 0. Obtener el asiento del Host (definido en la creación de la sala)
-
+          // El jugador no está en esta sala, buscar asiento disponible
+          console.log(`[${roomId}] ${userId} (Socket ${socket.id}) buscando asiento disponible...`);
+        
+          // ▼▼▼ VERIFICAR SI ES EL CREADOR DE LA SALA ▼▼▼
           const hostSeatIndex = room.settings.hostSeatIndex;
-
-
-
-          // 1. Calcular los índices relativos al Host
-
-          // Diagonal: (Host + 2) % 4
-
-          const diagonalSeatHost = (hostSeatIndex + 2) % 4;
-
-          // Izquierda (sentido horario): (Host + 1) % 4
-
-          const leftSeat = (hostSeatIndex + 1) % 4; 
-
-          // Derecha (sentido horario): (Host + 3) % 4
-
-          const rightSeat = (hostSeatIndex + 3) % 4; 
-
-
-
-          // 2. Intentar asignar en orden de prioridad:
-
+          // Verificar si es el creador comparando userId (porque el socket.id cambia al reconectarse)
+          const isCreator = userId === room.settings.userId;
           
+          // Si es el creador y su asiento original está libre, restaurarlo ahí
+          if (isCreator && room.seats[hostSeatIndex] === null) {
+              mySeatIndex = hostSeatIndex;
+              // Actualizar el hostId con el nuevo socket.id del creador
+              room.hostId = socket.id;
+              console.log(`[${roomId}] ${userId} es el creador de la sala. Restaurando a su asiento original ${hostSeatIndex} y actualizando hostId.`);
+          }
+          // ▲▲▲ FIN DE LA VERIFICACIÓN DEL CREADOR ▲▲▲
+        
+          // ▼▼▼ INICIO DEL BLOQUE REEMPLAZADO ▼▼▼
+          // CORRECCIÓN: Usar la misma lógica de asignación que en joinLudoRoom
+        
+          // Contar jugadores actuales
+          const seatedPlayers = room.seats.filter(s => s !== null);
 
-          // A. Prioridad 1: Diagonal (Ideal para partidas de 2)
+          if (seatedPlayers.length === 1 && room.state === 'waiting') {
+              // ¡SOLO HAY UN JUGADOR Y ESTAMOS EN ESPERA! Forzar asiento diagonal.
+              const existingPlayerSeatIndex = room.seats.findIndex(s => s !== null);
+              const diagonalSeat = (existingPlayerSeatIndex + 2) % 4;
 
-          if (room.seats[diagonalSeatHost] === null) {
-
-              newSeatIndex = diagonalSeatHost;
-
-          } 
-
-          // B. Prioridad 2: Izquierda
-
-          else if (room.seats[leftSeat] === null) {
-
-              newSeatIndex = leftSeat;
-
-          } 
-
-          // C. Prioridad 3: Derecha
-
-          else if (room.seats[rightSeat] === null) {
-
-              newSeatIndex = rightSeat;
-
+              if (room.seats[diagonalSeat] === null) {
+                  console.log(`[${roomId}] (joinLudoGame) Asignación diagonal obligatoria: Jugador 1 en ${existingPlayerSeatIndex}, Jugador 2 asignado a ${diagonalSeat}.`);
+                  mySeatIndex = diagonalSeat;
+              } else {
+                   console.warn(`[${roomId}] (joinLudoGame) Error en lógica diagonal: Se detectó 1 jugador, pero el asiento diagonal ${diagonalSeat} está ocupado.`);
+                   // Continuar con la lógica normal...
+              }
           }
 
+          // Si la lógica diagonal no se aplicó (o falló), usar la lógica de prioridad normal
+          if (mySeatIndex === -1) {
+              // 1. Calcular el orden de prioridad de los asientos RELATIVO al host
+              const diagonalSeatHost = (hostSeatIndex + 2) % 4;
+              const leftSeat = (hostSeatIndex + 1) % 4; // Izquierda del host (sentido horario)
+              const rightSeat = (hostSeatIndex + 3) % 4; // Derecha del host (sentido horario)
+
+              // 2. Buscar asiento diagonal (relativo al host)
+              if (room.seats[diagonalSeatHost] === null) {
+                  mySeatIndex = diagonalSeatHost;
+              } 
+              // 3. Buscar asiento 'izquierda' (del host)
+              else if (room.seats[leftSeat] === null) {
+                  mySeatIndex = leftSeat;
+              } 
+              // 4. Buscar asiento 'derecha' (del host)
+              else if (room.seats[rightSeat] === null) {
+                  mySeatIndex = rightSeat;
+              }
+          }
         
-
-          // 3. Fallback: Si la lógica relativa falla, buscar el primero libre (0-3)
-
-          if (newSeatIndex === -1) {
-
+          // 5. Si no hay asientos con prioridad, buscar cualquier asiento disponible
+          if (mySeatIndex === -1) {
               for (let i = 0; i < 4; i++) {
-
                   if (room.seats[i] === null) {
-
-                      newSeatIndex = i;
-
+                      mySeatIndex = i;
                       break;
-
                   }
+              }
+          }
+          // ▲▲▲ FIN DEL BLOQUE REEMPLAZADO ▲▲▲
+        
+          if (mySeatIndex !== -1) {
+              // Asignar asiento disponible
+              const assignedColor = room.settings.colorMap[mySeatIndex];
+              playerName = userId.replace('user_', ''); // <-- Obtener nombre
+              // El objeto users tiene claves como 'user_a', 'user_b', etc.
+              const userInfo = users[userId.toLowerCase()]; // <-- Obtener info usando userId completo
 
+              // ▼▼▼ ¡AÑADE VALIDACIÓN DE CRÉDITOS AQUÍ! ▼▼▼
+              if (room.state === 'post-game') { // Solo si se une a una revancha
+                  const bet = parseFloat(room.settings.bet) || 0;
+                  const roomCurrency = room.settings.betCurrency || 'USD';
+                  if (!userInfo) {
+                      console.error(`[JOIN POST-GAME ERROR] No se encontró userInfo para ${playerName} (userId: ${userId}). Usuarios disponibles:`, Object.keys(users));
+                      return socket.emit('ludoError', { message: 'Error al verificar créditos.' });
+                  }
+                  const requiredCreditsInUserCurrency = convertCurrency(bet, roomCurrency, userInfo.currency, exchangeRates);
+                  if (userInfo.credits < requiredCreditsInUserCurrency) {
+                      console.log(`[JOIN POST-GAME REJECTED] ${playerName} no tiene créditos (${requiredCreditsInUserCurrency.toFixed(2)} ${userInfo.currency}) para unirse a la revancha.`);
+                      return socket.emit('ludoError', { message: `No tienes suficientes créditos (${requiredCreditsInUserCurrency.toFixed(2)} ${userInfo.currency}) para unirte.` });
+                  }
+                  console.log(`[JOIN POST-GAME OK] ${playerName} tiene créditos para unirse a la revancha.`);
+              }
+              // ▲▲▲ FIN VALIDACIÓN ▲▲▲
+
+              // Obtener avatar con fallback mejorado
+              let playerAvatar = '';
+              if (userInfo && userInfo.avatar_url) {
+                  playerAvatar = userInfo.avatar_url;
+              } else if (userInfo && userInfo.avatar) {
+                  playerAvatar = userInfo.avatar;
+              } else {
+                  // Avatar por defecto basado en el índice del asiento
+                  const defaultAvatarIndex = (mySeatIndex % 10) + 1;
+                  playerAvatar = `https://i.pravatar.cc/150?img=${defaultAvatarIndex}`;
               }
 
+              room.seats[mySeatIndex] = {
+                  playerId: socket.id,
+                  playerName: playerName, // Usa la variable obtenida
+                  avatar: playerAvatar, // Avatar con fallback mejorado
+                  userId: userId,
+                  // ▼▼▼ ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ ASÍ ▼▼▼
+                  status: (room.state === 'playing' || room.state === 'waiting') ? 'waiting' : 'playing', // Únete como 'waiting' si el juego está activo o esperando, 'playing' si está en post-game
+                  // ▲▲▲ FIN ▲▲▲
+                  color: assignedColor
+              };
+              console.log(`[${roomId}] ${userId} asignado al asiento ${mySeatIndex} (${assignedColor}) con estado ${room.seats[mySeatIndex].status}`);
+              playerName = room.seats[mySeatIndex].playerName; // Guardar nombre
+              
+              // ▼▼▼ CORRECCIÓN: Inicializar piezas para jugadores en espera ▼▼▼
+              // Si el jugador entra en espera durante una partida en curso, inicializar sus piezas
+              if (room.state === 'playing' && room.seats[mySeatIndex].status === 'waiting' && room.gameState && room.gameState.pieces) {
+                  // Verificar si las piezas para este color ya están inicializadas
+                  if (!room.gameState.pieces[assignedColor] || room.gameState.pieces[assignedColor].length === 0) {
+                      const pieceCount = room.settings.pieceCount || 4;
+                      const gameType = room.settings.gameType || 'ludo';
+                      const autoExitSetting = room.settings.autoExit || 'double';
+                      
+                      // Inicializar las piezas para este color
+                      room.gameState.pieces[assignedColor] = [];
+                      for (let i = 0; i < pieceCount; i++) {
+                          let pieceState = 'base';
+                          let piecePosition = -1;
+                          
+                          // Lógica de salida automática SOLO aplica a Ludo con autoExit 'auto'
+                          if (gameType === 'ludo' && autoExitSetting === 'auto') {
+                              pieceState = 'active';
+                              const startPos = room.gameState.board?.start?.[assignedColor];
+                              if (startPos !== undefined) {
+                                  piecePosition = startPos;
+                              }
+                          }
+                          
+                          room.gameState.pieces[assignedColor].push({
+                              id: `${assignedColor}-${i + 1}`,
+                              color: assignedColor,
+                              state: pieceState,
+                              position: piecePosition,
+                          });
+                      }
+                      console.log(`[${roomId}] Piezas inicializadas para jugador en espera ${playerName} (${assignedColor}): ${pieceCount} piezas`);
+                  }
+              }
+              // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
           }
-
-          // --- FIN LÓGICA DE ASIGNACIÓN ---
-
-
-
-          if (newSeatIndex !== -1) {
-
-               // Crear nuevo asiento
-               // CORRECCIÓN: Asegurar que el color viene del colorMap correcto
-               const assignedColor = room.settings.colorMap[newSeatIndex];
-               console.log(`[${roomId}] 🔍 Asignando asiento ${newSeatIndex} con color ${assignedColor} del colorMap:`, room.settings.colorMap);
-
-               const playerName = userId.replace('user_', '');
-
-               const userInfo = users[userId.toLowerCase()];
-
-               
-
-               if (room.state === 'post-game' && userInfo) {
-
-                   const bet = parseFloat(room.settings.bet) || 0;
-
-                   const reqCredits = convertCurrency(bet, room.settings.betCurrency, userInfo.currency, exchangeRates);
-
-                   if (userInfo.credits < reqCredits) return socket.emit('ludoError', { message: 'Créditos insuficientes.' });
-
-               }
-
-
-
-               let playerAvatar = userInfo?.avatar_url || userInfo?.avatar || `https://i.pravatar.cc/150?img=${(newSeatIndex % 10) + 1}`;
-
-
-
-               room.seats[newSeatIndex] = {
-
-                   playerId: socket.id,
-
-                   playerName: playerName,
-
-                   avatar: playerAvatar,
-
-                   userId: userId,
-
-                   status: (room.state === 'playing' || room.state === 'waiting') ? 'waiting' : 'playing',
-
-                   color: assignedColor
-
-               };
-               
-               console.log(`[${roomId}] ✅ Asiento ${newSeatIndex} creado con color: ${room.seats[newSeatIndex].color} para jugador ${playerName}`);
-
-               
-
-               // Inicializar piezas si entra tarde
-               // CORRECCIÓN CRÍTICA: Asegurar que las piezas usen el color del asiento asignado
-               // El color debe venir del asiento que acabamos de crear, no del colorMap directamente
-               if (room.state === 'playing' && room.gameState?.pieces) {
-                    // Obtener el color del asiento que acabamos de asignar (debe ser assignedColor)
-                    const correctColor = room.seats[newSeatIndex]?.color;
-                    if (correctColor && !room.gameState.pieces[correctColor]?.length) {
-                         const pieceCount = room.settings.pieceCount || 4;
-                         room.gameState.pieces[correctColor] = [];
-                         for(let i=0; i<pieceCount; i++) {
-                              room.gameState.pieces[correctColor].push({ id: `${correctColor}-${i+1}`, color: correctColor, state: 'base', position: -1 });
-                         }
-                         console.log(`[${roomId}] ✅ Piezas inicializadas para asiento ${newSeatIndex} con color ${correctColor} (jugador: ${playerName})`);
-                    } else if (correctColor && room.gameState.pieces[correctColor]?.length) {
-                         console.log(`[${roomId}] ℹ️ Piezas ya existentes para color ${correctColor} en asiento ${newSeatIndex}`);
-                    }
-               }
-
-               mySeatIndex = newSeatIndex;
-
+        
+          if (mySeatIndex === -1) {
+              // No hay asientos disponibles, tratar como espectador
+              console.log(`[${roomId}] ${userId} (Socket ${socket.id}) se unió como ESPECTADOR.`);
+              socket.currentLudoRoom = roomId;
           } else {
-
-               // Espectador
-
-               socket.currentLudoRoom = roomId;
-
-               console.log(`[${roomId}] ${userId} unido como ESPECTADOR.`);
-
+              // Asiento asignado exitosamente
+              socket.currentRoomId = roomId;
+              socket.userId = userId;
           }
+      } else {
+          // El jugador SÍ está en la sala, re-asociar su nuevo socket.id
+          console.log(`[${roomId}] ${userId} (Socket ${socket.id}) se RE-ASOCIÓ con el asiento ${mySeatIndex}.`);
+          room.seats[mySeatIndex].playerId = socket.id;
 
+          playerName = room.seats[mySeatIndex].playerName; // Guardar nombre
+        
+          // Si es el creador, actualizar el hostId
+          if (userId === room.settings.userId) {
+              room.hostId = socket.id;
+              console.log(`[${roomId}] Creador ${userId} se re-asoció. Actualizando hostId a ${socket.id}.`);
+          }
+        
+          // Actualizar el estado del socket (para futuros disconnects)
+          socket.currentRoomId = roomId; 
+          socket.userId = room.seats[mySeatIndex].userId;
       }
 
+      // Si el jugador se unió exitosamente a un asiento (no es espectador)
+      // Y la sala está en post-game, hay que añadirlo a la lista de revancha.
+      if (mySeatIndex !== -1 && room.state === 'post-game' && room.rematchData && playerName) {
 
+          // Añadir automáticamente a los confirmados (si no está ya)
+          if (!room.rematchData.confirmedPlayers.includes(playerName)) {
+              room.rematchData.confirmedPlayers.push(playerName);
+              console.log(`[REMATCH JOIN/RE-ASSOC] ${playerName} añadido a confirmados. Lista: [${room.rematchData.confirmedPlayers.join(', ')}]`);
 
-      // 6. Emitir eventos finales
+              // Recalcular si se puede iniciar
+              const winnerConfirmed = room.rematchData.confirmedPlayers.includes(room.rematchData.winnerName);
+              const expectedPlayers = room.seats.filter(s => s !== null).length; // Total de asientos ocupados AHORA
 
-      if (mySeatIndex !== -1) {
+              if (room.rematchData.confirmedPlayers.length >= 2 && winnerConfirmed) {
+                  room.rematchData.canStart = true;
+              }
 
-          // Notificar reconexión si aplica
-
-          if (room.seats[mySeatIndex].playerId === socket.id) { // Verificación redundante pero segura
-
-             const pName = room.seats[mySeatIndex].playerName;
-
-             // Solo emitir si realmente hubo una desconexión previa reciente o es reconexión explicita
-
-             // (Aquí emitimos siempre para asegurar feedback visual)
-
-             io.to(roomId).emit('playerReconnected', { playerName: pName, message: `${pName} se reconectó.` });
-
+              // Notificar a todos la actualización de la revancha
+              io.to(roomId).emit('rematchUpdate', {
+                  confirmedPlayers: room.rematchData.confirmedPlayers,
+                  canStart: room.rematchData.canStart,
+                  winnerName: room.rematchData.winnerName,
+                  totalPlayers: expectedPlayers
+              });
+          } else {
+              console.log(`[REMATCH JOIN/RE-ASSOC] ${playerName} ya estaba en la lista de confirmados.`);
           }
-
-
-
-          socket.emit('joinedRoomSuccessfully', {
-
-              roomId: roomId, roomName: room.settings.roomName, seats: room.seats, settings: room.settings,
-
-              mySeatIndex: mySeatIndex, gameState: room.gameState
-
-          });
-
-          io.to(roomId).emit('playerJoined', ludoGetSanitizedRoomForClient(room));
-
-
-
-          // Reactivar controles si es su turno
-
-          if (room.state === 'playing' && room.gameState && room.gameState.turn.playerIndex === mySeatIndex) {
-
-               socket.emit('ludoYourTurn', { turnData: room.gameState.turn });
-
-          }
-
       }
 
+      // ▼▼▼ ¡BLOQUE AÑADIDO PARA SINCRONIZACIÓN! ▼▼▼
+      // Notifica a TODOS los clientes en la sala sobre el estado actualizado de los asientos.
+      // Esto es crucial para la sincronización cuando un jugador carga la página (join/reconnect).
+      // IMPORTANTE: Solo enviamos actualización de asientos, NO afectamos el turno actual
+      console.log(`[${roomId}] Transmitiendo 'playerJoined' a la sala para sincronizar asientos (en joinLudoGame).`);
+      // Enviar solo actualización de asientos sin afectar el estado del turno
+      const roomUpdate = ludoGetSanitizedRoomForClient(room);
+      io.to(roomId).emit('playerJoined', roomUpdate);
 
+      // ▼▼▼ ¡AÑADE ESTA LÍNEA! ▼▼▼
+      // Notifica a TODOS en el lobby que los asientos de esta sala han cambiado.
+      broadcastLudoRoomListUpdate(io); 
+      // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
+      // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
 
-      broadcastLudoRoomListUpdate(io);
-
-      const cleanUsername = userId.replace('user_', '');
-
-      if (cleanUsername) {
-
+      // Actualizar el estado del usuario en la lista global
+      const username = userId.replace('user_', '');
+      if (username) {
+          // Preservar currentLobby si existe
           const currentLobby = connectedUsers[socket.id]?.currentLobby || null;
-
-          connectedUsers[socket.id] = { username: cleanUsername, status: 'Jugando', currentLobby };
-
+          connectedUsers[socket.id] = {
+              username: username,
+              status: 'Jugando', // Se actualizará en broadcastUserListUpdate con el tipo de juego
+              currentLobby: currentLobby
+          };
           broadcastUserListUpdate(io);
-
+          console.log(`[Status Update] ${username} (Socket ${socket.id}) se ha unido a un juego. Estado -> Jugando`);
       }
 
+      // ▼▼▼ ¡AÑADE ESTE LOG DETALLADO AQUÍ! ▼▼▼
+      console.log(`\n--- [JOIN SERVER EMIT] Intentando emitir 'ludoGameState' a socket ${socket.id} ---`);
+      console.log(`  - Room ID: ${room.roomId}`);
+      console.log(`  - Room State: ${room.state}`);
+      console.log(`  - Target Seat Index: ${mySeatIndex}`);
+      console.log(`  - GameState Present?: ${!!room.gameState}`);
+      // Log para verificar si el objeto gameState se está enviando
+      // Cuidado: esto puede ser muy largo si las piezas están incluidas
+      // console.log(`  - Enviando gameState:`, room.gameState); // Descomenta si es necesario
+      // ▲▲▲ FIN LOG DETALLADO ▲▲▲
 
-
+      // Enviar estado actual del juego
       socket.emit('ludoGameState', {
-
-          roomId: room.roomId, seats: room.seats, state: room.state, settings: room.settings,
-
-          mySeatIndex: mySeatIndex !== -1 ? mySeatIndex : undefined,
-
-          currentPlayer: room.currentPlayer || null, gameState: room.gameState, rematchData: room.rematchData || null
-
+          roomId: room.roomId,
+          seats: room.seats,
+          state: room.state,
+          settings: room.settings,
+          mySeatIndex: mySeatIndex, // Enviar el índice del asiento
+          currentPlayer: room.currentPlayer || null,
+          gameState: room.gameState, // <--- LÍNEA MODIFICADA/AÑADIDA
+        
+          // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+          rematchData: room.rematchData || null
+          // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
       });
-
-      // ▲▲▲ FIN FUNCIÓN joinLudoGame ▲▲▲
-
+      // ▲▲▲ FIN DE LA ACTUALIZACIÓN ▲▲▲
     });
 
     // ▼▼▼ AÑADE ESTE NUEVO LISTENER PARA ABANDONAR SALA DE LUDO ▼▼▼
@@ -8786,32 +9150,32 @@ socket.on('accionDescartar', async (data) => {
 
                           // Verificar con otras fichas si aún no se puede matar
                           if (!killStillPossible) {
-                              for (const piece of activePiecesNow) {
-                                  if (piece.id === pieceId) {
-                                      console.log(`[${roomId}] Regla 1: Excluyendo ${piece.id} de verificación de matanza.`);
-                                      continue;
-                                  }
+                          for (const piece of activePiecesNow) {
+                              if (piece.id === pieceId) {
+                                  console.log(`[${roomId}] Regla 1: Excluyendo ${piece.id} de verificación de matanza.`);
+                                  continue;
+                              }
 
-                                  for (const die of remainingDice) {
-                                      const simulatedPath = ludoCalculatePath(playerColor, piece.position, die, boardRules, room.gameState.pieces, gameType);
-                                      if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
-                                          killStillPossible = true;
-                                          console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
-                                          break;
-                                      }
+                              for (const die of remainingDice) {
+                                  const simulatedPath = ludoCalculatePath(playerColor, piece.position, die, boardRules, room.gameState.pieces, gameType);
+                                  if (simulatedPath.finalPosition !== null && targetKillPositions.includes(simulatedPath.finalPosition)) {
+                                      killStillPossible = true;
+                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedPath.finalPosition} con ${die}.`);
+                                      break;
                                   }
-                                  if (killStillPossible) break;
+                              }
+                              if (killStillPossible) break;
 
-                                  if (remainingDice.length === 2 && !killStillPossible) {
-                                      const sumDie = remainingDice[0] + remainingDice[1];
-                                      const simulatedSumPath = ludoCalculatePath(playerColor, piece.position, sumDie, boardRules, room.gameState.pieces, gameType);
-                                      if (simulatedSumPath.finalPosition !== null && targetKillPositions.includes(simulatedSumPath.finalPosition)) {
-                                          killStillPossible = true;
-                                          console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedSumPath.finalPosition} con la suma ${sumDie}.`);
-                                          break;
-                                      }
+                              if (remainingDice.length === 2 && !killStillPossible) {
+                                  const sumDie = remainingDice[0] + remainingDice[1];
+                                  const simulatedSumPath = ludoCalculatePath(playerColor, piece.position, sumDie, boardRules, room.gameState.pieces, gameType);
+                                  if (simulatedSumPath.finalPosition !== null && targetKillPositions.includes(simulatedSumPath.finalPosition)) {
+                                      killStillPossible = true;
+                                      console.log(`[${roomId}] ✅ AÚN ES POSIBLE MATAR: ${piece.id} (en ${piece.position}) puede llegar a ${simulatedSumPath.finalPosition} con la suma ${sumDie}.`);
+                                      break;
                                   }
-                                  if (killStillPossible) break;
+                              }
+                              if (killStillPossible) break;
                               }
                           }
                       } else {
@@ -9416,14 +9780,9 @@ socket.on('accionDescartar', async (data) => {
       io.to(roomId).emit('gameChatUpdate', { sender, text, ts: Date.now() });
     });
 
-    // Escucha el evento del botón "Volver al Lobby"
-    socket.on('leaveGame', (data) => {
-      const { roomId } = data || {};
-      console.log(`[LeaveGame] Jugador ${socket.id} ha hecho clic en "Volver al Lobby" para la sala ${roomId}.`);
-      if (roomId && ludoRooms[roomId]) {
-          ludoHandlePlayerDeparture(roomId, socket.id, io);
-      }
-    });
+    // ▼▼▼ HANDLER DUPLICADO ELIMINADO - SE USA EL HANDLER COMPLETO EN LÍNEA 7047 ▼▼▼
+    // El handler en línea 7047 maneja tanto Ludo como La 51 correctamente
+    // ▲▲▲ FIN DE ELIMINACIÓN DE HANDLER DUPLICADO ▲▲▲
 
     // ▼▼▼ SISTEMA DE REVANCHA ▼▼▼
     socket.on('confirmRematch', (data) => {
