@@ -39,10 +39,108 @@ document.addEventListener('DOMContentLoaded', function() {
     const myDiceContainer = document.getElementById('player-dice-container-yellow'); // Ya existe
     // ▲▲▲ FIN DE LOS SELECTORES ▲▲▲
 
-    // Constantes de los slots físicos del HTML
-    // IMPORTANTE: PHYSICAL_SLOTS debe coincidir con el orden físico en ludo.html:
-    // 1. Red (top-left), 2. Blue (top-right), 3. Green (bottom-left), 4. Yellow (bottom-right)
-    const PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'];
+    // ▼▼▼ UTILIDADES DE ASIENTOS Y ROTACIÓN ▼▼▼
+    // El orden físico de los slots en el HTML (Sentido horario desde la base inferior derecha)
+    // Asiento 0: Yellow (Abajo-Derecha)
+    // Asiento 1: Green (Abajo-Izquierda)
+    // Asiento 2: Red (Arriba-Izquierda)
+    // Asiento 3: Blue (Arriba-Derecha)
+    const PHYSICAL_SLOTS = ['yellow', 'green', 'red', 'blue'];
+    
+    /**
+     * Función auxiliar para rotar un array.
+     * Mueve 'offset' elementos del principio al final para reordenar la vista local.
+     * @param {Array} arr - El array original de asientos del servidor.
+     * @param {number} offset - El índice del asiento del jugador local (mySeatIndex).
+     * @returns {Array} - El array rotado.
+     */
+    function rotateArray(arr, offset) {
+        if (!arr || arr.length === 0) return [];
+        // Maneja offsets negativos y asegura que esté dentro de los límites
+        const validOffset = (offset % arr.length + arr.length) % arr.length;
+        return [...arr.slice(validOffset), ...arr.slice(0, validOffset)];
+    }
+    
+    /**
+     * Calcula los grados de rotación CSS necesarios para que el jugador local
+     * quede visualmente en la posición inferior (Asiento 0 / Amarillo).
+     * @param {number} mySeatIndex - El índice del asiento del jugador local (0-3).
+     * @returns {number} - Grados de rotación (0, 90, 180, -90).
+     */
+    function calculateBoardRotation(mySeatIndex) {
+        let rotationDegrees = 0;
+        switch (mySeatIndex) {
+            case 0: // Asiento 0 (Yellow / Abajo-Derecha) - Posición por defecto
+                rotationDegrees = 0; 
+                break;
+            case 3: // Asiento 3 (Blue / Arriba-Derecha)
+                rotationDegrees = 90; // Gira 90deg para mover Azul a la posición visual de Amarillo
+                break;
+            case 2: // Asiento 2 (Red / Arriba-Izquierda)
+                rotationDegrees = 180; // Gira 180deg
+                break;
+            case 1: // Asiento 1 (Green / Abajo-Izquierda)
+                rotationDegrees = -90; // Gira -90deg
+                break;
+            default:
+                // Fallback para espectadores o índices inválidos
+                rotationDegrees = 0;
+                break;
+        }
+        return rotationDegrees;
+    }
+    
+    /**
+     * Determina el índice de asiento del jugador local basándose en su UserID.
+     * Útil cuando el servidor devuelve -1 o null en mySeatIndex pero el usuario está sentado.
+     * @param {Array} seats - Array de objetos de asiento del servidor.
+     * @param {string} userId - ID del usuario actual.
+     * @param {number|null} providedSeatIndex - El índice que envió el servidor (puede ser erróneo).
+     * @returns {number} - El índice de asiento corregido (0-3) o -1 si es espectador.
+     */
+    function determineMySeatIndex(seats, userId, providedSeatIndex) {
+        // Si el índice proporcionado es válido, úsalo.
+        if (providedSeatIndex !== null && providedSeatIndex >= 0 && providedSeatIndex <= 3) {
+            return providedSeatIndex;
+        }
+        // Si no, buscar manualmente en el array de asientos
+        if (seats && Array.isArray(seats)) {
+            for (let i = 0; i < seats.length; i++) {
+                if (seats[i] && seats[i].userId === userId) {
+                    console.log(`[SeatUtils] Índice corregido localmente: ${i}`);
+                    return i;
+                }
+            }
+        }
+        // Si no se encuentra, es un espectador. Usamos 0 como vista por defecto.
+        console.warn('[SeatUtils] Usuario no encontrado en asientos, asumiendo espectador (vista Asiento 0).');
+        return 0; // Retornamos 0 para que la rotación no se rompa, aunque sea espectador
+    }
+    
+    /**
+     * Obtiene la configuración completa de visualización (Rotación y Asientos Ordenados).
+     * Esta es la función principal que deberías llamar desde tu renderizador.
+     * @param {object} gameState - El estado completo del juego.
+     * @param {string} currentUserId - ID del usuario local.
+     * @returns {object} - { rotationDegrees, rotatedSeats, myCorrectSeatIndex }
+     */
+    function getBoardVisualSettings(gameState, currentUserId) {
+        const { seats, mySeatIndex } = gameState;
+        // 1. Determinar índice real (corrección de seguridad)
+        const myCorrectSeatIndex = determineMySeatIndex(seats, currentUserId, mySeatIndex);
+        // 2. Calcular rotación del tablero (CSS)
+        const rotationDegrees = calculateBoardRotation(myCorrectSeatIndex);
+        // 3. Obtener array de asientos ordenados visualmente (para las cajas de info)
+        // Esto asegura que TU info siempre aparezca en la caja física 'yellow' (abajo-derecha)
+        const rotatedSeats = rotateArray(seats, myCorrectSeatIndex);
+        return {
+            rotationDegrees,
+            rotatedSeats,
+            myCorrectSeatIndex,
+            physicalSlots: PHYSICAL_SLOTS
+        };
+    }
+    // ▲▲▲ FIN DE UTILIDADES ▲▲▲
     
     // Variable para controlar si el sonido está silenciado
     // Sincroniza con localStorage para compartir el estado con ludogame.js
@@ -116,42 +214,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
-     * Función de ayuda para rotar un array.
-     * Mueve 'offset' elementos del principio al final.
-     */
-    function rotateArray(arr, offset) {
-        if (!arr || arr.length === 0) return [];
-        const validOffset = (offset % arr.length + arr.length) % arr.length; // Maneja offsets negativos
-        return [...arr.slice(validOffset), ...arr.slice(0, validOffset)];
-    }
-
-    /**
      * Actualiza todas las cajas de información de jugadores sin re-renderizar el tablero.
      * @param {Array} seats - Array de asientos del servidor.
      */
     function updatePlayerInfoBoxes(seats) {
         if (!seats || !gameState || !gameState.settings || !gameState.settings.colorMap) return;
         
-        const colorMap = gameState.settings.colorMap; // ['red', 'blue', 'yellow', 'green'] del servidor
-        
-        // Mapear cada asiento del servidor a su slot físico en el HTML usando el color
-        for (let seatIndex = 0; seatIndex < 4; seatIndex++) {
-            const seat = seats[seatIndex];
-            
-            // Obtener el color de este asiento según el colorMap del servidor
-            const seatColor = colorMap[seatIndex];
-            
-            // Encontrar el índice del slot físico en el HTML que corresponde a este color
-            const physicalSlotIndex = PHYSICAL_SLOTS.indexOf(seatColor);
-            if (physicalSlotIndex === -1) {
-                console.warn(`Color ${seatColor} no encontrado en PHYSICAL_SLOTS`);
-                continue;
+        // ▼▼▼ USAR NUEVAS UTILIDADES PARA OBTENER CONFIGURACIÓN VISUAL ▼▼▼
+        // Obtener userId del jugador actual
+        let currentUserId = null;
+        try {
+            currentUserId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            if (!currentUserId && gameState.mySeatIndex >= 0 && gameState.mySeatIndex < seats.length) {
+                const mySeat = seats[gameState.mySeatIndex];
+                if (mySeat && mySeat.userId) {
+                    currentUserId = mySeat.userId;
+                }
             }
-            
-            // Actualizar la caja de info del slot físico correspondiente
-            const physicalSlotColor = PHYSICAL_SLOTS[physicalSlotIndex];
-            updatePlayerInfoBox(physicalSlotColor, seat);
+        } catch (e) {
+            console.warn('No se pudo obtener userId:', e);
         }
+        
+        // Obtener configuración visual usando las nuevas utilidades
+        const visualSettings = getBoardVisualSettings(gameState, currentUserId);
+        const { rotatedSeats } = visualSettings;
+        
+        // Actualizar cajas de información usando asientos rotados
+        // Los asientos rotados están ordenados visualmente: [Yo, Izquierda, Frente, Derecha]
+        for (let i = 0; i < 4; i++) {
+            const seat = rotatedSeats[i];
+            const physicalSlotColor = PHYSICAL_SLOTS[i];
+            
+            if (seat) {
+                updatePlayerInfoBox(physicalSlotColor, seat);
+            } else {
+                // Si no hay asiento, ocultar la caja
+                const infoBox = document.getElementById(`player-info-box-${physicalSlotColor}`);
+                if (infoBox) {
+                    infoBox.style.visibility = 'hidden';
+                }
+            }
+        }
+        // ▲▲▲ FIN DE USO DE UTILIDADES ▲▲▲
     }
 
     /**
@@ -217,46 +321,46 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn('Estado inválido, no se rota el tablero.');
             return;
         }
-        
-        if (state.mySeatIndex == null || state.mySeatIndex < 0 || state.mySeatIndex > 3) {
-            console.warn('mySeatIndex inválido, usando fallback 0 para espectador.');
-            state.mySeatIndex = 0;
-        }
 
         const { seats, mySeatIndex, settings } = state;
         const colorMap = settings.colorMap; // ['yellow', 'green', 'red', 'blue'] del servidor
         
-        // ▼▼▼ CORRECCIÓN: Obtener el color del jugador desde el objeto seat, no desde colorMap ▼▼▼
-        // Esto asegura que usamos el color real asignado al jugador, no el color del asiento físico
-        const mySeat = (mySeatIndex !== -1 && mySeatIndex < seats.length) ? seats[mySeatIndex] : null;
-        const myColor = mySeat?.color || colorMap[mySeatIndex] || 'yellow';
-        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
-
-        // ▼▼▼ CORRECCIÓN: Calcular rotación CSS basada en el COLOR, no en el asiento físico ▼▼▼
-        // Objetivo: que MI COLOR siempre quede en la posición física de yellow (abajo-derecha)
-        // PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'] (orden físico del HTML)
-        // Necesitamos rotar para que nuestro color quede en la posición de yellow (índice 3 en PHYSICAL_SLOTS)
-        const PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'];
-        const myColorPhysicalIndex = PHYSICAL_SLOTS.indexOf(myColor);
-        
-        let rotationDegrees = 0;
-        if (myColorPhysicalIndex !== -1) {
-            // Calcular cuántos grados necesitamos rotar para que nuestro color quede en la posición de yellow (índice 3)
-            // yellow está en índice 3, así que necesitamos rotar (3 - myColorPhysicalIndex) * 90 grados
-            const targetIndex = 3; // yellow (abajo-derecha)
-            const rotationSteps = (targetIndex - myColorPhysicalIndex + 4) % 4;
-            rotationDegrees = rotationSteps * -90; // Negativo porque rotamos en sentido horario
-        } else {
-            // Fallback: usar mySeatIndex si el color no se encuentra
-            switch (mySeatIndex) {
-                case 0: rotationDegrees = 0; break;
-                case 1: rotationDegrees = -90; break;
-                case 2: rotationDegrees = 180; break;
-                case 3: rotationDegrees = 90; break;
-                default: rotationDegrees = 0;
+        // ▼▼▼ USAR NUEVAS UTILIDADES PARA OBTENER CONFIGURACIÓN VISUAL ▼▼▼
+        // Obtener userId del jugador actual (desde localStorage, sessionStorage o desde el estado)
+        let currentUserId = null;
+        try {
+            // Intentar obtener desde sessionStorage primero (más reciente)
+            currentUserId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            
+            // Si no está en storage, intentar obtenerlo desde el asiento actual
+            if (!currentUserId && state.mySeatIndex >= 0 && state.mySeatIndex < seats.length) {
+                const mySeat = seats[state.mySeatIndex];
+                if (mySeat && mySeat.userId) {
+                    currentUserId = mySeat.userId;
+                }
             }
+            
+            // Si aún no hay userId, intentar obtenerlo desde los asientos usando socket.id
+            if (!currentUserId && myPlayerId) {
+                for (let i = 0; i < seats.length; i++) {
+                    if (seats[i] && seats[i].playerId === myPlayerId) {
+                        currentUserId = seats[i].userId;
+                        break;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('No se pudo obtener userId:', e);
         }
-        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+        
+        // Obtener configuración visual usando las nuevas utilidades
+        const visualSettings = getBoardVisualSettings(state, currentUserId);
+        const { rotationDegrees, rotatedSeats, myCorrectSeatIndex } = visualSettings;
+        
+        // Obtener información del asiento del jugador
+        const mySeat = (myCorrectSeatIndex >= 0 && myCorrectSeatIndex < seats.length) ? seats[myCorrectSeatIndex] : null;
+        const myColor = mySeat?.color || colorMap[myCorrectSeatIndex] || 'yellow';
+        // ▲▲▲ FIN DE USO DE UTILIDADES ▲▲▲
 
         // Aplicar rotación CSS al tablero
         const boardElement = document.getElementById('ludo-board');
@@ -269,30 +373,27 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('¡No se encontró #ludo-board!');
         }
 
-        console.log(`Soy Asiento ${mySeatIndex} (Color ${myColor}). Rotando tablero ${rotationDegrees}deg.`);
+        console.log(`Soy Asiento ${myCorrectSeatIndex} (Color ${myColor}). Rotando tablero ${rotationDegrees}deg.`);
 
-        // ▼▼▼ CORRECCIÓN: Mapear cada asiento usando el color REAL del jugador, no el colorMap ▼▼▼
-        // PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'] (orden físico del HTML)
-        for (let seatIndex = 0; seatIndex < 4; seatIndex++) {
-            const seat = seats[seatIndex];
-            if (!seat) continue;
+        // ▼▼▼ ACTUALIZAR CAJAS DE INFORMACIÓN USANDO ASIENTOS ROTADOS ▼▼▼
+        // Los asientos rotados están ordenados visualmente: [Yo, Izquierda, Frente, Derecha]
+        // PHYSICAL_SLOTS = ['yellow', 'green', 'red', 'blue'] (orden físico del HTML)
+        // rotatedSeats[0] siempre es el jugador local, que debe aparecer en la caja 'yellow' (abajo-derecha)
+        for (let i = 0; i < 4; i++) {
+            const seat = rotatedSeats[i];
+            const physicalSlotColor = PHYSICAL_SLOTS[i];
             
-            // Obtener el color REAL del jugador desde el objeto seat, no desde colorMap
-            // Esto asegura que usamos el color que realmente tiene el jugador
-            const seatColor = seat.color || colorMap[seatIndex];
-            
-            // Encontrar el índice del slot físico en el HTML que corresponde a este color
-            const physicalSlotIndex = PHYSICAL_SLOTS.indexOf(seatColor);
-            if (physicalSlotIndex === -1) {
-                console.warn(`Color ${seatColor} no encontrado en PHYSICAL_SLOTS para asiento ${seatIndex}`);
-                continue;
+            if (seat) {
+                updatePlayerInfoBox(physicalSlotColor, seat);
+            } else {
+                // Si no hay asiento, ocultar la caja
+                const infoBox = document.getElementById(`player-info-box-${physicalSlotColor}`);
+                if (infoBox) {
+                    infoBox.style.visibility = 'hidden';
+                }
             }
-            
-            // Actualizar la caja de info del slot físico correspondiente
-            const physicalSlotColor = PHYSICAL_SLOTS[physicalSlotIndex];
-            updatePlayerInfoBox(physicalSlotColor, seat);
         }
-        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
+        // ▲▲▲ FIN DE ACTUALIZACIÓN DE CAJAS ▲▲▲
 
         updatePairLabels(state);
     }

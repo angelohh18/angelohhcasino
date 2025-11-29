@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.158'; // Actualizado: Corrección de rotación y cajas de información basadas en color real del jugador
+const CACHE_NAME = 'mutijuego-v1.12.159'; // Actualizado: Implementación de utilidades de asientos y rotación mejoradas
 const urlsToCache = [
   '/',
   '/index.html',
