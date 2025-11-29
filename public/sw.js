@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.144'; // Actualizado: Función helper centralizada para asignación inteligente de asientos en Ludo
+const CACHE_NAME = 'mutijuego-v1.12.157'; // Actualizado: Función helper centralizada para asignación inteligente de asientos en Ludo
 const urlsToCache = [
   '/',
   '/index.html',
