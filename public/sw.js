@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.159'; // Actualizado: Implementación de utilidades de asientos y rotación mejoradas
+const CACHE_NAME = 'mutijuego-v1.12.160'; // Actualizado: Corrección de avatares y filtrado de salas inválidas en Ludo
 const urlsToCache = [
   '/',
   '/index.html',
