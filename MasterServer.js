@@ -6884,12 +6884,13 @@ socket.on('accionDescartar', async (data) => {
 
       // --- INICIO DE LÓGICA DE ASIGNACIÓN DE ASIENTOS ---
       const hostColor = settings.chosenColor || 'yellow';
+      console.log(`[${roomId}] 🎨 Color elegido por el host recibido: "${hostColor}" (desde settings.chosenColor: ${settings.chosenColor})`);
 
       // 1. El colorMap es ESTÁTICO: define el color de cada asiento físico.
-      // Asiento 0 = yellow (Abajo-Derecha)
-      // Asiento 1 = green (Abajo-Izquierda)
-      // Asiento 2 = red (Arriba-Izquierda)
-      // Asiento 3 = blue (Arriba-Derecha)
+      // Asiento 0 = red
+      // Asiento 1 = blue
+      // Asiento 2 = yellow
+      // Asiento 3 = green
       // ▼▼▼ CORRECCIÓN: CAMBIAMOS EL ORDEN PARA COINCIDIR CON LO VISUAL ▼▼▼
       const colorMap = ['red', 'blue', 'yellow', 'green'];
       // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
@@ -6897,11 +6898,11 @@ socket.on('accionDescartar', async (data) => {
       // 2. El host elige su color, lo que determina su asiento (seatIndex).
       const hostSeatIndex = colorMap.indexOf(hostColor);
       if (hostSeatIndex === -1) {
-          console.error(`Error: Color de host inválido "${hostColor}"`);
+          console.error(`[${roomId}] ❌ Error: Color de host inválido "${hostColor}". ColorMap disponible:`, colorMap);
           return socket.emit('roomCreationFailed', { message: 'Color de host inválido.' });
       }
 
-      console.log(`[Sala ${roomId}] Anfitrión eligió ${hostColor} (Asiento ${hostSeatIndex}).`);
+      console.log(`[${roomId}] ✅ Anfitrión eligió ${hostColor} -> Asiento ${hostSeatIndex} (colorMap: [${colorMap.join(', ')}])`);
       // --- FIN DE LÓGICA DE ASIGNACIÓN ---
 
       // ▼▼▼ BLOQUE REEMPLAZADO (INICIALIZACIÓN DEL JUEGO) ▼▼▼
@@ -7025,8 +7026,9 @@ socket.on('accionDescartar', async (data) => {
           avatar: hostAvatar, // Avatar con fallback mejorado
           userId: settings.userId,
           status: 'waiting',
-          color: hostColor // Asignar el color
+          color: hostColor // Asignar el color elegido
       };
+      console.log(`[${roomId}] ✅ Asiento ${hostSeatIndex} del host creado con color: ${newRoom.seats[hostSeatIndex].color}`);
 
       ludoRooms[roomId] = newRoom;
       socket.join(roomId);
@@ -7034,6 +7036,12 @@ socket.on('accionDescartar', async (data) => {
 
       console.log(`✅ Mesa creada: ${roomId} por ${username}`);
 
+      console.log(`[${roomId}] 📤 Enviando roomCreatedSuccessfully al host:`);
+      console.log(`  - mySeatIndex: ${hostSeatIndex}`);
+      console.log(`  - Color del asiento: ${newRoom.seats[hostSeatIndex].color}`);
+      console.log(`  - colorMap: [${newRoom.settings.colorMap.join(', ')}]`);
+      console.log(`  - Piezas inicializadas para color ${hostColor}:`, newRoom.gameState.pieces[hostColor]?.length || 0, 'piezas');
+      
       socket.emit('roomCreatedSuccessfully', {
           roomId: roomId,
           roomName: settings.username,
