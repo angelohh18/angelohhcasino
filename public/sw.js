@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.153'; // Actualizado: Reescribir renderLudoBoard con mapeo correcto color->slot físico
+const CACHE_NAME = 'mutijuego-v1.12.154'; // Actualizado: Corregir updatePlayerInfoBoxes para usar mapeo por color
 const urlsToCache = [
   '/',
   '/index.html',

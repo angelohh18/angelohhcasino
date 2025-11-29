@@ -130,17 +130,27 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {Array} seats - Array de asientos del servidor.
      */
     function updatePlayerInfoBoxes(seats) {
-        if (!seats || !gameState) return;
+        if (!seats || !gameState || !gameState.settings || !gameState.settings.colorMap) return;
         
-        // Mapeo de asientos físicos a colores de cajas de información
-        // IMPORTANTE: PHYSICAL_SLOTS debe coincidir con el orden físico en ludo.html:
-        // 1. Red (top-left), 2. Blue (top-right), 3. Green (bottom-left), 4. Yellow (bottom-right)
-        const PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'];
+        const colorMap = gameState.settings.colorMap; // ['red', 'blue', 'yellow', 'green'] del servidor
         
-        for (let i = 0; i < 4; i++) {
-            const slotColor = PHYSICAL_SLOTS[i];
-            const player = seats[i];
-            updatePlayerInfoBox(slotColor, player);
+        // Mapear cada asiento del servidor a su slot físico en el HTML usando el color
+        for (let seatIndex = 0; seatIndex < 4; seatIndex++) {
+            const seat = seats[seatIndex];
+            
+            // Obtener el color de este asiento según el colorMap del servidor
+            const seatColor = colorMap[seatIndex];
+            
+            // Encontrar el índice del slot físico en el HTML que corresponde a este color
+            const physicalSlotIndex = PHYSICAL_SLOTS.indexOf(seatColor);
+            if (physicalSlotIndex === -1) {
+                console.warn(`Color ${seatColor} no encontrado en PHYSICAL_SLOTS`);
+                continue;
+            }
+            
+            // Actualizar la caja de info del slot físico correspondiente
+            const physicalSlotColor = PHYSICAL_SLOTS[physicalSlotIndex];
+            updatePlayerInfoBox(physicalSlotColor, seat);
         }
     }
 
