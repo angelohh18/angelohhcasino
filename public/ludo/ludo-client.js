@@ -132,7 +132,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!seats || !gameState) return;
         
         // Mapeo de asientos físicos a colores de cajas de información
-        const PHYSICAL_SLOTS = ['yellow', 'green', 'red', 'blue'];
+        // CORRECCIÓN: PHYSICAL_SLOTS debe coincidir con el colorMap del servidor: ['red', 'blue', 'yellow', 'green']
+        const PHYSICAL_SLOTS = ['red', 'blue', 'yellow', 'green'];
         
         for (let i = 0; i < 4; i++) {
             const slotColor = PHYSICAL_SLOTS[i];

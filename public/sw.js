@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.150'; // Actualizado: Logs detallados createLudoRoom para debug
+const CACHE_NAME = 'mutijuego-v1.12.151'; // Actualizado: Fix PHYSICAL_SLOTS para coincidir con colorMap del servidor
 const urlsToCache = [
   '/',
   '/index.html',
