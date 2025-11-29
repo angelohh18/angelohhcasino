@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.151'; // Actualizado: Fix PHYSICAL_SLOTS para coincidir con colorMap del servidor
+const CACHE_NAME = 'mutijuego-v1.12.152'; // Actualizado: Fix PHYSICAL_SLOTS para coincidir con orden físico del HTML
 const urlsToCache = [
   '/',
   '/index.html',

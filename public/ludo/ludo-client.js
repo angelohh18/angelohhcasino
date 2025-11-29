@@ -40,9 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // ▲▲▲ FIN DE LOS SELECTORES ▲▲▲
 
     // Constantes de los slots físicos del HTML
-    // CORRECCIÓN: PHYSICAL_SLOTS debe coincidir con el colorMap del servidor: ['red', 'blue', 'yellow', 'green']
-    // (El orden es el sentido horario desde la base del jugador local)
-    const PHYSICAL_SLOTS = ['red', 'blue', 'yellow', 'green'];
+    // IMPORTANTE: PHYSICAL_SLOTS debe coincidir con el orden físico en ludo.html:
+    // 1. Red (top-left), 2. Blue (top-right), 3. Green (bottom-left), 4. Yellow (bottom-right)
+    const PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'];
     
     // Variable para controlar si el sonido está silenciado
     // Sincroniza con localStorage para compartir el estado con ludogame.js
@@ -133,8 +133,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!seats || !gameState) return;
         
         // Mapeo de asientos físicos a colores de cajas de información
-        // CORRECCIÓN: PHYSICAL_SLOTS debe coincidir con el colorMap del servidor: ['red', 'blue', 'yellow', 'green']
-        const PHYSICAL_SLOTS = ['red', 'blue', 'yellow', 'green'];
+        // IMPORTANTE: PHYSICAL_SLOTS debe coincidir con el orden físico en ludo.html:
+        // 1. Red (top-left), 2. Blue (top-right), 3. Green (bottom-left), 4. Yellow (bottom-right)
+        const PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'];
         
         for (let i = 0; i < 4; i++) {
             const slotColor = PHYSICAL_SLOTS[i];
