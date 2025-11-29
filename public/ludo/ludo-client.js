@@ -208,78 +208,58 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // CORRECCIÓN: Permitir renderizado para jugadores con mySeatIndex válido (0-3)
-        // Si mySeatIndex es -1, usar 0 como fallback para espectadores
         if (state.mySeatIndex == null || state.mySeatIndex < 0 || state.mySeatIndex > 3) {
             console.warn('mySeatIndex inválido, usando fallback 0 para espectador.');
             state.mySeatIndex = 0;
         }
 
-        // ▼▼▼ INICIO DE LA MODIFICACIÓN (LÓGICA CORREGIDA) ▼▼▼
         const { seats, mySeatIndex, settings } = state;
+        const colorMap = settings.colorMap; // ['red', 'blue', 'yellow', 'green'] del servidor
+        const myColor = colorMap[mySeatIndex];
 
-        // 1. Obtener el color del asiento físico en el que estoy
-        const myColor = settings.colorMap[mySeatIndex];
-
-        // 2. Calcular la rotación CSS basada en el ASIENTO FÍSICO (mySeatIndex),
-        //    no en el color (que ahora es variable).
-        // El objetivo es que MI asiento (mySeatIndex) siempre rote para
-        // quedar en la posición del Asiento 0 (amarillo, abajo-derecha).
+        // Calcular rotación CSS basada en mySeatIndex
+        // Objetivo: que MI asiento siempre quede en la posición física de yellow (abajo-derecha)
         let rotationDegrees = 0;
-
         switch (mySeatIndex) {
-            case 0: // Estoy en el asiento 0 (Yellow / Abajo-Derecha)
-                rotationDegrees = 0; 
-                break;
-            case 3: // Estoy en el asiento 3 (Blue / Arriba-Derecha)
-                rotationDegrees = 90; // Gira 90deg para mover el slot Azul a la posición Amarilla
-                break;
-            case 2: // Estoy en el asiento 2 (Red / Arriba-Izquierda)
-                rotationDegrees = 180; // Gira 180deg
-                break;
-            case 1: // Estoy en el asiento 1 (Green / Abajo-Izquierda)
-                rotationDegrees = -90; // Gira -90deg
-                break;
+            case 0: rotationDegrees = 0; break;
+            case 1: rotationDegrees = -90; break;
+            case 2: rotationDegrees = 180; break;
+            case 3: rotationDegrees = 90; break;
         }
-        // ▲▲▲ FIN DE LA MODIFICACIÓN ▲▲▲
 
-        // 3. Aplicar la rotación CSS SOLAMENTE al tablero
-        //    (NO al contenedor, para que las cajas de info queden fijas)
-        const boardElement = document.getElementById('ludo-board'); // <-- ID CAMBIADO
+        // Aplicar rotación CSS al tablero
+        const boardElement = document.getElementById('ludo-board');
         if (boardElement) {
             boardElement.style.transform = `rotate(${rotationDegrees}deg)`;
-            // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
             boardElement.dataset.rotation = rotationDegrees;
-            // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
-            
-            // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
-            // Almacena la rotación INVERSA como una variable CSS en el tablero
             boardElement.style.setProperty('--board-counter-rotation', `${-rotationDegrees}deg`);
-            // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
-
-            // (Opcional) Añadimos una transición suave
             boardElement.style.transition = 'transform 0.5s ease-out';
         } else {
-            console.error('¡No se encontró #ludo-board!'); // <-- ID CAMBIADO
+            console.error('¡No se encontró #ludo-board!');
         }
-        
-        // 4. Rotar los datos de los jugadores para las cajas de info
-        // (Esta lógica sigue siendo correcta: rota el array de asientos para que TU
-        // información siempre se muestre en la caja física 'yellow' de abajo-derecha)
-        const rotationOffset = mySeatIndex;
-        const rotatedSeats = rotateArray(seats, rotationOffset);
 
         console.log(`Soy Asiento ${mySeatIndex} (Color ${myColor}). Rotando tablero ${rotationDegrees}deg.`);
 
-        // 5. Aplicar los datos de los jugadores a los slots físicos (sin cambiar colores)
-        for (let i = 0; i < PHYSICAL_SLOTS.length; i++) {
-            const physicalSlot = PHYSICAL_SLOTS[i]; // 'yellow', 'green', 'red', 'blue'
-            const player = rotatedSeats[i];         // El jugador que va en ese slot
-
-            // Actualizar la info del jugador para este slot
-            updatePlayerInfoBox(physicalSlot, player);
+        // Mapear cada asiento del servidor a su slot físico en el HTML
+        // PHYSICAL_SLOTS = ['red', 'blue', 'green', 'yellow'] (orden físico del HTML)
+        // colorMap = ['red', 'blue', 'yellow', 'green'] (orden del servidor)
+        for (let seatIndex = 0; seatIndex < 4; seatIndex++) {
+            const seat = seats[seatIndex];
+            if (!seat) continue;
             
-            // NO LLAMAMOS a updateBoardColors()
+            // Obtener el color de este asiento según el colorMap del servidor
+            const seatColor = colorMap[seatIndex];
+            
+            // Encontrar el índice del slot físico en el HTML que corresponde a este color
+            const physicalSlotIndex = PHYSICAL_SLOTS.indexOf(seatColor);
+            if (physicalSlotIndex === -1) {
+                console.warn(`Color ${seatColor} no encontrado en PHYSICAL_SLOTS`);
+                continue;
+            }
+            
+            // Actualizar la caja de info del slot físico correspondiente
+            const physicalSlotColor = PHYSICAL_SLOTS[physicalSlotIndex];
+            updatePlayerInfoBox(physicalSlotColor, seat);
         }
 
         updatePairLabels(state);
