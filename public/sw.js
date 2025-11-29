@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.145'; // Actualizado: Versión actualizada - Fix joinLudoGame
+const CACHE_NAME = 'mutijuego-v1.12.146'; // Actualizado: Lógica de asignación de asientos mejorada
 const urlsToCache = [
   '/',
   '/index.html',

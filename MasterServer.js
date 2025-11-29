@@ -6890,7 +6890,9 @@ socket.on('accionDescartar', async (data) => {
       // Asiento 1 = green (Abajo-Izquierda)
       // Asiento 2 = red (Arriba-Izquierda)
       // Asiento 3 = blue (Arriba-Derecha)
-      const colorMap = ['yellow', 'green', 'red', 'blue'];
+      // ▼▼▼ CORRECCIÓN: CAMBIAMOS EL ORDEN PARA COINCIDIR CON LO VISUAL ▼▼▼
+      const colorMap = ['red', 'blue', 'yellow', 'green'];
+      // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
       // 2. El host elige su color, lo que determina su asiento (seatIndex).
       const hostSeatIndex = colorMap.indexOf(hostColor);
@@ -7572,57 +7574,81 @@ socket.on('accionDescartar', async (data) => {
 
           let newSeatIndex = -1;
 
-          const hostSeatIndex = room.settings.hostSeatIndex;
+          // --- INICIO LÓGICA DE ASIGNACIÓN (EXTRAÍDA) ---
 
           
 
-          // a. Si solo hay 1 jugador (el host), forzar diagonal
+          // 0. Obtener el asiento del Host (definido en la creación de la sala)
 
-          const seatedCount = room.seats.filter(s => s !== null).length;
+          const hostSeatIndex = room.settings.hostSeatIndex;
 
-          if (seatedCount === 1) {
 
-              const diagonalSeat = (hostSeatIndex + 2) % 4;
 
-              if (room.seats[diagonalSeat] === null) {
+          // 1. Calcular los índices relativos al Host
 
-                  newSeatIndex = diagonalSeat;
+          // Diagonal: (Host + 2) % 4
+
+          const diagonalSeatHost = (hostSeatIndex + 2) % 4;
+
+          // Izquierda (sentido horario): (Host + 1) % 4
+
+          const leftSeat = (hostSeatIndex + 1) % 4; 
+
+          // Derecha (sentido horario): (Host + 3) % 4
+
+          const rightSeat = (hostSeatIndex + 3) % 4; 
+
+
+
+          // 2. Intentar asignar en orden de prioridad:
+
+          
+
+          // A. Prioridad 1: Diagonal (Ideal para partidas de 2)
+
+          if (room.seats[diagonalSeatHost] === null) {
+
+              newSeatIndex = diagonalSeatHost;
+
+          } 
+
+          // B. Prioridad 2: Izquierda
+
+          else if (room.seats[leftSeat] === null) {
+
+              newSeatIndex = leftSeat;
+
+          } 
+
+          // C. Prioridad 3: Derecha
+
+          else if (room.seats[rightSeat] === null) {
+
+              newSeatIndex = rightSeat;
+
+          }
+
+        
+
+          // 3. Fallback: Si la lógica relativa falla, buscar el primero libre (0-3)
+
+          if (newSeatIndex === -1) {
+
+              for (let i = 0; i < 4; i++) {
+
+                  if (room.seats[i] === null) {
+
+                      newSeatIndex = i;
+
+                      break;
+
+                  }
 
               }
 
           }
 
-
-
-          // b. Si no, buscar por prioridad relativa al host (Diagonal -> Izq -> Der)
-
-          if (newSeatIndex === -1) {
-
-              const diagonalSeatHost = (hostSeatIndex + 2) % 4;
-
-              const leftSeat = (hostSeatIndex + 1) % 4;
-
-              const rightSeat = (hostSeatIndex + 3) % 4;
-
-
-
-              if (room.seats[diagonalSeatHost] === null) newSeatIndex = diagonalSeatHost;
-
-              else if (room.seats[leftSeat] === null) newSeatIndex = leftSeat;
-
-              else if (room.seats[rightSeat] === null) newSeatIndex = rightSeat;
-
-          }
-
-
-
-          // c. Fallback: primero disponible
-
-          if (newSeatIndex === -1) {
-
-              for (let i = 0; i < 4; i++) { if (room.seats[i] === null) { newSeatIndex = i; break; } }
-
-          }
+          // --- FIN LÓGICA DE ASIGNACIÓN ---
 
 
 
