@@ -7699,19 +7699,17 @@ socket.on('accionDescartar', async (data) => {
                
 
                // Inicializar piezas si entra tarde
-
-               if (room.state === 'playing' && room.gameState?.pieces && !room.gameState.pieces[assignedColor]?.length) {
-
-                    const pieceCount = room.settings.pieceCount || 4;
-
-                    room.gameState.pieces[assignedColor] = [];
-
-                    for(let i=0; i<pieceCount; i++) {
-
-                        room.gameState.pieces[assignedColor].push({ id: `${assignedColor}-${i+1}`, color: assignedColor, state: 'base', position: -1 });
-
+               // CORRECCIÓN: Asegurar que las piezas usen el color del asiento asignado, no el diagonal
+               if (room.state === 'playing' && room.gameState?.pieces) {
+                    // Usar el color del asiento asignado explícitamente
+                    const seatColor = room.seats[newSeatIndex]?.color || assignedColor;
+                    if (!room.gameState.pieces[seatColor]?.length) {
+                         const pieceCount = room.settings.pieceCount || 4;
+                         room.gameState.pieces[seatColor] = [];
+                         for(let i=0; i<pieceCount; i++) {
+                              room.gameState.pieces[seatColor].push({ id: `${seatColor}-${i+1}`, color: seatColor, state: 'base', position: -1 });
+                         }
                     }
-
                }
 
                mySeatIndex = newSeatIndex;

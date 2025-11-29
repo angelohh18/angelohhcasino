@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.146'; // Actualizado: Lógica de asignación de asientos mejorada
+const CACHE_NAME = 'mutijuego-v1.12.147'; // Actualizado: Fix color de fichas al unirse jugador
 const urlsToCache = [
   '/',
   '/index.html',
