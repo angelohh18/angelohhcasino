@@ -352,16 +352,24 @@ function showPwaInstallModal() {
             localStorage.setItem('username', userState.username);
             currentUser.username = userState.username;
         }
-        if (userState.avatar) {
-            sessionStorage.setItem('userAvatar', userState.avatar);
-            localStorage.setItem('userAvatar', userState.avatar);
-            currentUser.userAvatar = userState.avatar;
+        // ▼▼▼ CORRECCIÓN: Buscar avatar en múltiples propiedades ▼▼▼
+        const avatarUrl = userState.avatar || userState.avatar_url || userState.userAvatar || '';
+        if (avatarUrl && avatarUrl.trim() !== '') {
+            sessionStorage.setItem('userAvatar', avatarUrl);
+            localStorage.setItem('userAvatar', avatarUrl);
+            currentUser.userAvatar = avatarUrl;
             // Actualizar el avatar en la UI si existe
             const userAvatarEl = document.getElementById('user-avatar');
             if (userAvatarEl) {
-                userAvatarEl.src = userState.avatar;
+                userAvatarEl.src = avatarUrl;
+                userAvatarEl.onerror = function() {
+                    // Fallback a avatar por defecto si la imagen falla
+                    const defaultAvatarIndex = 1;
+                    this.src = `https://i.pravatar.cc/150?img=${defaultAvatarIndex}`;
+                };
             }
         }
+        // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
         // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
 
         if (typeof updateLobbyCreditsDisplay === 'function') {
@@ -1854,12 +1862,67 @@ function showRoomsOverview() {
         }
         // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
  
-        // ▼▼▼ REEMPLAZA EL BLOQUE DE REANUDACIÓN DE SESIÓN CON ESTO ▼▼▼
-        console.log('Iniciando sesión automática desde sessionStorage...');
-        body.classList.remove('is-logged-in');
-        lobbyOverlay.style.display = 'none';
-        doLogin(); // Inicia sesión automáticamente
-        // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
+        // ▼▼▼ BLOQUE DE REANUDACIÓN DE SESIÓN MEJORADO ▼▼▼
+        const sessionUsername = sessionStorage.getItem('username') || localStorage.getItem('username');
+        const sessionCurrency = sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD';
+        const sessionAvatar = sessionStorage.getItem('userAvatar') || localStorage.getItem('userAvatar');
+        
+        if (sessionUsername && sessionCurrency) {
+            console.log('Reconectando sesión activa para:', sessionUsername);
+            
+            // Inicializar el avatar inmediatamente desde sessionStorage/localStorage
+            if (sessionAvatar && userAvatarEl) {
+                userAvatarEl.src = sessionAvatar;
+                currentUser.userAvatar = sessionAvatar;
+            }
+            
+            // Conectar el socket
+            if (!socket.connected) {
+                socket.connect();
+            }
+            
+            // Informar al servidor (el servidor responderá con 'userStateUpdated')
+            socket.emit('userLoggedIn', { username: sessionUsername, currency: sessionCurrency });
+            
+            // Sincronizar la variable global
+            currentUser = {
+                username: sessionUsername,
+                userAvatar: sessionAvatar || '',
+                userId: sessionStorage.getItem('userId') || localStorage.getItem('userId') || 'user_' + sessionUsername.toLowerCase(),
+                credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 0),
+                currency: sessionCurrency
+            };
+            
+            // Actualizar la UI del lobby
+            const userNameEl = document.getElementById('user-name');
+            if (userNameEl) {
+                userNameEl.textContent = sessionUsername;
+            }
+            
+            body.classList.add('is-logged-in');
+            lobbyOverlay.style.display = 'flex';
+            
+            // Mostrar el modal de PWA si es la primera vez
+            showPwaInstallModal();
+            
+            // Re-escalar el lobby
+            setTimeout(() => {
+                if (typeof scaleAndCenterLobby === 'function') {
+                    scaleAndCenterLobby();
+                }
+            }, 0);
+            window.addEventListener('resize', () => {
+                if (typeof scaleAndCenterLobby === 'function') {
+                    scaleAndCenterLobby();
+                }
+            });
+        } else {
+            // No hay sesión guardada, mostrar login modal
+            console.log('No hay sesión guardada, mostrando modal de login');
+            body.classList.remove('is-logged-in');
+            lobbyOverlay.style.display = 'none';
+        }
+        // ▲▲▲ FIN DEL BLOQUE MEJORADO ▲▲▲
          
          // ▼▼▼ INICIO DEL BLOQUE DE CÓDIGO PARA CAMBIAR CONTRASEÑA ▼▼▼
          console.log('TEST: JavaScript actualizado - Modal cambiar contraseña');

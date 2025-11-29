@@ -5270,10 +5270,15 @@ io.on('connection', (socket) => {
             }
             
             users[userId] = userData;
-            socket.emit('userStateUpdated', users[userId]);
+            // ▼▼▼ CORRECCIÓN: Asegurar que avatar_url se envíe como 'avatar' ▼▼▼
+            const userStateToSend = {
+                ...userData,
+                avatar: userData.avatar_url || userData.avatar || ''
+            };
+            socket.emit('userStateUpdated', userStateToSend);
         } catch (error) {
             console.error('Error cargando usuario desde BD:', error);
-            users[userId] = { credits: 0, currency: currency };
+            users[userId] = { credits: 0, currency: currency, avatar_url: '', avatar: '' };
             socket.emit('userStateUpdated', users[userId]);
         }
 
