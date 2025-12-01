@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.163'; // Actualizado: Expulsión automática al lobby con modal específico para inactividad
+const CACHE_NAME = 'mutijuego-v1.12.164'; // Actualizado: Corrección de eliminación por timeout de inactividad - asegurar que se elimine correctamente
 const urlsToCache = [
   '/',
   '/index.html',
