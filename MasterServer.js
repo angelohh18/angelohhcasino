@@ -4917,17 +4917,47 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                 });
                 
                 // Enviar SOLO al jugador eliminado el evento inactivityTimeout para mostrar modal en el lobby
-                const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+                const leavingUserId = leavingPlayerSeat.userId;
+                let leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+                
+                // Si no se encuentra el socket por playerId, buscar por userId
+                if (!leavingSocket && leavingUserId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === leavingUserId) {
+                            leavingSocket = socket;
+                            console.log(`[${roomId}] ✅ Socket encontrado por userId ${leavingUserId} -> ${socketId}`);
+                            break;
+                        }
+                    }
+                }
+                
                 if (leavingSocket) {
                     // Obtener información del usuario para enviarla en el evento
-                    const leavingUserId = leavingPlayerSeat.userId;
                     const userInfo = leavingUserId ? users[leavingUserId] : null;
+                    const realUsername = userInfo ? userInfo.username : playerName;
+                    
+                    // ▼▼▼ CRÍTICO: Actualizar connectedUsers ANTES de emitir el evento ▼▼▼
+                    // Asegurar que el nombre y estado se actualicen correctamente
+                    if (connectedUsers[leavingSocket.id]) {
+                        connectedUsers[leavingSocket.id].username = realUsername;
+                        connectedUsers[leavingSocket.id].status = 'En el lobby de La 51';
+                        connectedUsers[leavingSocket.id].currentLobby = 'La 51';
+                    } else {
+                        connectedUsers[leavingSocket.id] = {
+                            username: realUsername,
+                            status: 'En el lobby de La 51',
+                            currentLobby: 'La 51'
+                        };
+                    }
+                    console.log(`[${roomId}] ✅ connectedUsers actualizado para ${realUsername} (socket: ${leavingSocket.id})`);
+                    // ▲▲▲ FIN DE ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
                     
                     leavingSocket.emit('inactivityTimeout', {
                         playerId: leavingPlayerId,
                         playerName: playerName,
                         userId: leavingUserId,
-                        username: userInfo ? userInfo.username : playerName,
+                        username: realUsername,
                         avatar: userInfo ? userInfo.avatar : null,
                         userCurrency: userInfo ? userInfo.currency : 'USD',
                         message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
@@ -4936,6 +4966,27 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                         forceExit: true
                     });
                     console.log(`[${roomId}] ✅ Evento inactivityTimeout enviado SOLO a ${playerName} (${leavingPlayerId}) para mostrar modal en el lobby. Los demás jugadores recibieron playerEliminated con redirect: false`);
+                    
+                    // ▼▼▼ CRÍTICO: Actualizar la lista de usuarios inmediatamente después de emitir el evento ▼▼▼
+                    broadcastUserListUpdate(io);
+                    console.log(`[${roomId}] ✅ Lista de usuarios actualizada después de eliminación por inactividad`);
+                    // ▲▲▲ FIN DE ACTUALIZACIÓN DE LISTA ▲▲▲
+                } else {
+                    console.warn(`[${roomId}] ⚠️ No se encontró socket para ${playerName} (${leavingPlayerId}), pero se actualizará connectedUsers si existe`);
+                    // Intentar actualizar connectedUsers de todas formas si existe alguna entrada
+                    if (leavingUserId) {
+                        for (const [socketId, userData] of Object.entries(connectedUsers)) {
+                            if (userData.username === playerName || (socketId.includes(leavingUserId) && userData.username)) {
+                                const realUsername = users[leavingUserId]?.username || playerName;
+                                connectedUsers[socketId].username = realUsername;
+                                connectedUsers[socketId].status = 'En el lobby de La 51';
+                                connectedUsers[socketId].currentLobby = 'La 51';
+                                broadcastUserListUpdate(io);
+                                console.log(`[${roomId}] ✅ connectedUsers actualizado para ${realUsername} (socket: ${socketId})`);
+                                break;
+                            }
+                        }
+                    }
                 }
             } else {
                 // ▼▼▼ CRÍTICO: Enviar evento SOLO al jugador eliminado con redirect: true, y a los demás sin redirect ▼▼▼
