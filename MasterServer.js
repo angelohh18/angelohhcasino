@@ -727,6 +727,20 @@ function startLa51InactivityTimeout(room, playerId, io) {
         }
         // ▲▲▲ FIN VERIFICACIÓN DE TIEMPO COMPLETO ▲▲▲
         
+        // ▼▼▼ CRÍTICO: Eliminar de connectedUsers AHORA que el timeout se completó ▼▼▼
+        if (playerSeat.userId) {
+            // Buscar y eliminar cualquier entrada de connectedUsers para este userId
+            Object.keys(connectedUsers).forEach(socketId => {
+                const userData = connectedUsers[socketId];
+                if (userData && (socketId === playerId || (playerSeat.userId && socketId.includes(playerSeat.userId)))) {
+                    delete connectedUsers[socketId];
+                    console.log(`[${roomId}] ✅ Eliminado de connectedUsers después de timeout: ${socketId}`);
+                }
+            });
+            broadcastUserListUpdate(io);
+        }
+        // ▲▲▲ FIN ELIMINACIÓN DE CONNECTEDUSERS ▲▲▲
+        
         // Eliminar al jugador por inactividad (igual que abandono voluntario)
         console.log(`[${roomId}] 🚨 Eliminando ${playerSeat.playerName} por inactividad (2 minutos completos sin acción).`);
         
