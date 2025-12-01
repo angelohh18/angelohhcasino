@@ -273,7 +273,10 @@ socket.on('connect_error', (error) => {
 });
 
 socket.on('disconnect', (reason) => {
-    console.log('🔌 Desconectado del servidor. Razón:', reason);
+    console.log('🔌 [CLIENTE] Desconectado del servidor. Razón:', reason);
+    console.log('🔌 [CLIENTE DEBUG] Stack trace de desconexión:', new Error().stack);
+    console.log('🔌 [CLIENTE DEBUG] currentGameSettings:', currentGameSettings);
+    console.log('🔌 [CLIENTE DEBUG] socket.connected antes:', socket.connected);
     // No intentar reconectar si es un error del servidor
     if (reason === 'io server disconnect' || reason === 'transport close') {
         console.warn('⚠️ El servidor cerró la conexión. No se intentará reconectar automáticamente.');
@@ -886,6 +889,8 @@ function showPwaInstallModal() {
     });
 
     btnLogout.addEventListener('click', () => {
+        console.log('🔌 [CLIENTE DEBUG] Logout clickeado - desconectando socket');
+        console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
         socket.disconnect(); 
         
         // MIGRACIÓN SEGURA: Limpiar tanto variables globales como localStorage y sessionStorage
@@ -2343,6 +2348,8 @@ function showRoomsOverview() {
         showToast(data.message || 'La revancha ya comenzó sin tu confirmación. Serás redirigido al lobby.', 5000);
         if (data.redirectToLobby) {
             setTimeout(() => {
+                console.log('🔌 [CLIENTE DEBUG] rematchGameAlreadyStarted - emitiendo leaveGame');
+                console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
                 resetClientGameState();
                 if (currentGameSettings && currentGameSettings.roomId) {
                     socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
@@ -3364,6 +3371,8 @@ function updatePlayersView(seats, inGame = false) {
     // ▼▼▼ REEMPLAZA TU FUNCIÓN window.goBackToLobby ENTERA CON ESTA VERSIÓN SIMPLIFICADA ▼▼▼
     window.goBackToLobby = function() {
         if (currentGameSettings && currentGameSettings.roomId) {
+            console.log('🔌 [CLIENTE DEBUG] goBackToLobby llamado - emitiendo leaveGame');
+            console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
             console.log('Notificando al servidor la salida de la sala para limpieza...');
             socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
         }

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.186'; // Actualizado: Agregados logs detallados para identificar qué causa desconexión prematura
+const CACHE_NAME = 'mutijuego-v1.12.187'; // Actualizado: Agregados logs detallados en el cliente para identificar qué causa desconexión prematura
 const urlsToCache = [
   '/',
   '/index.html',
