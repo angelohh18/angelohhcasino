@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.179'; // Actualizado: Eliminada TODA la lógica que desconecta al jugador antes del timeout - el jugador puede reconectarse y continuar jugando
+const CACHE_NAME = 'mutijuego-v1.12.180'; // Actualizado: Corregido error ReferenceError: isDisconnected is not defined
 const urlsToCache = [
   '/',
   '/index.html',

@@ -4847,12 +4847,9 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
                 if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
                     delete la51InactivityTimeouts[timeoutKeyByPlayerId];
                 }
-                delete la51DisconnectedPlayers[nextPlayerDisconnectKey];
             }, LA51_INACTIVITY_TIMEOUT_MS);
             
-            if (isDisconnected && !alreadyPenalized) {
-                console.log(`[${room.roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (userId: ${nextPlayer.userId}). Si no vuelve en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-            } else if (!alreadyPenalized) {
+            if (!alreadyPenalized) {
                 console.log(`[${room.roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (userId: ${nextPlayer.userId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
             }
         }
