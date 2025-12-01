@@ -2366,6 +2366,8 @@ function showRoomsOverview() {
         showToast(data.message || 'La revancha ya comenzó. No puedes confirmar ahora. Serás redirigido al lobby.', 5000);
         if (data.redirectToLobby) {
             setTimeout(() => {
+                console.log('🔌 [CLIENTE DEBUG] rematchGameAlreadyStarted - emitiendo leaveGame');
+                console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
                 resetClientGameState();
                 if (currentGameSettings && currentGameSettings.roomId) {
                     socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
