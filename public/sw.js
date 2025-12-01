@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.166'; // Actualizado: Corrección de manejo de faltas en práctica de La 51
+const CACHE_NAME = 'mutijuego-v1.12.167'; // Actualizado: Mensaje del primer turno se oculta automáticamente después de 10 segundos
 const urlsToCache = [
   '/',
   '/index.html',

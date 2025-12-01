@@ -148,7 +148,8 @@ function showToast(msg, duration = 3000, isFirstTurn = false) {
     });
     
     // Usamos un temporizador para ocultar el toast después de la duración
-    // Solo si NO es el primer turno (el primer turno se oculta manualmente al descartar)
+    // Si es el primer turno, se ocultará automáticamente después de 10 segundos (manejado en firstTurnInfo)
+    // Si NO es el primer turno, se oculta después de la duración especificada
     if (!isFirstTurn) {
         setTimeout(() => {
             toast.classList.remove('show');
@@ -158,6 +159,7 @@ function showToast(msg, duration = 3000, isFirstTurn = false) {
             console.log('[showToast] Clase "show" removida después de', duration, 'ms');
         }, duration);
     }
+    // Nota: El primer turno se oculta automáticamente después de 10 segundos en el listener firstTurnInfo
 }
 // ▲▲▲ FIN DEL CÓDIGO A PEGAR ▲▲▲
 
@@ -2384,12 +2386,29 @@ function showRoomsOverview() {
             // Usar setTimeout para asegurar que el DOM esté listo
             firstTurnToastTimeout = setTimeout(() => {
                 console.log('[Cliente] Mostrando toast con mensaje:', data.message);
-                showToast(data.message, 8000, true); // Mostrar por 8 segundos, centrado en pantalla
+                showToast(data.message, 10000, true); // Mostrar por 10 segundos, centrado en pantalla
                 // También agregarlo al chat para referencia
                 if (typeof addChatMessage === 'function') {
                     addChatMessage(null, data.message, 'system');
                 }
                 console.log('[Cliente] ✅ Mensaje mostrado en toast y chat');
+                
+                // Ocultar automáticamente después de 10 segundos
+                setTimeout(() => {
+                    const toast = document.getElementById('toast');
+                    if (toast && toast.classList.contains('first-turn')) {
+                        toast.classList.remove('show');
+                        toast.classList.remove('first-turn');
+                        toast.style.display = 'none';
+                        toast.style.opacity = '0';
+                        toast.style.visibility = 'hidden';
+                        // Restaurar estilos por defecto
+                        toast.style.top = 'auto';
+                        toast.style.bottom = '26px';
+                        toast.style.transform = 'translateX(-50%)';
+                        console.log('[Cliente] ✅ Mensaje del primer turno ocultado automáticamente después de 10 segundos');
+                    }
+                }, 10000);
             }, 100);
         } else {
             console.log('[Cliente] Ignorando mensaje que no es del primer turno');
