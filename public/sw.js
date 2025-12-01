@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.170'; // Actualizado: Sincronización servidor-cliente para mostrar jugador eliminado correctamente en lobby
+const CACHE_NAME = 'mutijuego-v1.12.171'; // Actualizado: Actualización inmediata de nombre de usuario en UI cuando es eliminado por inactividad
 const urlsToCache = [
   '/',
   '/index.html',

@@ -1982,11 +1982,25 @@ function showRoomsOverview() {
             sessionStorage.setItem('username', username);
             localStorage.setItem('username', username);
             currentUser.username = username;
+            
+            // ▼▼▼ CRÍTICO: Actualizar el nombre en la UI inmediatamente ▼▼▼
+            const userNameEl = document.getElementById('user-name');
+            if (userNameEl) {
+                userNameEl.textContent = username;
+                console.log('[inactivityTimeout] ✅ Nombre actualizado en UI:', username);
+            }
+            // ▲▲▲ FIN DE ACTUALIZACIÓN DE UI ▲▲▲
         }
         if (userAvatar) {
             sessionStorage.setItem('userAvatar', userAvatar);
             localStorage.setItem('userAvatar', userAvatar);
             currentUser.userAvatar = userAvatar;
+            
+            // Actualizar el avatar en la UI
+            const userAvatarEl = document.getElementById('user-avatar');
+            if (userAvatarEl) {
+                userAvatarEl.src = userAvatar;
+            }
         }
         if (userCurrency) {
             sessionStorage.setItem('userCurrency', userCurrency);
@@ -2031,6 +2045,13 @@ function showRoomsOverview() {
         // Mostrar el lobby para que no quede en blanco
         showLobbyView();
         // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
+        
+        // ▼▼▼ SOLICITAR ACTUALIZACIÓN INMEDIATA DE LISTA DE USUARIOS ▼▼▼
+        // Asegurar que el servidor actualice el estado del usuario y la lista
+        socket.emit('enterLa51Lobby');
+        socket.emit('requestInitialData');
+        console.log('[inactivityTimeout] ✅ Solicitud de actualización de lista de usuarios enviada');
+        // ▲▲▲ FIN DE SOLICITUD DE ACTUALIZACIÓN ▲▲▲
         
         // ▼▼▼ MOSTRAR MODAL DE INACTIVIDAD EN EL LOBBY ▼▼▼
         // Buscar o crear modal de inactividad
