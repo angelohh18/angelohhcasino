@@ -234,7 +234,15 @@ function showBotInfoModalOnce() {
 // ▲▲▲ FIN DE LAS NUEVAS FUNCIONES ▲▲▲
 // ▲▲▲ FIN DEL CÓDIGO A PEGAR ▲▲▲
 
-const socket = io(window.location.origin, { autoConnect: false });
+const socket = io(window.location.origin, { 
+    autoConnect: false,
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5,
+    timeout: 20000,
+    transports: ['websocket', 'polling']
+});
 
 let spectatorMode = 'wantsToPlay'; // Variable global para controlar el modo espectador
 let clientExchangeRates = {}; // Para guardar las tasas
@@ -254,6 +262,22 @@ let currentUser = {
 socket.on('connect', () => {
     console.log('🔌 Conexión global con el servidor establecida. ID:', socket.id);
     socket.emit('requestInitialData'); // Un nuevo evento que crearemos en el servidor
+});
+
+socket.on('connect_error', (error) => {
+    console.warn('⚠️ Error de conexión con el servidor:', error.message);
+    // No mostrar errores 503 al usuario, solo loguear
+    if (error.message && !error.message.includes('503')) {
+        console.error('Error de conexión:', error);
+    }
+});
+
+socket.on('disconnect', (reason) => {
+    console.log('🔌 Desconectado del servidor. Razón:', reason);
+    // No intentar reconectar si es un error del servidor
+    if (reason === 'io server disconnect' || reason === 'transport close') {
+        console.warn('⚠️ El servidor cerró la conexión. No se intentará reconectar automáticamente.');
+    }
 });
 
 
@@ -1208,7 +1232,10 @@ function showRoomsOverview() {
             if (data.success) {
                 const user = data.user;
                 
-                socket.connect(); 
+                // Conectar socket solo si no está ya conectado
+                if (!socket.connected) {
+                    socket.connect();
+                }
                 socket.emit('userLoggedIn', { username: user.name, currency: user.currency });
 
                 // Guardar datos en la variable global para la sesión
@@ -1486,8 +1513,10 @@ function showRoomsOverview() {
             if (savedUserAvatar) localStorage.setItem('userAvatar', savedUserAvatar);
             if (savedUserId) localStorage.setItem('userId', savedUserId);
             
-            // Conectar socket y notificar al servidor
-            socket.connect();
+            // Conectar socket solo si no está ya conectado
+            if (!socket.connected) {
+                socket.connect();
+            }
             socket.emit('userLoggedIn', { 
                 username: savedUsername, 
                 currency: savedUserCurrency || 'USD' 
