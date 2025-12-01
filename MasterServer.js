@@ -4982,26 +4982,34 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
     // NO liberar aquí todavía si el juego está activo, se liberará después de pasar el turno
     
     // 2. Limpiar referencia en el socket del jugador
+    // ▼▼▼ CRÍTICO: Si es eliminación por inactividad, NO hacer socket.leave hasta después del timeout ▼▼▼
+    // El timeout ya eliminó al jugador, solo necesitamos limpiar referencias
     const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
     if (leavingSocket) {
-        // Eliminar currentRoomId
-        if (leavingSocket.currentRoomId === roomId) {
+        // Eliminar currentRoomId solo si NO es eliminación por inactividad (el timeout ya lo maneja)
+        if (!isInactivityTimeout && leavingSocket.currentRoomId === roomId) {
             delete leavingSocket.currentRoomId;
             console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${leavingPlayerId}`);
         }
-        // Forzar salida de la sala de socket.io
-        leavingSocket.leave(roomId);
-        console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
-        
-        // Limpiar cualquier referencia a salas relacionadas
-        if (leavingSocket.rooms) {
-            for (const r of Array.from(leavingSocket.rooms)) {
-                if (r !== leavingSocket.id && (r === roomId || r.startsWith('practice-'))) {
-                    leavingSocket.leave(r);
+        // Forzar salida de la sala de socket.io solo si NO es eliminación por inactividad
+        // Si es eliminación por inactividad, el timeout ya eliminó al jugador y el socket puede estar desconectado
+        if (!isInactivityTimeout) {
+            leavingSocket.leave(roomId);
+            console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
+            
+            // Limpiar cualquier referencia a salas relacionadas
+            if (leavingSocket.rooms) {
+                for (const r of Array.from(leavingSocket.rooms)) {
+                    if (r !== leavingSocket.id && (r === roomId || r.startsWith('practice-'))) {
+                        leavingSocket.leave(r);
+                    }
                 }
             }
+        } else {
+            console.log(`[${roomId}] ⚠️ Eliminación por inactividad detectada. NO haciendo socket.leave - el timeout ya eliminó al jugador.`);
         }
     }
+    // ▲▲▲ FIN: NO HACER socket.leave SI ES ELIMINACIÓN POR INACTIVIDAD ▲▲▲
     
     // 3. Limpiar de initialSeats si existe
     if (room.initialSeats) {
