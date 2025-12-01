@@ -709,6 +709,16 @@ function startLa51InactivityTimeout(room, playerId, io) {
     }
     // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN ▲▲▲
     
+    // ▼▼▼ CRÍTICO: Verificar que NO hay un timeout activo después de cancelar (doble verificación) ▼▼▼
+    // Esta verificación adicional asegura que no se inicien múltiples timeouts
+    const finalTimeoutKey = `${roomId}_${playerId}`;
+    const finalTimeoutKeyByUserId = playerSeat.userId ? `${roomId}_${playerSeat.userId}` : null;
+    if (la51InactivityTimeouts[finalTimeoutKey] || (finalTimeoutKeyByUserId && la51InactivityTimeouts[finalTimeoutKeyByUserId])) {
+        console.log(`[${roomId}] ⚠️ ADVERTENCIA: Después de cancelar, todavía existe un timeout activo para ${playerSeat.playerName}. NO se inicia otro timeout.`);
+        return; // NO iniciar timeout si todavía hay uno activo
+    }
+    // ▲▲▲ FIN VERIFICACIÓN ADICIONAL ▲▲▲
+    
     // Iniciar timeout INMEDIATAMENTE cuando le toca el turno
     console.log(`[${roomId}] ⏰ [TIMEOUT INICIADO INMEDIATAMENTE] Iniciando timeout de inactividad para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     
