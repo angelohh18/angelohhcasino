@@ -7237,10 +7237,25 @@ socket.on('accionDescartar', async (data) => {
     const roomId = socket.currentRoomId;
     const userId = socket.userId;
 
-    // ▼▼▼ CRÍTICO: Verificar si hay timeout de inactividad activo ANTES de eliminar de connectedUsers ▼▼▼
-    // Si hay timeout activo, NO eliminar de connectedUsers todavía - el timeout se encargará de eso
+    // ▼▼▼ CRÍTICO: Verificar si está en una sala de La 51 en estado 'playing' ANTES de eliminar de connectedUsers ▼▼▼
+    // Si está en una sala de La 51 en estado 'playing', NO eliminar de connectedUsers todavía - el timeout se encargará de eso
+    let shouldKeepInConnectedUsers = false;
+    if (roomId && la51Rooms[roomId]) {
+        const la51Room = la51Rooms[roomId];
+        const seatIndex = la51Room.seats.findIndex(s => s && s.playerId === socket.id);
+        if (seatIndex !== -1 && la51Room.state === 'playing') {
+            const leavingPlayerSeat = la51Room.seats[seatIndex];
+            if (leavingPlayerSeat && leavingPlayerSeat.active !== false && leavingPlayerSeat.status !== 'waiting') {
+                // Está en una partida activa de La 51 - NO eliminar de connectedUsers todavía
+                shouldKeepInConnectedUsers = true;
+                console.log(`[DISCONNECT] ${username || socket.id} se desconectó de La 51 durante partida activa. NO se elimina de connectedUsers todavía. El timeout se encargará de eso.`);
+            }
+        }
+    }
+    
+    // Verificar también si hay timeout de inactividad activo (para Ludo o La 51)
     let hasActiveInactivityTimeout = false;
-    if (roomId && userId) {
+    if (roomId && userId && !shouldKeepInConnectedUsers) {
         // Verificar en La 51
         if (la51Rooms[roomId]) {
             const la51TimeoutKeyByPlayerId = `${roomId}_${socket.id}`;
@@ -7255,14 +7270,14 @@ socket.on('accionDescartar', async (data) => {
         }
     }
     
-    // Solo eliminar de connectedUsers si NO hay timeout activo
-    // Si hay timeout activo, se eliminará después de que se complete el timeout
+    // Solo eliminar de connectedUsers si NO está en una partida activa de La 51 Y NO hay timeout activo
+    // Si está en una partida activa de La 51 o hay timeout activo, se eliminará después de que se complete el timeout
     let wasInList = false;
-    if (!hasActiveInactivityTimeout && connectedUsers[socket.id]) {
+    if (!shouldKeepInConnectedUsers && !hasActiveInactivityTimeout && connectedUsers[socket.id]) {
         wasInList = true;
         delete connectedUsers[socket.id];
-    } else if (hasActiveInactivityTimeout) {
-        console.log(`[DISCONNECT] ${username || socket.id} se desconectó pero tiene timeout activo. NO se elimina de connectedUsers todavía.`);
+    } else if (shouldKeepInConnectedUsers || hasActiveInactivityTimeout) {
+        console.log(`[DISCONNECT] ${username || socket.id} se desconectó pero tiene timeout activo o está en partida activa de La 51. NO se elimina de connectedUsers todavía.`);
     }
 
     // 2. Si estaba en la lista y se eliminó, actualizar inmediatamente (antes de manejar salas)
