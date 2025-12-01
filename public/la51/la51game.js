@@ -2008,43 +2008,23 @@ function showRoomsOverview() {
             currentUser.currency = userCurrency;
         }
         
-        // ▼▼▼ LIMPIEZA AGRESIVA DEL ESTADO DEL JUEGO ▼▼▼
-        // Limpiar estado del juego ANTES de mostrar el modal
-        resetClientGameState();
-        if (currentGameSettings && currentGameSettings.roomId) {
-            socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
-        }
-        currentGameSettings = null;
+        // ▼▼▼ CRÍTICO: NO limpiar estado del juego ni emitir leaveGame - el servidor ya maneja la eliminación ▼▼▼
+        // El servidor ya eliminó al jugador de la sala, solo necesitamos mostrar el modal
+        // NO emitir leaveGame - esto causaría desconexión prematura
+        // NO limpiar currentGameSettings - el servidor ya lo hizo
+        // NO ocultar la vista del juego - el jugador ya fue eliminado por el servidor
         
-        // Ocultar la vista del juego inmediatamente y de forma agresiva
-        const gameContainer = document.getElementById('game-container');
-        if (gameContainer) {
-            gameContainer.style.display = 'none';
-            gameContainer.style.visibility = 'hidden';
-        }
-        
-        // Remover clase game-active del body
-        document.body.classList.remove('game-active');
-        
-        // Ocultar cualquier overlay o modal del juego
-        const victoryOverlay = document.getElementById('victory-overlay');
-        if (victoryOverlay) {
-            victoryOverlay.style.display = 'none';
-        }
-        const readyOverlay = document.getElementById('ready-overlay');
-        if (readyOverlay) {
-            readyOverlay.style.display = 'none';
-        }
-        
-        // Asegurar que el lobby overlay esté visible
+        // Solo asegurar que el lobby overlay esté visible si no está en el lobby
         const lobbyOverlay = document.getElementById('lobby-overlay');
-        if (lobbyOverlay) {
+        if (lobbyOverlay && lobbyOverlay.style.display !== 'flex') {
             lobbyOverlay.style.display = 'flex';
         }
         
-        // Mostrar el lobby para que no quede en blanco
-        showLobbyView();
-        // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
+        // Si no está en el lobby, mostrar el lobby
+        if (!document.body.classList.contains('lobby-active')) {
+            showLobbyView();
+        }
+        // ▲▲▲ FIN: NO HACER NADA QUE CAUSE DESCONEXIÓN ▲▲▲
         
         // ▼▼▼ SOLICITAR ACTUALIZACIÓN INMEDIATA DE LISTA DE USUARIOS ▼▼▼
         // Asegurar que el servidor actualice el estado del usuario y la lista
@@ -2157,52 +2137,31 @@ function showRoomsOverview() {
             const shouldRedirect = data.redirect === true; // Solo true si es explícitamente true (abandono por inactividad)
             
             if (shouldRedirect) {
-                // ▼▼▼ CASO: ABANDONO POR INACTIVIDAD - Limpiar estado y expulsar ▼▼▼
-                console.log('⚠️ El jugador actual fue eliminado por ABANDONO POR INACTIVIDAD. Limpiando estado y expulsando al lobby...');
+                // ▼▼▼ CASO: ABANDONO POR INACTIVIDAD - El servidor ya eliminó al jugador, solo mostrar modal ▼▼▼
+                console.log('⚠️ El jugador actual fue eliminado por ABANDONO POR INACTIVIDAD. El servidor ya lo eliminó, solo mostrando modal...');
                 
-                // ▼▼▼ LIMPIEZA AGRESIVA DEL ESTADO DEL JUEGO ▼▼▼
-                // Limpiar estado del juego ANTES de mostrar el modal
-                resetClientGameState();
-                if (currentGameSettings && currentGameSettings.roomId) {
-                    socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
-                }
-                currentGameSettings = null;
+                // ▼▼▼ CRÍTICO: NO limpiar estado del juego ni emitir leaveGame - el servidor ya maneja la eliminación ▼▼▼
+                // NO emitir leaveGame - esto causaría desconexión prematura
+                // NO limpiar currentGameSettings - el servidor ya lo hizo
+                // NO ocultar la vista del juego - el servidor ya eliminó al jugador
                 
-                // Ocultar la vista del juego inmediatamente y de forma agresiva
-                const gameContainer = document.getElementById('game-container');
-                if (gameContainer) {
-                    gameContainer.style.display = 'none';
-                    gameContainer.style.visibility = 'hidden';
-                }
-                
-                // Remover clase game-active del body
-                document.body.classList.remove('game-active');
-                
-                // Ocultar cualquier overlay o modal del juego
-                const victoryOverlay = document.getElementById('victory-overlay');
-                if (victoryOverlay) {
-                    victoryOverlay.style.display = 'none';
-                }
-                const readyOverlay = document.getElementById('ready-overlay');
-                if (readyOverlay) {
-                    readyOverlay.style.display = 'none';
-                }
-                
-                // Asegurar que el lobby overlay esté visible
+                // Solo asegurar que el lobby overlay esté visible si no está en el lobby
                 const lobbyOverlay = document.getElementById('lobby-overlay');
-                if (lobbyOverlay) {
+                if (lobbyOverlay && lobbyOverlay.style.display !== 'flex') {
                     lobbyOverlay.style.display = 'flex';
                 }
                 
-                // Mostrar el lobby para que no quede en blanco
-                showLobbyView();
-                // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
+                // Si no está en el lobby, mostrar el lobby
+                if (!document.body.classList.contains('lobby-active')) {
+                    showLobbyView();
+                }
+                // ▲▲▲ FIN: NO HACER NADA QUE CAUSE DESCONEXIÓN ▲▲▲
                 
                 // Mostrar mensaje de eliminación
                 showEliminationMessage(data.playerName, faultInfo);
                 
-                // Marcar que debe redirigir al lobby cuando cierre el modal
-                shouldRedirectToLobbyAfterElimination = true;
+                // NO marcar shouldRedirectToLobbyAfterElimination - el servidor ya eliminó al jugador
+                shouldRedirectToLobbyAfterElimination = false;
                 
                 // ▼▼▼ DETECTAR TIPO DE JUEGO ACTUAL PARA REDIRIGIR AL LOBBY CORRECTO ▼▼▼
                 // Detectar el tipo de juego basándose en la URL actual
