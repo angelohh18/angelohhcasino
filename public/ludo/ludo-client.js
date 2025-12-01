@@ -2279,6 +2279,108 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // ▼▼▼ LISTENER PARA TIMEOUT DE INACTIVIDAD ▼▼▼
+    socket.on('inactivityTimeout', (data) => {
+        console.log('[inactivityTimeout] Jugador eliminado por inactividad:', data);
+        
+        // Preservar datos del usuario antes de redirigir
+        let userId = data.userId || sessionStorage.getItem('userId') || localStorage.getItem('userId');
+        let username = data.username || sessionStorage.getItem('username') || localStorage.getItem('username');
+        let userAvatar = data.avatar || sessionStorage.getItem('userAvatar') || localStorage.getItem('userAvatar');
+        let userCurrency = data.userCurrency || sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency');
+        
+        // Si no hay username, intentar recuperarlo desde userId
+        if (!username && userId) {
+            username = userId.replace('user_', '');
+        }
+        
+        // Si no hay userId, intentar recuperarlo desde username
+        if (!userId && username) {
+            userId = 'user_' + username.toLowerCase();
+        }
+        
+        // Guardar en ambos lugares para persistencia en PWA
+        if (userId) {
+            sessionStorage.setItem('userId', userId);
+            localStorage.setItem('userId', userId);
+        }
+        if (username) {
+            sessionStorage.setItem('username', username);
+            localStorage.setItem('username', username);
+        }
+        if (userAvatar) {
+            sessionStorage.setItem('userAvatar', userAvatar);
+            localStorage.setItem('userAvatar', userAvatar);
+        }
+        if (userCurrency) {
+            sessionStorage.setItem('userCurrency', userCurrency);
+            localStorage.setItem('userCurrency', userCurrency);
+        }
+        
+        // Mostrar modal específico para inactividad
+        const modal = document.getElementById('foul-modal');
+        const detailsEl = document.getElementById('foul-details');
+        const acceptBtn = document.getElementById('btn-accept-foul');
+        const titleEl = modal ? modal.querySelector('h2') : null;
+        const staticP = modal ? modal.querySelector('.content > p:not(#foul-details)') : null;
+        
+        if (modal && detailsEl && acceptBtn && titleEl) {
+            // Ocultar el párrafo estático "Era obligatorio matar"
+            if (staticP) staticP.style.display = 'none';
+            
+            // Configurar el modal para inactividad
+            titleEl.textContent = '¡ELIMINADO POR INACTIVIDAD!';
+            titleEl.style.color = '#ff9800';
+            modal.querySelector('.content').style.borderColor = '#ff9800';
+            modal.querySelector('.content').style.backgroundColor = 'var(--casino-dark-panel)';
+            
+            // Mensaje específico para inactividad
+            detailsEl.innerHTML = `<p style="font-size: 1.1rem; line-height: 1.6; margin: 15px 0;">
+                ${data.message || 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.'}
+            </p>`;
+            
+            // Mostrar el modal
+            modal.style.display = 'flex';
+            modal.style.zIndex = '10000';
+            
+            // Configurar el botón de aceptar para redirigir al lobby
+            acceptBtn.textContent = 'Volver al Lobby';
+            acceptBtn.onclick = () => {
+                modal.style.display = 'none';
+                // Restaurar el modal a su estado original
+                titleEl.textContent = '¡FALTA!';
+                titleEl.style.color = '#e74c3c';
+                modal.querySelector('.content').style.borderColor = '#e74c3c';
+                if (staticP) staticP.style.display = 'block';
+                
+                // Redirigir al lobby
+                console.log('[inactivityTimeout] Redirigiendo al lobby...');
+                window.location.href = '/ludo';
+            };
+            
+            // También cerrar el modal con el botón X
+            const closeBtn = modal.querySelector('.close-modal-btn');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    // Restaurar el modal
+                    titleEl.textContent = '¡FALTA!';
+                    titleEl.style.color = '#e74c3c';
+                    modal.querySelector('.content').style.borderColor = '#e74c3c';
+                    if (staticP) staticP.style.display = 'block';
+                    // Redirigir al lobby
+                    window.location.href = '/ludo';
+                };
+            }
+        } else {
+            // Si no se encuentra el modal, mostrar alert y redirigir
+            console.warn('[inactivityTimeout] Modal no encontrado, usando alert');
+            alert(data.message || 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.');
+            window.location.href = '/ludo';
+        }
+    });
+    // ▲▲▲ FIN LISTENER PARA TIMEOUT DE INACTIVIDAD ▲▲▲
+    
     // Listener para errores de sala
     socket.on('ludoError', (data) => {
         console.log('[ludoError]', data);
