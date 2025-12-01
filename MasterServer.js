@@ -4811,9 +4811,11 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
     const leavingUserId = leavingPlayerSeat.userId; // Guardar userId antes de eliminar
 
     // ▼▼▼ LIMPIEZA AGRESIVA DE REGISTROS DEL JUGADOR ▼▼▼
-    // 1. Liberar el asiento
-    room.seats[seatIndex] = null;
+    // 1. Marcar como inactivo primero (antes de liberar el asiento para que la lógica de turno funcione)
     leavingPlayerSeat.active = false; // Marcar como inactivo
+    
+    // 2. Liberar el asiento DESPUÉS de procesar la eliminación (se hará al final si es necesario)
+    // NO liberar aquí todavía si el juego está activo, se liberará después de pasar el turno
     
     // 2. Limpiar referencia en el socket del jugador
     const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
@@ -4901,17 +4903,18 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             // ▲▲▲ FIN DE REGISTRO ▲▲▲
 
             const reason = abandonmentReason;
-            // ▼▼▼ ENVIAR EVENTO CON DATOS COMPLETOS ▼▼▼
-            io.to(roomId).emit('playerEliminated', {
+            // ▼▼▼ CRÍTICO: Enviar evento SOLO al jugador eliminado con redirect: true, y a los demás sin redirect ▼▼▼
+            // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
+            io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
                 playerId: leavingPlayerId,
                 playerName: playerName,
                 reason: reason,
                 faultData: { reason: abandonmentReason },
-                redirect: true, // IMPORTANTE: Forzar salida al lobby
+                redirect: false, // NO redirigir a los demás jugadores
                 penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
             });
             
-            // ▼▼▼ CRÍTICO: También enviar directamente al jugador eliminado para asegurar que reciba el evento ▼▼▼
+            // Enviar SOLO al jugador eliminado con redirect: true para expulsarlo al lobby
             const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
             if (leavingSocket) {
                 leavingSocket.emit('playerEliminated', {
@@ -4919,12 +4922,12 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                     playerName: playerName,
                     reason: reason,
                     faultData: { reason: abandonmentReason },
-                    redirect: true, // IMPORTANTE: Forzar salida al lobby
+                    redirect: true, // IMPORTANTE: Solo este jugador debe ser redirigido
                     penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
                 });
-                console.log(`[${roomId}] ✅ Evento playerEliminated enviado directamente a ${playerName} (${leavingPlayerId}) con redirect: true`);
+                console.log(`[${roomId}] ✅ Evento playerEliminated enviado SOLO a ${playerName} (${leavingPlayerId}) con redirect: true. Los demás jugadores recibieron redirect: false`);
             }
-            // ▲▲▲ FIN ENVÍO DIRECTO ▲▲▲
+            // ▲▲▲ FIN ENVÍO CORREGIDO ▲▲▲
 
             if (leavingPlayerSeat && leavingPlayerSeat.userId) {
                 const penalty = room.settings.penalty || 0;
@@ -5039,9 +5042,19 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
                     }
                 }
             }
+            
+            // ▼▼▼ CRÍTICO: Liberar el asiento DESPUÉS de pasar el turno y procesar todo ▼▼▼
+            // Esto asegura que el turno se pase correctamente antes de liberar el asiento
+            if (room.state === 'playing' && wasActive) {
+                room.seats[seatIndex] = null;
+                console.log(`[${roomId}] ✅ Asiento ${seatIndex} liberado después de procesar eliminación y pasar turno`);
+            }
+            // ▲▲▲ FIN LIBERACIÓN DE ASIENTO ▲▲▲
         } else {
             // --- JUGADOR EN ESPERA: No hay multa, solo se notifica ---
             console.log(`Jugador ${playerName} ha salido mientras esperaba. No se aplica multa.`);
+            // Liberar asiento inmediatamente si está en espera
+            room.seats[seatIndex] = null;
             io.to(roomId).emit('playerAbandoned', {
                 message: `${playerName} ha abandonado la mesa antes de empezar la partida.`
             });

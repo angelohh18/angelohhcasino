@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.167'; // Actualizado: Mensaje del primer turno se oculta automáticamente después de 10 segundos
+const CACHE_NAME = 'mutijuego-v1.12.168'; // Actualizado: Corrección de eliminación por inactividad en La 51 - solo elimina al jugador inactivo
 const urlsToCache = [
   '/',
   '/index.html',
