@@ -7680,7 +7680,7 @@ socket.on('accionDescartar', async (data) => {
                                 currentRoom.seats[seatIndexToRemove] = null;
                                 // Pasar el turno si era su turno
                                 if (currentRoom.currentPlayerId === currentSeat.playerId) {
-                                    await advanceTurnAfterAction(currentRoom, currentSeat.playerId, null, io);
+                                    advanceTurnAfterAction(currentRoom, currentSeat.playerId, null, io);
                                 }
                             }
                         }
