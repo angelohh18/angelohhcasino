@@ -8016,6 +8016,21 @@ socket.on('accionDescartar', async (data) => {
         ludoHandlePlayerDeparture(roomId, socket.id, io, true);
     } else if (isLa51Room) {
         // Es una sala de La 51 - usar handlePlayerDeparture
+        // ▼▼▼ CRÍTICO: Verificar si el jugador está en una partida activa antes de eliminar ▼▼▼
+        // Si está en una partida activa, NO eliminar - el timeout se encargará de eso
+        const la51Room = la51Rooms[roomId];
+        if (la51Room && la51Room.state === 'playing') {
+            const seatIndex = la51Room.seats.findIndex(s => s && s.playerId === socket.id);
+            if (seatIndex !== -1) {
+                const playerSeat = la51Room.seats[seatIndex];
+                if (playerSeat && playerSeat.active !== false && playerSeat.status !== 'waiting') {
+                    // Está en una partida activa - NO eliminar, el timeout se encargará
+                    console.log(`[leaveGame] ⚠️ Jugador ${socket.id} intentó salir de partida activa de La 51. NO se elimina - el timeout se encargará.`);
+                    return; // NO procesar leaveGame si está en partida activa
+                }
+            }
+        }
+        // ▲▲▲ FIN VERIFICACIÓN DE PARTIDA ACTIVA ▲▲▲
         handlePlayerDeparture(roomId, socket.id, io);
     }
 

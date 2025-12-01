@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.182'; // Actualizado: Eliminada TODA la lógica que desconecta al jugador antes del timeout - servidor y cliente
+const CACHE_NAME = 'mutijuego-v1.12.183'; // Actualizado: Bloqueado leaveGame durante partida activa - el timeout se encarga de la eliminación
 const urlsToCache = [
   '/',
   '/index.html',
