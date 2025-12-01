@@ -7278,10 +7278,13 @@ socket.on('accionDescartar', async (data) => {
   // ▲▲▲ FIN DEL NUEVO LISTENER ▲▲▲
 
   socket.on('disconnect', () => {
-    console.log(`❌ Jugador desconectado: ${socket.id}`);
-    const username = connectedUsers[socket.id]?.username;
+    const username = connectedUsers[socket.id]?.username || socket.userId?.replace(/^user_/, '') || socket.id;
+    const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
     const roomId = socket.currentRoomId;
-    const userId = socket.userId;
+    
+    console.log(`❌ Jugador desconectado: ${socket.id}`);
+    console.log(`[DEBUG DISCONNECT] 🔍 INICIO DISCONNECT - Usuario: ${username}, userId: ${userId}, roomId: ${roomId}, socket.id: ${socket.id}`);
+    console.log(`[DEBUG DISCONNECT] 🔍 Stack trace:`, new Error().stack);
 
     // ▼▼▼ CRÍTICO: Verificar si está en una sala de La 51 en estado 'playing' ANTES de eliminar de connectedUsers ▼▼▼
     // Si está en una sala de La 51 en estado 'playing', NO eliminar de connectedUsers todavía - el timeout se encargará de eso
