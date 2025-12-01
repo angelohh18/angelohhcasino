@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.184'; // Actualizado: Corregidos errores 503 en consola - mejorada configuración de socket.io
+const CACHE_NAME = 'mutijuego-v1.12.185'; // Actualizado: Simplificada lógica de La 51 para ser EXACTAMENTE igual a Ludo
 const urlsToCache = [
   '/',
   '/index.html',
