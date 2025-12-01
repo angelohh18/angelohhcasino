@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.178'; // Actualizado: Corregida lógica de connectedUsers - NO se elimina al jugador de connectedUsers si está en partida activa de La 51
+const CACHE_NAME = 'mutijuego-v1.12.179'; // Actualizado: Eliminada TODA la lógica que desconecta al jugador antes del timeout - el jugador puede reconectarse y continuar jugando
 const urlsToCache = [
   '/',
   '/index.html',

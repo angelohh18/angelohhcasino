@@ -6248,16 +6248,16 @@ io.on('connection', (socket) => {
             
             // ▼▼▼ CRÍTICO: Cancelar timeout de inactividad cuando el jugador se reconecta ▼▼▼
             // Si el jugador se reconecta, puede continuar jugando normalmente
-            const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
-            const timeoutKeyByUserId = `${roomId}_${userId}`;
-            if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
-                clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
-                delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+            const timeoutKeyByPlayerIdReconnect = `${roomId}_${socket.id}`;
+            const timeoutKeyByUserIdReconnect = `${roomId}_${userId}`;
+            if (la51InactivityTimeouts[timeoutKeyByPlayerIdReconnect]) {
+                clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerIdReconnect]);
+                delete la51InactivityTimeouts[timeoutKeyByPlayerIdReconnect];
                 console.log(`[${roomId}] ✅ Timeout de inactividad cancelado para ${userId} (jugador se reconectó)`);
             }
-            if (la51InactivityTimeouts[timeoutKeyByUserId]) {
-                clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
-                delete la51InactivityTimeouts[timeoutKeyByUserId];
+            if (la51InactivityTimeouts[timeoutKeyByUserIdReconnect]) {
+                clearTimeout(la51InactivityTimeouts[timeoutKeyByUserIdReconnect]);
+                delete la51InactivityTimeouts[timeoutKeyByUserIdReconnect];
                 console.log(`[${roomId}] ✅ Timeout de inactividad cancelado para ${userId} (jugador se reconectó)`);
             }
             // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
@@ -6947,16 +6947,16 @@ socket.on('accionDescartar', async (data) => {
         
         // ▼▼▼ CRÍTICO: Cancelar timeout de inactividad cuando el jugador actúa ▼▼▼
         // Si el jugador actúa, puede continuar jugando normalmente
-        const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
-        const timeoutKeyByUserId = `${roomId}_${userId}`;
-        if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
-            clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
-            delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+        const timeoutKeyByPlayerIdAction = `${roomId}_${socket.id}`;
+        const timeoutKeyByUserIdAction = `${roomId}_${userId}`;
+        if (la51InactivityTimeouts[timeoutKeyByPlayerIdAction]) {
+            clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerIdAction]);
+            delete la51InactivityTimeouts[timeoutKeyByPlayerIdAction];
             console.log(`[${roomId}] ✅ Timeout de inactividad cancelado para ${userId} (jugador está actuando)`);
         }
-        if (la51InactivityTimeouts[timeoutKeyByUserId]) {
-            clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
-            delete la51InactivityTimeouts[timeoutKeyByUserId];
+        if (la51InactivityTimeouts[timeoutKeyByUserIdAction]) {
+            clearTimeout(la51InactivityTimeouts[timeoutKeyByUserIdAction]);
+            delete la51InactivityTimeouts[timeoutKeyByUserIdAction];
             console.log(`[${roomId}] ✅ Timeout de inactividad cancelado para ${userId} (jugador está actuando)`);
         }
         // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
