@@ -378,6 +378,29 @@ function showPwaInstallModal() {
         console.log('Estado de usuario actualizado:', userState);
         currentUser.credits = userState.credits;
         currentUser.currency = userState.currency;
+        
+        // ▼▼▼ CRÍTICO: Actualizar también username y avatar si están incluidos ▼▼▼
+        if (userState.username) {
+            currentUser.username = userState.username;
+            sessionStorage.setItem('username', userState.username);
+            localStorage.setItem('username', userState.username);
+            // Actualizar el nombre en la UI
+            const userNameEl = document.getElementById('user-name');
+            if (userNameEl) {
+                userNameEl.textContent = userState.username;
+            }
+        }
+        if (userState.avatar) {
+            currentUser.userAvatar = userState.avatar;
+            sessionStorage.setItem('userAvatar', userState.avatar);
+            localStorage.setItem('userAvatar', userState.avatar);
+            // Actualizar el avatar en la UI
+            const userAvatarEl = document.getElementById('user-avatar');
+            if (userAvatarEl) {
+                userAvatarEl.src = userState.avatar;
+            }
+        }
+        // ▲▲▲ FIN DE ACTUALIZACIÓN CRÍTICA ▲▲▲
 
         if (typeof updateLobbyCreditsDisplay === 'function') {
             updateLobbyCreditsDisplay();
@@ -1928,6 +1951,146 @@ function showRoomsOverview() {
         }
     });
     // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
+
+    // ▼▼▼ LISTENER PARA TIMEOUT DE INACTIVIDAD (MOSTRAR MODAL EN EL LOBBY) ▼▼▼
+    socket.on('inactivityTimeout', (data) => {
+        console.log('[inactivityTimeout] Jugador eliminado por inactividad:', data);
+        
+        // Preservar datos del usuario antes de redirigir
+        let userId = data.userId || sessionStorage.getItem('userId') || localStorage.getItem('userId');
+        let username = data.username || sessionStorage.getItem('username') || localStorage.getItem('username');
+        let userAvatar = data.avatar || sessionStorage.getItem('userAvatar') || localStorage.getItem('userAvatar');
+        let userCurrency = data.userCurrency || sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency');
+        
+        // Si no hay username, intentar recuperarlo desde userId
+        if (!username && userId) {
+            username = userId.replace('user_', '');
+        }
+        
+        // Si no hay userId, intentar recuperarlo desde username
+        if (!userId && username) {
+            userId = 'user_' + username.toLowerCase();
+        }
+        
+        // Guardar en ambos lugares para persistencia en PWA
+        if (userId) {
+            sessionStorage.setItem('userId', userId);
+            localStorage.setItem('userId', userId);
+            currentUser.userId = userId;
+        }
+        if (username) {
+            sessionStorage.setItem('username', username);
+            localStorage.setItem('username', username);
+            currentUser.username = username;
+        }
+        if (userAvatar) {
+            sessionStorage.setItem('userAvatar', userAvatar);
+            localStorage.setItem('userAvatar', userAvatar);
+            currentUser.userAvatar = userAvatar;
+        }
+        if (userCurrency) {
+            sessionStorage.setItem('userCurrency', userCurrency);
+            localStorage.setItem('userCurrency', userCurrency);
+            currentUser.currency = userCurrency;
+        }
+        
+        // ▼▼▼ LIMPIEZA AGRESIVA DEL ESTADO DEL JUEGO ▼▼▼
+        // Limpiar estado del juego ANTES de mostrar el modal
+        resetClientGameState();
+        if (currentGameSettings && currentGameSettings.roomId) {
+            socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+        }
+        currentGameSettings = null;
+        
+        // Ocultar la vista del juego inmediatamente y de forma agresiva
+        const gameContainer = document.getElementById('game-container');
+        if (gameContainer) {
+            gameContainer.style.display = 'none';
+            gameContainer.style.visibility = 'hidden';
+        }
+        
+        // Remover clase game-active del body
+        document.body.classList.remove('game-active');
+        
+        // Ocultar cualquier overlay o modal del juego
+        const victoryOverlay = document.getElementById('victory-overlay');
+        if (victoryOverlay) {
+            victoryOverlay.style.display = 'none';
+        }
+        const readyOverlay = document.getElementById('ready-overlay');
+        if (readyOverlay) {
+            readyOverlay.style.display = 'none';
+        }
+        
+        // Asegurar que el lobby overlay esté visible
+        const lobbyOverlay = document.getElementById('lobby-overlay');
+        if (lobbyOverlay) {
+            lobbyOverlay.style.display = 'flex';
+        }
+        
+        // Mostrar el lobby para que no quede en blanco
+        showLobbyView();
+        // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
+        
+        // ▼▼▼ MOSTRAR MODAL DE INACTIVIDAD EN EL LOBBY ▼▼▼
+        // Buscar o crear modal de inactividad
+        let inactivityModal = document.getElementById('inactivity-timeout-modal');
+        if (!inactivityModal) {
+            // Crear el modal si no existe
+            inactivityModal = document.createElement('div');
+            inactivityModal.id = 'inactivity-timeout-modal';
+            inactivityModal.className = 'modal-overlay';
+            inactivityModal.innerHTML = `
+                <div class="modal-content" style="max-width: 500px; border: 3px solid #ff9800; background: var(--casino-dark-panel);">
+                    <h2 style="color: #ff9800; margin-bottom: 20px;">¡ELIMINADO POR INACTIVIDAD!</h2>
+                    <div class="content" style="padding: 20px;">
+                        <p id="inactivity-message" style="font-size: 1.1rem; line-height: 1.6; margin: 15px 0; color: #fff;"></p>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button id="btn-accept-inactivity" class="button orange" style="padding: 10px 30px;">Aceptar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(inactivityModal);
+        }
+        
+        // Configurar el mensaje
+        const messageEl = document.getElementById('inactivity-message');
+        if (messageEl) {
+            messageEl.textContent = data.message || 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.';
+        }
+        
+        // Mostrar el modal
+        inactivityModal.style.display = 'flex';
+        inactivityModal.style.zIndex = '10000';
+        
+        // Configurar el botón de aceptar
+        const acceptBtn = document.getElementById('btn-accept-inactivity');
+        if (acceptBtn) {
+            acceptBtn.onclick = () => {
+                inactivityModal.style.display = 'none';
+                // Solicitar actualización de la lista de usuarios y estado
+                socket.emit('enterLa51Lobby');
+                socket.emit('requestInitialData');
+            };
+        }
+        
+        // También cerrar el modal con clic fuera
+        inactivityModal.onclick = (e) => {
+            if (e.target === inactivityModal) {
+                inactivityModal.style.display = 'none';
+                // Solicitar actualización de la lista de usuarios y estado
+                socket.emit('enterLa51Lobby');
+                socket.emit('requestInitialData');
+            }
+        };
+        // ▲▲▲ FIN MODAL DE INACTIVIDAD ▲▲▲
+        
+        // Solicitar actualización de la lista de usuarios y estado del usuario
+        socket.emit('enterLa51Lobby');
+        socket.emit('requestInitialData');
+    });
+    // ▲▲▲ FIN LISTENER PARA TIMEOUT DE INACTIVIDAD ▲▲▲
 
     // Reemplaza el listener socket.on('playerEliminated',...)
     socket.on('playerEliminated', (data) => {

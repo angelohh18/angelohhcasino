@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.168'; // Actualizado: Corrección de eliminación por inactividad en La 51 - solo elimina al jugador inactivo
+const CACHE_NAME = 'mutijuego-v1.12.169'; // Actualizado: Modal de inactividad en lobby de La 51 y actualización correcta de nombre de usuario
 const urlsToCache = [
   '/',
   '/index.html',

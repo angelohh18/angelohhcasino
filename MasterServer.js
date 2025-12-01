@@ -712,8 +712,8 @@ function startLa51InactivityTimeout(room, playerId, io) {
         // Contar jugadores activos antes de eliminar
         const activePlayers = currentRoom.seats.filter(s => s && s.active === true);
         
-        // Eliminar al jugador
-        handlePlayerDeparture(roomId, playerId, io);
+        // Eliminar al jugador por inactividad (pasar isInactivityTimeout = true)
+        handlePlayerDeparture(roomId, playerId, io, true); // true = isInactivityTimeout
         
         // Verificar si solo quedaba 1 jugador activo (ahora 0, pero antes de eliminar eran 2)
         if (activePlayers.length === 2) {
@@ -4739,7 +4739,7 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA ▼▼▼
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
-async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
+async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTimeout = false) {
     const room = la51Rooms[roomId];
 
     // Cancelar timeout de inactividad: el jugador está saliendo
@@ -4903,29 +4903,65 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io) {
             // ▲▲▲ FIN DE REGISTRO ▲▲▲
 
             const reason = abandonmentReason;
-            // ▼▼▼ CRÍTICO: Enviar evento SOLO al jugador eliminado con redirect: true, y a los demás sin redirect ▼▼▼
-            // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
-            io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
-                playerId: leavingPlayerId,
-                playerName: playerName,
-                reason: reason,
-                faultData: { reason: abandonmentReason },
-                redirect: false, // NO redirigir a los demás jugadores
-                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
-            });
             
-            // Enviar SOLO al jugador eliminado con redirect: true para expulsarlo al lobby
-            const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
-            if (leavingSocket) {
-                leavingSocket.emit('playerEliminated', {
+            // ▼▼▼ CRÍTICO: Si es eliminación por inactividad, usar evento inactivityTimeout ▼▼▼
+            if (isInactivityTimeout) {
+                // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
+                io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
                     playerId: leavingPlayerId,
                     playerName: playerName,
                     reason: reason,
                     faultData: { reason: abandonmentReason },
-                    redirect: true, // IMPORTANTE: Solo este jugador debe ser redirigido
+                    redirect: false, // NO redirigir a los demás jugadores
                     penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
                 });
-                console.log(`[${roomId}] ✅ Evento playerEliminated enviado SOLO a ${playerName} (${leavingPlayerId}) con redirect: true. Los demás jugadores recibieron redirect: false`);
+                
+                // Enviar SOLO al jugador eliminado el evento inactivityTimeout para mostrar modal en el lobby
+                const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+                if (leavingSocket) {
+                    // Obtener información del usuario para enviarla en el evento
+                    const leavingUserId = leavingPlayerSeat.userId;
+                    const userInfo = leavingUserId ? users[leavingUserId] : null;
+                    
+                    leavingSocket.emit('inactivityTimeout', {
+                        playerId: leavingPlayerId,
+                        playerName: playerName,
+                        userId: leavingUserId,
+                        username: userInfo ? userInfo.username : playerName,
+                        avatar: userInfo ? userInfo.avatar : null,
+                        userCurrency: userInfo ? userInfo.currency : 'USD',
+                        message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
+                        reason: 'inactivity',
+                        redirect: true,
+                        forceExit: true
+                    });
+                    console.log(`[${roomId}] ✅ Evento inactivityTimeout enviado SOLO a ${playerName} (${leavingPlayerId}) para mostrar modal en el lobby. Los demás jugadores recibieron playerEliminated con redirect: false`);
+                }
+            } else {
+                // ▼▼▼ CRÍTICO: Enviar evento SOLO al jugador eliminado con redirect: true, y a los demás sin redirect ▼▼▼
+                // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
+                io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
+                    playerId: leavingPlayerId,
+                    playerName: playerName,
+                    reason: reason,
+                    faultData: { reason: abandonmentReason },
+                    redirect: false, // NO redirigir a los demás jugadores
+                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                });
+                
+                // Enviar SOLO al jugador eliminado con redirect: true para expulsarlo al lobby
+                const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+                if (leavingSocket) {
+                    leavingSocket.emit('playerEliminated', {
+                        playerId: leavingPlayerId,
+                        playerName: playerName,
+                        reason: reason,
+                        faultData: { reason: abandonmentReason },
+                        redirect: true, // IMPORTANTE: Solo este jugador debe ser redirigido
+                        penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                    });
+                    console.log(`[${roomId}] ✅ Evento playerEliminated enviado SOLO a ${playerName} (${leavingPlayerId}) con redirect: true. Los demás jugadores recibieron redirect: false`);
+                }
             }
             // ▲▲▲ FIN ENVÍO CORREGIDO ▲▲▲
 
