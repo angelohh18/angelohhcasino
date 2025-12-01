@@ -658,181 +658,9 @@ let la51EliminatedPlayers = {}; // { `${roomId}_${userId}`: { playerName, reason
 let reconnectTimeouts = {}; // Para rastrear los tiempos de reconexión
 const RECONNECT_TIMEOUT_MS = 120000; // 120 segundos (2 minutos) para reconectar en partida activa
 
-// ▼▼▼ FUNCIONES HELPER PARA TIMEOUT DE INACTIVIDAD EN LA 51 ▼▼▼
-function startLa51InactivityTimeout(room, playerId, io) {
-    if (!room || !playerId) return;
-    
-    const roomId = room.roomId;
-    const timeoutKey = `${roomId}_${playerId}`;
-    const playerSeat = room.seats.find(s => s && s.playerId === playerId);
-    
-    // Solo iniciar timeout para jugadores humanos (no bots)
-    if (!playerSeat || playerSeat.isBot) return;
-    
-    // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts posibles para este jugador (igual que en Ludo) ▼▼▼
-    // Cancelar timeout anterior si existe (por playerId)
-    if (la51InactivityTimeouts[timeoutKey]) {
-        clearTimeout(la51InactivityTimeouts[timeoutKey]);
-        delete la51InactivityTimeouts[timeoutKey];
-        console.log(`[${roomId}] ✅ Timeout anterior cancelado para ${playerSeat.playerName} (playerId: ${playerId})`);
-    }
-    
-    // Cancelar timeout anterior si existe (por userId)
-    if (playerSeat.userId) {
-        const timeoutKeyByUserId = `${roomId}_${playerSeat.userId}`;
-        if (la51InactivityTimeouts[timeoutKeyByUserId]) {
-            clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
-            delete la51InactivityTimeouts[timeoutKeyByUserId];
-            console.log(`[${roomId}] ✅ Timeout anterior cancelado para ${playerSeat.playerName} (userId: ${playerSeat.userId})`);
-        }
-    }
-    
-    // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
-    Object.keys(la51InactivityTimeouts).forEach(key => {
-        if (key.startsWith(`${roomId}_`) && (key.includes(playerId) || (playerSeat.userId && key.includes(playerSeat.userId)))) {
-            clearTimeout(la51InactivityTimeouts[key]);
-            delete la51InactivityTimeouts[key];
-            console.log(`[${roomId}] ✅ Timeout adicional cancelado: ${key}`);
-        }
-    });
-    // ▲▲▲ FIN CANCELACIÓN DE TODOS LOS TIMEOUTS ▲▲▲
-    
-    // ▼▼▼ CRÍTICO: Verificar si el jugador ya fue eliminado antes de iniciar timeout (igual que en Ludo) ▼▼▼
-    if (playerSeat.userId) {
-        const globalPenaltyKey = `${roomId}_${playerSeat.userId}`;
-        const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[playerSeat.userId]);
-        
-        if (alreadyPenalized) {
-            console.log(`[${roomId}] ⚠️ El jugador ${playerSeat.playerName} ya fue eliminado y penalizado. NO se inicia timeout de inactividad.`);
-            return; // NO iniciar timeout si ya fue eliminado
-        }
-    }
-    // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN ▲▲▲
-    
-    // ▼▼▼ CRÍTICO: Verificar que NO hay un timeout activo después de cancelar (doble verificación) ▼▼▼
-    // Esta verificación adicional asegura que no se inicien múltiples timeouts
-    const finalTimeoutKey = `${roomId}_${playerId}`;
-    const finalTimeoutKeyByUserId = playerSeat.userId ? `${roomId}_${playerSeat.userId}` : null;
-    if (la51InactivityTimeouts[finalTimeoutKey] || (finalTimeoutKeyByUserId && la51InactivityTimeouts[finalTimeoutKeyByUserId])) {
-        console.log(`[${roomId}] ⚠️ ADVERTENCIA: Después de cancelar, todavía existe un timeout activo para ${playerSeat.playerName}. NO se inicia otro timeout.`);
-        return; // NO iniciar timeout si todavía hay uno activo
-    }
-    // ▲▲▲ FIN VERIFICACIÓN ADICIONAL ▲▲▲
-    
-    // Iniciar timeout INMEDIATAMENTE cuando le toca el turno
-    console.log(`[${roomId}] ⏰ [TIMEOUT INICIADO INMEDIATAMENTE] Iniciando timeout de inactividad para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-    
-    // ▼▼▼ CRÍTICO: Guardar timestamp de inicio del timeout para verificación ▼▼▼
-    const timeoutStartTime = Date.now();
-    console.log(`[${roomId}] ⏰ [TIMEOUT INICIADO] Timestamp: ${timeoutStartTime} para ${playerSeat.playerName} (${playerId}). Se eliminará en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos.`);
-    // ▲▲▲ FIN TIMESTAMP ▲▲▲
-    
-    la51InactivityTimeouts[timeoutKey] = setTimeout(() => {
-        const timeoutEndTime = Date.now();
-        const actualElapsedTime = timeoutEndTime - timeoutStartTime;
-        console.log(`[${roomId}] ⏰ [TIMEOUT COMPLETADO] Han pasado ${actualElapsedTime/1000} segundos desde el inicio del timeout para ${playerSeat.playerName}.`);
-        
-        const currentRoom = la51Rooms[roomId];
-        
-        // Verificar que el turno todavía es de este jugador y que está activo
-        if (!currentRoom) {
-            console.log(`[${roomId}] ⚠️ La sala ya no existe. Cancelando eliminación por timeout.`);
-            delete la51InactivityTimeouts[timeoutKey];
-            return;
-        }
-        
-        // Verificar que el turno todavía es de este jugador (puede haber cambiado)
-        const currentSeat = currentRoom.seats.find(s => s && s.playerId === playerId);
-        if (!currentSeat) {
-            console.log(`[${roomId}] ⚠️ El asiento del jugador ya no existe. Cancelando eliminación por timeout.`);
-            delete la51InactivityTimeouts[timeoutKey];
-            return;
-        }
-        
-        // Verificar que el jugador todavía está activo
-        if (currentSeat.active === false) {
-            console.log(`[${roomId}] ⚠️ El jugador ya está inactivo. Cancelando eliminación por timeout.`);
-            delete la51InactivityTimeouts[timeoutKey];
-            return;
-        }
-        
-        // Verificar que el turno todavía es de este jugador
-        if (currentRoom.currentPlayerId !== playerId) {
-            console.log(`[${roomId}] ⚠️ El turno ya cambió. Cancelando eliminación por timeout.`);
-            delete la51InactivityTimeouts[timeoutKey];
-            return;
-        }
-        
-        // ▼▼▼ CRÍTICO: Verificar que realmente han pasado 2 minutos completos ▼▼▼
-        if (actualElapsedTime < LA51_INACTIVITY_TIMEOUT_MS) {
-            console.warn(`[${roomId}] ⚠️ ADVERTENCIA: El timeout se ejecutó antes de los 2 minutos completos (${actualElapsedTime/1000}s < ${LA51_INACTIVITY_TIMEOUT_MS/1000}s). NO se elimina al jugador.`);
-            delete la51InactivityTimeouts[timeoutKey];
-            return;
-        }
-        // ▲▲▲ FIN VERIFICACIÓN DE TIEMPO COMPLETO ▲▲▲
-        
-        // ▼▼▼ CRÍTICO: Eliminar de connectedUsers AHORA que el timeout se completó ▼▼▼
-        if (playerSeat.userId) {
-            // Buscar y eliminar cualquier entrada de connectedUsers para este userId
-            Object.keys(connectedUsers).forEach(socketId => {
-                const userData = connectedUsers[socketId];
-                if (userData && (socketId === playerId || (playerSeat.userId && socketId.includes(playerSeat.userId)))) {
-                    delete connectedUsers[socketId];
-                    console.log(`[${roomId}] ✅ Eliminado de connectedUsers después de timeout: ${socketId}`);
-                }
-            });
-            broadcastUserListUpdate(io);
-        }
-        // ▲▲▲ FIN ELIMINACIÓN DE CONNECTEDUSERS ▲▲▲
-        
-        // Eliminar al jugador por inactividad (igual que abandono voluntario)
-        console.log(`[${roomId}] 🚨 Eliminando ${playerSeat.playerName} por inactividad (2 minutos completos sin acción).`);
-        
-        // Guardar información completa de la eliminación ANTES de eliminar al jugador
-        if (playerSeat.userId) {
-            const eliminatedKey = `${roomId}_${playerSeat.userId}`;
-            const penaltyInfo = currentRoom.penaltiesPaid && currentRoom.penaltiesPaid[playerSeat.userId] ? currentRoom.penaltiesPaid[playerSeat.userId] : null;
-            la51EliminatedPlayers[eliminatedKey] = {
-                playerName: playerSeat.playerName,
-                reason: 'Abandono por inactividad',
-                faultData: { reason: 'Abandono por inactividad' },
-                penaltyInfo: penaltyInfo,
-                roomId: roomId,
-                userId: playerSeat.userId // Asegurar que se guarde el userId
-            };
-        }
-        
-        // Contar jugadores activos antes de eliminar
-        const activePlayers = currentRoom.seats.filter(s => s && s.active === true);
-        
-        // Eliminar al jugador por inactividad (pasar isInactivityTimeout = true)
-        handlePlayerDeparture(roomId, playerId, io, true); // true = isInactivityTimeout
-        
-        // Verificar si solo quedaba 1 jugador activo (ahora 0, pero antes de eliminar eran 2)
-        if (activePlayers.length === 2) {
-            // Solo quedaban 2 jugadores, el otro gana automáticamente
-            const remainingRoom = la51Rooms[roomId];
-            if (remainingRoom && remainingRoom.state === 'playing') {
-                const winnerSeat = remainingRoom.seats.find(s => s && s.active === true);
-                if (winnerSeat) {
-                    console.log(`[${roomId}] 🏆 Solo quedaban 2 jugadores. ${winnerSeat.playerName} gana automáticamente.`);
-                    endGameAndCalculateScores(remainingRoom, winnerSeat, io);
-                }
-            }
-        }
-        
-        delete la51InactivityTimeouts[timeoutKey];
-    }, LA51_INACTIVITY_TIMEOUT_MS);
-}
-
-function cancelLa51InactivityTimeout(roomId, playerId) {
-    const timeoutKey = `${roomId}_${playerId}`;
-    if (la51InactivityTimeouts[timeoutKey]) {
-        clearTimeout(la51InactivityTimeouts[timeoutKey]);
-        delete la51InactivityTimeouts[timeoutKey];
-        console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${playerId} (jugador actuó)`);
-    }
-}
+// ▼▼▼ FUNCIONES HELPER PARA TIMEOUT DE INACTIVIDAD EN LA 51 (COPIADO EXACTAMENTE DE LUDO) ▼▼▼
+// NOTA: No hay funciones separadas, la lógica está integrada directamente en advanceTurnAfterAction
+// igual que en ludoPassTurn
 // ▲▲▲ FIN FUNCIONES HELPER PARA TIMEOUT DE INACTIVIDAD ▲▲▲
 
 
@@ -4440,10 +4268,59 @@ async function handlePlayerElimination(room, faultingPlayerId, faultData, io) {
         if (nextPlayerSeat && nextPlayerSeat.isBot) {
             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
         } else {
-            // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
-            console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador eliminado, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
-            startLa51InactivityTimeout(room, room.currentPlayerId, io);
-            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
+            // Iniciar timeout usando la lógica de Ludo (copiada exactamente)
+            const newTimeoutKey = `${roomId}_${nextPlayer.userId}`;
+            const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[nextPlayer.userId]);
+            if (!alreadyPenalized) {
+                // Cancelar TODOS los timeouts posibles antes de iniciar uno nuevo
+                if (la51InactivityTimeouts[newTimeoutKey]) {
+                    clearTimeout(la51InactivityTimeouts[newTimeoutKey]);
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                }
+                const newTimeoutKeyByPlayerId = `${roomId}_${nextPlayer.playerId}`;
+                if (la51InactivityTimeouts[newTimeoutKeyByPlayerId]) {
+                    clearTimeout(la51InactivityTimeouts[newTimeoutKeyByPlayerId]);
+                    delete la51InactivityTimeouts[newTimeoutKeyByPlayerId];
+                }
+                Object.keys(la51InactivityTimeouts).forEach(key => {
+                    if (key.startsWith(`${roomId}_`) && (key.includes(nextPlayer.userId) || key.includes(nextPlayer.playerId))) {
+                        clearTimeout(la51InactivityTimeouts[key]);
+                        delete la51InactivityTimeouts[key];
+                    }
+                });
+                // Iniciar timeout
+                la51InactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+                    const currentRoom = la51Rooms[roomId];
+                    if (!currentRoom || currentRoom.currentPlayerId !== nextPlayer.playerId) {
+                        const currentSeat = currentRoom.seats.find(s => s && s.userId === nextPlayer.userId);
+                        if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
+                            delete la51InactivityTimeouts[newTimeoutKey];
+                            return;
+                        }
+                    }
+                    const currentSeat = currentRoom.seats.find(s => s && s.userId === nextPlayer.userId);
+                    if (!currentSeat || currentSeat.userId !== nextPlayer.userId) {
+                        delete la51InactivityTimeouts[newTimeoutKey];
+                        return;
+                    }
+                    if (!currentRoom.penaltyApplied) currentRoom.penaltyApplied = {};
+                    currentRoom.penaltyApplied[currentSeat.userId] = true;
+                    let playerIdToUse = currentSeat.playerId;
+                    if (!playerIdToUse && currentSeat.userId) {
+                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                            if (socketUserId === currentSeat.userId) {
+                                playerIdToUse = socketId;
+                                break;
+                            }
+                        }
+                    }
+                    if (playerIdToUse) {
+                        handlePlayerDeparture(roomId, playerIdToUse, io, true);
+                    }
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                }, LA51_INACTIVITY_TIMEOUT_MS);
+            }
         }
 
         io.to(roomId).emit('turnChanged', {
@@ -4808,53 +4685,183 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
     const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
     console.log(`[${room.roomId}] [TURN CHANGE] Turno cambiado a ${nextPlayer.playerName} (${room.currentPlayerId}). Es bot: ${nextPlayerSeat?.isBot || false}`);
     
-    // ▼▼▼ CRÍTICO: Cancelar timeout del jugador anterior (igual que en Ludo) ▼▼▼
-    const previousPlayerId = discardingPlayerId;
-    const previousTimeoutKey = `${room.roomId}_${previousPlayerId}`;
+    // ▼▼▼ TIMEOUT DE INACTIVIDAD: Copiado EXACTAMENTE de ludoPassTurn ▼▼▼
+    // Cancelar timeout anterior si existe
+    const previousSeat = room.seats.find(s => s && s.playerId === discardingPlayerId);
+    const previousTimeoutKey = `${room.roomId}_${previousSeat?.playerId}`;
     if (la51InactivityTimeouts[previousTimeoutKey]) {
         clearTimeout(la51InactivityTimeouts[previousTimeoutKey]);
         delete la51InactivityTimeouts[previousTimeoutKey];
-        console.log(`[${room.roomId}] ✅ Timeout de inactividad cancelado para el jugador anterior (${previousPlayerId})`);
+        console.log(`[${room.roomId}] Timeout de inactividad cancelado para el jugador anterior`);
     }
-    // Buscar y cancelar cualquier otro timeout del jugador anterior (por userId también)
-    const previousSeat = room.seats.find(s => s && s.playerId === previousPlayerId);
-    if (previousSeat && previousSeat.userId) {
-        const previousTimeoutKeyByUserId = `${room.roomId}_${previousSeat.userId}`;
-        if (la51InactivityTimeouts[previousTimeoutKeyByUserId]) {
-            clearTimeout(la51InactivityTimeouts[previousTimeoutKeyByUserId]);
-            delete la51InactivityTimeouts[previousTimeoutKeyByUserId];
-            console.log(`[${room.roomId}] ✅ Timeout de inactividad cancelado para el jugador anterior (userId: ${previousSeat.userId})`);
-        }
+    
+    // Verificar si el nuevo jugador está desconectado
+    const nextPlayerDisconnectKey = `${room.roomId}_${nextPlayer.userId}`;
+    const isDisconnected = la51DisconnectedPlayers[nextPlayerDisconnectKey];
+    
+    // ▼▼▼ CRÍTICO: Verificar si el jugador ya fue eliminado antes de iniciar timeout ▼▼▼
+    // Si el jugador ya fue penalizado, significa que ya fue eliminado, no iniciar timeout
+    const globalPenaltyKey = `${room.roomId}_${nextPlayer.userId}`;
+    const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[nextPlayer.userId]);
+    
+    if (alreadyPenalized) {
+        console.log(`[${room.roomId}] ⚠️ El jugador ${nextPlayer.playerName} ya fue eliminado y penalizado. NO se inicia timeout de inactividad.`);
+        // No iniciar timeout si ya fue eliminado
+        // Continuar con el flujo normal del turno
+    } else if (isDisconnected) {
+        console.log(`[${room.roomId}] ⚠️ El jugador ${nextPlayer.playerName} está desconectado y le toca el turno. Iniciando timeout de inactividad de 2 minutos.`);
     }
-    // Buscar y cancelar cualquier otro timeout del jugador anterior
-    Object.keys(la51InactivityTimeouts).forEach(key => {
-        if (key.startsWith(`${room.roomId}_`) && (key.includes(previousPlayerId) || (previousSeat && previousSeat.userId && key.includes(previousSeat.userId)))) {
-            clearTimeout(la51InactivityTimeouts[key]);
-            delete la51InactivityTimeouts[key];
-            console.log(`[${room.roomId}] ✅ Timeout adicional del jugador anterior cancelado: ${key}`);
-        }
-    });
-    // ▲▲▲ FIN CANCELACIÓN DE TIMEOUT ANTERIOR ▲▲▲
+    // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     
     if (nextPlayerSeat && nextPlayerSeat.isBot) {
         console.log(`[${room.roomId}] [TURN CHANGE] Jugador es bot, iniciando botPlay...`);
         setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
     } else {
-        // ▼▼▼ CRÍTICO: Iniciar timeout SOLO UNA VEZ para el nuevo jugador (ANTES de emitir turnChanged) ▼▼▼
-        // Verificar que NO hay un timeout activo ya para este jugador
-        const nextTimeoutKey = `${room.roomId}_${room.currentPlayerId}`;
-        const nextTimeoutKeyByUserId = nextPlayerSeat && nextPlayerSeat.userId ? `${room.roomId}_${nextPlayerSeat.userId}` : null;
-        const hasActiveTimeout = la51InactivityTimeouts[nextTimeoutKey] || 
-                                (nextTimeoutKeyByUserId && la51InactivityTimeouts[nextTimeoutKeyByUserId]);
+        // Iniciar timeout de inactividad para el nuevo jugador SOLO si NO fue eliminado
+        // ▼▼▼ CRÍTICO: Usar userId en lugar de playerId para consistencia y cancelar TODOS los timeouts posibles ▼▼▼
+        const newTimeoutKey = `${room.roomId}_${nextPlayer.userId}`;
         
-        if (hasActiveTimeout) {
-            console.log(`[${room.roomId}] ⚠️ ADVERTENCIA: Ya existe un timeout activo para ${nextPlayer.playerName}. NO se inicia otro timeout.`);
-        } else {
-            console.log(`[${room.roomId}] [TURN CHANGE] ⚡⚡⚡ LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
-            startLa51InactivityTimeout(room, room.currentPlayerId, io);
-            console.log(`[${room.roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
+        // Cancelar TODOS los timeouts posibles antes de iniciar uno nuevo (para asegurar que siempre se espere 2 minutos completos)
+        if (la51InactivityTimeouts[newTimeoutKey]) {
+            clearTimeout(la51InactivityTimeouts[newTimeoutKey]);
+            delete la51InactivityTimeouts[newTimeoutKey];
+            console.log(`[${room.roomId}] Timeout anterior cancelado para ${nextPlayer.playerName} (userId: ${nextPlayer.userId})`);
         }
-        // ▲▲▲ FIN INICIO DE TIMEOUT ÚNICO ▲▲▲
+        const newTimeoutKeyByPlayerId = `${room.roomId}_${nextPlayer.playerId}`;
+        if (la51InactivityTimeouts[newTimeoutKeyByPlayerId]) {
+            clearTimeout(la51InactivityTimeouts[newTimeoutKeyByPlayerId]);
+            delete la51InactivityTimeouts[newTimeoutKeyByPlayerId];
+            console.log(`[${room.roomId}] Timeout anterior cancelado para ${nextPlayer.playerName} (playerId: ${nextPlayer.playerId})`);
+        }
+        // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
+        Object.keys(la51InactivityTimeouts).forEach(key => {
+            if (key.startsWith(`${room.roomId}_`) && (key.includes(nextPlayer.userId) || key.includes(nextPlayer.playerId))) {
+                clearTimeout(la51InactivityTimeouts[key]);
+                delete la51InactivityTimeouts[key];
+                console.log(`[${room.roomId}] Timeout adicional cancelado: ${key}`);
+            }
+        });
+        // ▲▲▲ FIN CANCELACIÓN DE TODOS LOS TIMEOUTS ▲▲▲
+        
+        // Solo iniciar timeout si el jugador NO fue eliminado
+        if (!alreadyPenalized) {
+            la51InactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+                console.log(`[${room.roomId}] ⏰ TIMEOUT DE INACTIVIDAD: El jugador ${nextPlayer.playerName} no hizo nada en 2 minutos. Eliminando por falta.`);
+                
+                // Verificar que el turno todavía es de este jugador
+                const currentRoom = la51Rooms[room.roomId];
+                if (!currentRoom || currentRoom.currentPlayerId !== nextPlayer.playerId) {
+                    // Verificar por userId también
+                    const currentSeat = currentRoom.seats.find(s => s && s.userId === nextPlayer.userId);
+                    if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
+                        console.log(`[${room.roomId}] El turno ya cambió. No se elimina al jugador por inactividad.`);
+                        delete la51InactivityTimeouts[newTimeoutKey];
+                        return;
+                    }
+                }
+                
+                // Verificar que el jugador todavía está en la sala (usar userId en lugar de playerId porque puede estar desconectado)
+                const currentSeat = currentRoom.seats.find(s => s && s.userId === nextPlayer.userId);
+                if (!currentSeat) {
+                    console.log(`[${room.roomId}] El asiento ya está vacío. No se elimina por inactividad.`);
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                    return;
+                }
+                
+                // Verificar que es el mismo jugador por userId (no por playerId, porque puede estar desconectado)
+                if (!currentSeat.userId || currentSeat.userId !== nextPlayer.userId) {
+                    console.log(`[${room.roomId}] El jugador en el asiento ya no es el mismo. No se elimina por inactividad.`);
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                    return;
+                }
+                
+                // ▼▼▼ CRÍTICO: REGISTRAR EN penaltyApplied ANTES DE ELIMINAR ▼▼▼
+                if (!currentRoom.penaltyApplied) {
+                    currentRoom.penaltyApplied = {};
+                }
+                currentRoom.penaltyApplied[currentSeat.userId] = true;
+                console.log(`[${room.roomId}] ✅ Jugador ${currentSeat.playerName} registrado en penaltyApplied para evitar que se reactive el timeout.`);
+                // ▲▲▲ FIN DE REGISTRO DE PENALIZACIÓN ▲▲▲
+                
+                // Eliminar al jugador por inactividad - usar el playerId actual del asiento (puede ser null si está desconectado, pero handlePlayerDeparture lo manejará)
+                console.log(`[${room.roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${currentSeat.playerName} (userId: ${currentSeat.userId})`);
+                
+                // Buscar el playerId actual del asiento, o usar cualquier socket del userId si está desconectado
+                let playerIdToUse = currentSeat.playerId;
+                if (!playerIdToUse && currentSeat.userId) {
+                    // Si no hay playerId (jugador desconectado), buscar cualquier socket del userId
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === currentSeat.userId) {
+                            playerIdToUse = socketId;
+                            break;
+                        }
+                    }
+                }
+                
+                // Si encontramos un playerId, usarlo; si no, buscar el asiento por userId en handlePlayerDeparture
+                if (playerIdToUse) {
+                    handlePlayerDeparture(room.roomId, playerIdToUse, io, true); // true = isInactivityTimeout
+                } else {
+                    // Si no hay playerId, buscar el asiento por userId directamente
+                    const seatIndexByUserId = currentRoom.seats.findIndex(s => s && s.userId === currentSeat.userId);
+                    if (seatIndexByUserId !== -1) {
+                        // Usar el playerId del asiento encontrado, o un valor dummy que handlePlayerDeparture manejará
+                        const seatToEliminate = currentRoom.seats[seatIndexByUserId];
+                        if (seatToEliminate && seatToEliminate.playerId) {
+                            handlePlayerDeparture(room.roomId, seatToEliminate.playerId, io, true);
+                        } else {
+                            // Si no hay playerId, eliminar directamente el asiento
+                            console.log(`[${room.roomId}] ⚠️ Jugador ${currentSeat.playerName} está desconectado sin socket. Eliminando asiento directamente.`);
+                            currentRoom.seats[seatIndexByUserId] = null;
+                            currentRoom.seats[seatIndexByUserId].active = false;
+                            // Pasar el turno si era su turno
+                            if (currentRoom.currentPlayerId === currentSeat.playerId) {
+                                // Buscar siguiente jugador activo
+                                const activeSeats = currentRoom.seats.filter(s => s && s.active !== false);
+                                if (activeSeats.length > 1) {
+                                    const currentIndex = currentRoom.seats.findIndex(s => s && s.playerId === currentRoom.currentPlayerId);
+                                    let nextIndex = (currentIndex + 1) % currentRoom.seats.length;
+                                    let attempts = 0;
+                                    while (attempts < currentRoom.seats.length * 2) {
+                                        const nextSeat = currentRoom.seats[nextIndex];
+                                        if (nextSeat && nextSeat.active !== false) {
+                                            currentRoom.currentPlayerId = nextSeat.playerId;
+                                            // Iniciar timeout para el nuevo jugador
+                                            const nextTimeoutKey = `${room.roomId}_${nextSeat.userId}`;
+                                            if (!la51InactivityTimeouts[nextTimeoutKey] && !nextSeat.isBot) {
+                                                la51InactivityTimeouts[nextTimeoutKey] = setTimeout(() => {
+                                                    // Lógica de timeout para el nuevo jugador (similar a la de arriba)
+                                                }, LA51_INACTIVITY_TIMEOUT_MS);
+                                            }
+                                            break;
+                                        }
+                                        nextIndex = (nextIndex + 1) % currentRoom.seats.length;
+                                        attempts++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Limpiar el timeout y el estado de desconexión
+                delete la51InactivityTimeouts[newTimeoutKey];
+                // También limpiar por playerId por si acaso
+                const timeoutKeyByPlayerId = `${room.roomId}_${nextPlayer.playerId}`;
+                if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+                    delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+                }
+                delete la51DisconnectedPlayers[nextPlayerDisconnectKey];
+            }, LA51_INACTIVITY_TIMEOUT_MS);
+            
+            if (isDisconnected && !alreadyPenalized) {
+                console.log(`[${room.roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (userId: ${nextPlayer.userId}). Si no vuelve en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+            } else if (!alreadyPenalized) {
+                console.log(`[${room.roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (userId: ${nextPlayer.userId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+            }
+        }
+        // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD (COPIADO DE LUDO) ▲▲▲
     }
 
     io.to(room.roomId).emit('turnChanged', {
@@ -4874,16 +4881,49 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTimeout = false) {
     const room = la51Rooms[roomId];
 
-    // Cancelar timeout de inactividad: el jugador está saliendo
-    cancelLa51InactivityTimeout(roomId, leavingPlayerId);
+    // Cancelar timeout de inactividad: el jugador está saliendo (igual que en Ludo)
+    const timeoutKeyByPlayerIdCancel = `${roomId}_${leavingPlayerId}`;
+    if (la51InactivityTimeouts[timeoutKeyByPlayerIdCancel]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerIdCancel]);
+        delete la51InactivityTimeouts[timeoutKeyByPlayerIdCancel];
+    }
+    const leavingUserIdCancel = leavingPlayerSeat?.userId;
+    if (leavingUserIdCancel) {
+        const timeoutKeyByUserIdCancel2 = `${roomId}_${leavingUserIdCancel}`;
+        if (la51InactivityTimeouts[timeoutKeyByUserIdCancel2]) {
+            clearTimeout(la51InactivityTimeouts[timeoutKeyByUserIdCancel2]);
+            delete la51InactivityTimeouts[timeoutKeyByUserIdCancel2];
+        }
+    }
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${roomId}_`) && (key.includes(leavingPlayerId) || (leavingUserIdCancel && key.includes(leavingUserIdCancel)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+        }
+    });
 
 
     // ▼▼▼ BLOQUE MODIFICADO: Salida SILENCIOSA y DESTRUCTIVA de Práctica ▼▼▼
     if (room && room.isPractice) {
         console.log(`[Práctica] El jugador humano sale. Eliminando mesa ${roomId} INMEDIATAMENTE.`);
         
-        // 1. Cancelar cualquier timeout activo
-        cancelLa51InactivityTimeout(roomId, leavingPlayerId);
+        // 1. Cancelar cualquier timeout activo (igual que en Ludo)
+        const timeoutKeyByPlayerIdPractice = `${roomId}_${leavingPlayerId}`;
+        const timeoutKeyByUserIdPractice = leavingUserId ? `${roomId}_${leavingUserId}` : null;
+        if (la51InactivityTimeouts[timeoutKeyByPlayerIdPractice]) {
+            clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerIdPractice]);
+            delete la51InactivityTimeouts[timeoutKeyByPlayerIdPractice];
+        }
+        if (timeoutKeyByUserIdPractice && la51InactivityTimeouts[timeoutKeyByUserIdPractice]) {
+            clearTimeout(la51InactivityTimeouts[timeoutKeyByUserIdPractice]);
+            delete la51InactivityTimeouts[timeoutKeyByUserIdPractice];
+        }
+        Object.keys(la51InactivityTimeouts).forEach(key => {
+            if (key.startsWith(`${roomId}_`) && (key.includes(leavingPlayerId) || (leavingUserId && key.includes(leavingUserId)))) {
+                clearTimeout(la51InactivityTimeouts[key]);
+                delete la51InactivityTimeouts[key];
+            }
+        });
         
         // 2. Limpiar referencia en el socket del jugador
         const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
@@ -5005,11 +5045,24 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
         console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers del usuario ${leavingUserId}`);
     }
     
-    // 8. Cancelar cualquier timeout de inactividad pendiente
-    cancelLa51InactivityTimeout(roomId, leavingPlayerId);
-    if (leavingUserId) {
-        cancelLa51InactivityTimeout(roomId, leavingUserId);
+    // 8. Cancelar cualquier timeout de inactividad pendiente (igual que en Ludo)
+    const timeoutKeyByPlayerIdCleanup = `${roomId}_${leavingPlayerId}`;
+    const timeoutKeyByUserIdCleanup = leavingUserId ? `${roomId}_${leavingUserId}` : null;
+    if (la51InactivityTimeouts[timeoutKeyByPlayerIdCleanup]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerIdCleanup]);
+        delete la51InactivityTimeouts[timeoutKeyByPlayerIdCleanup];
     }
+    if (timeoutKeyByUserIdCleanup && la51InactivityTimeouts[timeoutKeyByUserIdCleanup]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByUserIdCleanup]);
+        delete la51InactivityTimeouts[timeoutKeyByUserIdCleanup];
+    }
+    // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${roomId}_`) && (key.includes(leavingPlayerId) || (leavingUserId && key.includes(leavingUserId)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+        }
+    });
     // ▲▲▲ FIN DE LIMPIEZA AGRESIVA ▲▲▲
 
     if (room.state === 'playing') {
@@ -5049,7 +5102,7 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                 });
                 
                 // Enviar SOLO al jugador eliminado el evento inactivityTimeout para mostrar modal en el lobby
-                const leavingUserId = leavingPlayerSeat.userId;
+                const leavingUserIdForEvent = leavingPlayerSeat.userId;
                 let leavingSocket = io.sockets.sockets.get(leavingPlayerId);
                 
                 // Si no se encuentra el socket por playerId, buscar por userId
@@ -5244,10 +5297,57 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                         if (nextPlayerSeat && nextPlayerSeat.isBot) {
                             setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
                         } else {
-                            // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
-                            console.log(`[${roomId}] [TURN CHANGE] ⚡⚡⚡ Jugador abandonó, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
-                            startLa51InactivityTimeout(room, room.currentPlayerId, io);
-                            console.log(`[${roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
+                            // Iniciar timeout usando la lógica de Ludo (copiada exactamente)
+                            const newTimeoutKey = `${roomId}_${nextPlayer.userId}`;
+                            const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[nextPlayer.userId]);
+                            if (!alreadyPenalized) {
+                                if (la51InactivityTimeouts[newTimeoutKey]) {
+                                    clearTimeout(la51InactivityTimeouts[newTimeoutKey]);
+                                    delete la51InactivityTimeouts[newTimeoutKey];
+                                }
+                                const newTimeoutKeyByPlayerId = `${roomId}_${nextPlayer.playerId}`;
+                                if (la51InactivityTimeouts[newTimeoutKeyByPlayerId]) {
+                                    clearTimeout(la51InactivityTimeouts[newTimeoutKeyByPlayerId]);
+                                    delete la51InactivityTimeouts[newTimeoutKeyByPlayerId];
+                                }
+                                Object.keys(la51InactivityTimeouts).forEach(key => {
+                                    if (key.startsWith(`${roomId}_`) && (key.includes(nextPlayer.userId) || key.includes(nextPlayer.playerId))) {
+                                        clearTimeout(la51InactivityTimeouts[key]);
+                                        delete la51InactivityTimeouts[key];
+                                    }
+                                });
+                                la51InactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+                                    const currentRoom = la51Rooms[roomId];
+                                    if (!currentRoom || currentRoom.currentPlayerId !== nextPlayer.playerId) {
+                                        const currentSeat = currentRoom.seats.find(s => s && s.userId === nextPlayer.userId);
+                                        if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
+                                            delete la51InactivityTimeouts[newTimeoutKey];
+                                            return;
+                                        }
+                                    }
+                                    const currentSeat = currentRoom.seats.find(s => s && s.userId === nextPlayer.userId);
+                                    if (!currentSeat || currentSeat.userId !== nextPlayer.userId) {
+                                        delete la51InactivityTimeouts[newTimeoutKey];
+                                        return;
+                                    }
+                                    if (!currentRoom.penaltyApplied) currentRoom.penaltyApplied = {};
+                                    currentRoom.penaltyApplied[currentSeat.userId] = true;
+                                    let playerIdToUse = currentSeat.playerId;
+                                    if (!playerIdToUse && currentSeat.userId) {
+                                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                                            if (socketUserId === currentSeat.userId) {
+                                                playerIdToUse = socketId;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (playerIdToUse) {
+                                        handlePlayerDeparture(roomId, playerIdToUse, io, true);
+                                    }
+                                    delete la51InactivityTimeouts[newTimeoutKey];
+                                }, LA51_INACTIVITY_TIMEOUT_MS);
+                            }
                         }
                         
                         io.to(roomId).emit('turnChanged', {
@@ -6124,11 +6224,25 @@ io.on('connection', (socket) => {
             socket.join(roomId);
             socket.currentRoomId = roomId;
             
-            // Cancelar cualquier timeout de inactividad que pueda estar activo
-            cancelLa51InactivityTimeout(roomId, existingSeat.playerId);
-            if (userId) {
-                cancelLa51InactivityTimeout(roomId, userId);
+            // Cancelar cualquier timeout de inactividad que pueda estar activo (igual que en Ludo)
+            const timeoutKeyByPlayerId = `${roomId}_${existingSeat.playerId}`;
+            if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+                clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
+                delete la51InactivityTimeouts[timeoutKeyByPlayerId];
             }
+            if (userId) {
+                const timeoutKeyByUserId = `${roomId}_${userId}`;
+                if (la51InactivityTimeouts[timeoutKeyByUserId]) {
+                    clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
+                    delete la51InactivityTimeouts[timeoutKeyByUserId];
+                }
+            }
+            Object.keys(la51InactivityTimeouts).forEach(key => {
+                if (key.startsWith(`${roomId}_`) && (key.includes(existingSeat.playerId) || (userId && key.includes(userId)))) {
+                    clearTimeout(la51InactivityTimeouts[key]);
+                    delete la51InactivityTimeouts[key];
+                }
+            });
             
             // Limpiar de la lista de desconectados si existe
             const disconnectKey = `${roomId}_${userId}`;
@@ -6468,10 +6582,60 @@ io.on('connection', (socket) => {
     if (startingPlayerSeat && startingPlayerSeat.isBot) {
         setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
     } else {
-        // Iniciar timeout INMEDIATAMENTE para el primer jugador (ANTES de emitir gameStarted)
-        console.log(`[${roomId}] [START GAME] ⚡⚡⚡ Iniciando juego, LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${startingPlayerSeat?.playerName} (${startingPlayerId})...`);
-        startLa51InactivityTimeout(room, startingPlayerId, io);
-        console.log(`[${roomId}] [START GAME] ✅ startLa51InactivityTimeout ejecutado para ${startingPlayerSeat?.playerName}`);
+        // Iniciar timeout usando la lógica de Ludo (copiada exactamente)
+        const startingPlayerSeat = room.seats.find(s => s && s.playerId === startingPlayerId);
+        if (startingPlayerSeat && startingPlayerSeat.userId) {
+            const newTimeoutKey = `${roomId}_${startingPlayerSeat.userId}`;
+            const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[startingPlayerSeat.userId]);
+            if (!alreadyPenalized) {
+                if (la51InactivityTimeouts[newTimeoutKey]) {
+                    clearTimeout(la51InactivityTimeouts[newTimeoutKey]);
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                }
+                const newTimeoutKeyByPlayerId = `${roomId}_${startingPlayerId}`;
+                if (la51InactivityTimeouts[newTimeoutKeyByPlayerId]) {
+                    clearTimeout(la51InactivityTimeouts[newTimeoutKeyByPlayerId]);
+                    delete la51InactivityTimeouts[newTimeoutKeyByPlayerId];
+                }
+                Object.keys(la51InactivityTimeouts).forEach(key => {
+                    if (key.startsWith(`${roomId}_`) && (key.includes(startingPlayerSeat.userId) || key.includes(startingPlayerId))) {
+                        clearTimeout(la51InactivityTimeouts[key]);
+                        delete la51InactivityTimeouts[key];
+                    }
+                });
+                la51InactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+                    const currentRoom = la51Rooms[roomId];
+                    if (!currentRoom || currentRoom.currentPlayerId !== startingPlayerId) {
+                        const currentSeat = currentRoom.seats.find(s => s && s.userId === startingPlayerSeat.userId);
+                        if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
+                            delete la51InactivityTimeouts[newTimeoutKey];
+                            return;
+                        }
+                    }
+                    const currentSeat = currentRoom.seats.find(s => s && s.userId === startingPlayerSeat.userId);
+                    if (!currentSeat || currentSeat.userId !== startingPlayerSeat.userId) {
+                        delete la51InactivityTimeouts[newTimeoutKey];
+                        return;
+                    }
+                    if (!currentRoom.penaltyApplied) currentRoom.penaltyApplied = {};
+                    currentRoom.penaltyApplied[currentSeat.userId] = true;
+                    let playerIdToUse = currentSeat.playerId;
+                    if (!playerIdToUse && currentSeat.userId) {
+                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                            if (socketUserId === currentSeat.userId) {
+                                playerIdToUse = socketId;
+                                break;
+                            }
+                        }
+                    }
+                    if (playerIdToUse) {
+                        handlePlayerDeparture(roomId, playerIdToUse, io, true);
+                    }
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                }, LA51_INACTIVITY_TIMEOUT_MS);
+            }
+        }
     }
 
         const playerHandCounts = {};
@@ -6532,8 +6696,24 @@ io.on('connection', (socket) => {
         return console.log('Acción de meld inválida: fuera de turno o jugador no encontrado.');
     }
     
-    // Cancelar timeout de inactividad: el jugador está actuando
-    cancelLa51InactivityTimeout(roomId, socket.id);
+    // Cancelar timeout de inactividad: el jugador está actuando (igual que en Ludo)
+    const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
+    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    const timeoutKeyByUserId = socketUserId ? `${roomId}_${socketUserId}` : null;
+    if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
+        delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+    }
+    if (timeoutKeyByUserId && la51InactivityTimeouts[timeoutKeyByUserId]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
+        delete la51InactivityTimeouts[timeoutKeyByUserId];
+    }
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${roomId}_`) && (key.includes(socket.id) || (socketUserId && key.includes(socketUserId)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+        }
+    });
 
 
     // V --- AÑADE ESTA VALIDACIÓN AQUÍ --- V
@@ -6710,8 +6890,24 @@ socket.on('accionDescartar', async (data) => {
     
     console.log(`[DEBUG] Room encontrada:`, !!room);
     
-    // Cancelar timeout de inactividad: el jugador está actuando
-    cancelLa51InactivityTimeout(roomId, socket.id);
+    // Cancelar timeout de inactividad: el jugador está actuando (igual que en Ludo)
+    const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
+    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    const timeoutKeyByUserId = socketUserId ? `${roomId}_${socketUserId}` : null;
+    if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
+        delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+    }
+    if (timeoutKeyByUserId && la51InactivityTimeouts[timeoutKeyByUserId]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
+        delete la51InactivityTimeouts[timeoutKeyByUserId];
+    }
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${roomId}_`) && (key.includes(socket.id) || (socketUserId && key.includes(socketUserId)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+        }
+    });
     console.log(`[DEBUG] Current player: ${room?.currentPlayerId}, Socket ID: ${socket.id}`);
     
     if (!room || room.currentPlayerId !== socket.id) {
@@ -6859,8 +7055,24 @@ socket.on('accionDescartar', async (data) => {
         return;
     }
     
-    // Cancelar timeout de inactividad: el jugador está actuando
-    cancelLa51InactivityTimeout(roomId, socket.id);
+    // Cancelar timeout de inactividad: el jugador está actuando (igual que en Ludo)
+    const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
+    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    const timeoutKeyByUserId = socketUserId ? `${roomId}_${socketUserId}` : null;
+    if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
+        delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+    }
+    if (timeoutKeyByUserId && la51InactivityTimeouts[timeoutKeyByUserId]) {
+        clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
+        delete la51InactivityTimeouts[timeoutKeyByUserId];
+    }
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${roomId}_`) && (key.includes(socket.id) || (socketUserId && key.includes(socketUserId)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+        }
+    });
 
     
     // Limpiar estado de desconexión si existe
@@ -7474,8 +7686,59 @@ socket.on('accionDescartar', async (data) => {
                                             const nextSeat = currentRoom.seats[nextIndex];
                                             if (nextSeat && nextSeat.active !== false) {
                                                 currentRoom.currentPlayerId = nextSeat.playerId;
-                                                // Iniciar timeout para el nuevo jugador
-                                                startLa51InactivityTimeout(currentRoom, nextSeat.playerId, io);
+                                                // Iniciar timeout para el nuevo jugador (igual que en Ludo)
+                                                if (nextSeat && nextSeat.userId && !nextSeat.isBot) {
+                                                    const newTimeoutKey = `${roomId}_${nextSeat.userId}`;
+                                                    const alreadyPenalized = (currentRoom.penaltyApplied && currentRoom.penaltyApplied[nextSeat.userId]);
+                                                    if (!alreadyPenalized) {
+                                                        if (la51InactivityTimeouts[newTimeoutKey]) {
+                                                            clearTimeout(la51InactivityTimeouts[newTimeoutKey]);
+                                                            delete la51InactivityTimeouts[newTimeoutKey];
+                                                        }
+                                                        const newTimeoutKeyByPlayerId = `${roomId}_${nextSeat.playerId}`;
+                                                        if (la51InactivityTimeouts[newTimeoutKeyByPlayerId]) {
+                                                            clearTimeout(la51InactivityTimeouts[newTimeoutKeyByPlayerId]);
+                                                            delete la51InactivityTimeouts[newTimeoutKeyByPlayerId];
+                                                        }
+                                                        Object.keys(la51InactivityTimeouts).forEach(key => {
+                                                            if (key.startsWith(`${roomId}_`) && (key.includes(nextSeat.userId) || key.includes(nextSeat.playerId))) {
+                                                                clearTimeout(la51InactivityTimeouts[key]);
+                                                                delete la51InactivityTimeouts[key];
+                                                            }
+                                                        });
+                                                        la51InactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+                                                            const currentRoomCheck = la51Rooms[roomId];
+                                                            if (!currentRoomCheck || currentRoomCheck.currentPlayerId !== nextSeat.playerId) {
+                                                                const currentSeat = currentRoomCheck.seats.find(s => s && s.userId === nextSeat.userId);
+                                                                if (!currentSeat || currentRoomCheck.currentPlayerId !== currentSeat.playerId) {
+                                                                    delete la51InactivityTimeouts[newTimeoutKey];
+                                                                    return;
+                                                                }
+                                                            }
+                                                            const currentSeat = currentRoomCheck.seats.find(s => s && s.userId === nextSeat.userId);
+                                                            if (!currentSeat || currentSeat.userId !== nextSeat.userId) {
+                                                                delete la51InactivityTimeouts[newTimeoutKey];
+                                                                return;
+                                                            }
+                                                            if (!currentRoomCheck.penaltyApplied) currentRoomCheck.penaltyApplied = {};
+                                                            currentRoomCheck.penaltyApplied[currentSeat.userId] = true;
+                                                            let playerIdToUse = currentSeat.playerId;
+                                                            if (!playerIdToUse && currentSeat.userId) {
+                                                                for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                                                                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                                                                    if (socketUserId === currentSeat.userId) {
+                                                                        playerIdToUse = socketId;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                            }
+                                                            if (playerIdToUse) {
+                                                                handlePlayerDeparture(roomId, playerIdToUse, io, true);
+                                                            }
+                                                            delete la51InactivityTimeouts[newTimeoutKey];
+                                                        }, LA51_INACTIVITY_TIMEOUT_MS);
+                                                    }
+                                                }
                                                 break;
                                             }
                                             nextIndex = (nextIndex + 1) % currentRoom.seats.length;
@@ -7810,9 +8073,58 @@ socket.on('accionDescartar', async (data) => {
         }
         // ▲▲▲ FIN DEL MENSAJE ▲▲▲
         
-        // Iniciar timeout de inactividad para el jugador que inicia (si no es bot)
-        if (startingPlayerSeat && !startingPlayerSeat.isBot) {
-            startLa51InactivityTimeout(room, startingPlayerId, io);
+        // Iniciar timeout de inactividad para el jugador que inicia (si no es bot) - igual que en Ludo
+        if (startingPlayerSeat && !startingPlayerSeat.isBot && startingPlayerSeat.userId) {
+            const newTimeoutKey = `${roomId}_${startingPlayerSeat.userId}`;
+            const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[startingPlayerSeat.userId]);
+            if (!alreadyPenalized) {
+                if (la51InactivityTimeouts[newTimeoutKey]) {
+                    clearTimeout(la51InactivityTimeouts[newTimeoutKey]);
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                }
+                const newTimeoutKeyByPlayerId = `${roomId}_${startingPlayerId}`;
+                if (la51InactivityTimeouts[newTimeoutKeyByPlayerId]) {
+                    clearTimeout(la51InactivityTimeouts[newTimeoutKeyByPlayerId]);
+                    delete la51InactivityTimeouts[newTimeoutKeyByPlayerId];
+                }
+                Object.keys(la51InactivityTimeouts).forEach(key => {
+                    if (key.startsWith(`${roomId}_`) && (key.includes(startingPlayerSeat.userId) || key.includes(startingPlayerId))) {
+                        clearTimeout(la51InactivityTimeouts[key]);
+                        delete la51InactivityTimeouts[key];
+                    }
+                });
+                la51InactivityTimeouts[newTimeoutKey] = setTimeout(() => {
+                    const currentRoom = la51Rooms[roomId];
+                    if (!currentRoom || currentRoom.currentPlayerId !== startingPlayerId) {
+                        const currentSeat = currentRoom.seats.find(s => s && s.userId === startingPlayerSeat.userId);
+                        if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
+                            delete la51InactivityTimeouts[newTimeoutKey];
+                            return;
+                        }
+                    }
+                    const currentSeat = currentRoom.seats.find(s => s && s.userId === startingPlayerSeat.userId);
+                    if (!currentSeat || currentSeat.userId !== startingPlayerSeat.userId) {
+                        delete la51InactivityTimeouts[newTimeoutKey];
+                        return;
+                    }
+                    if (!currentRoom.penaltyApplied) currentRoom.penaltyApplied = {};
+                    currentRoom.penaltyApplied[currentSeat.userId] = true;
+                    let playerIdToUse = currentSeat.playerId;
+                    if (!playerIdToUse && currentSeat.userId) {
+                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                            if (socketUserId === currentSeat.userId) {
+                                playerIdToUse = socketId;
+                                break;
+                            }
+                        }
+                    }
+                    if (playerIdToUse) {
+                        handlePlayerDeparture(roomId, playerIdToUse, io, true);
+                    }
+                    delete la51InactivityTimeouts[newTimeoutKey];
+                }, LA51_INACTIVITY_TIMEOUT_MS);
+            }
         } else if (startingPlayerSeat && startingPlayerSeat.isBot) {
             setTimeout(() => botPlay(room, startingPlayerId, io), 1000);
         }
