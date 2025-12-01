@@ -277,29 +277,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (avatarEl) {
-                // ▼▼▼ CORRECCIÓN: Obtener avatar desde múltiples fuentes posibles ▼▼▼
-                // El avatar puede estar en: avatar, avatar_url, o userAvatar
-                const avatarUrl = player.avatar || player.avatar_url || player.userAvatar || '';
-                
-                if (avatarUrl && avatarUrl.trim() !== '' && avatarUrl !== 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=') {
-                    // Solo usar el avatar si no es una imagen transparente
+                // Usar avatar del jugador, o avatar_url como fallback, o avatar por defecto
+                const avatarUrl = player.avatar || player.avatar_url || '';
+                if (avatarUrl && avatarUrl.trim() !== '') {
                     avatarEl.src = avatarUrl;
                     avatarEl.alt = `Avatar de ${player.playerName || slotColor}`;
-                    console.log(`[Avatar] Actualizando avatar para ${player.playerName}: ${avatarUrl}`);
                 } else {
                     // Avatar por defecto basado en el color del slot
                     const defaultAvatarIndex = (['yellow', 'green', 'red', 'blue'].indexOf(slotColor) % 10) + 1;
                     avatarEl.src = `https://i.pravatar.cc/150?img=${defaultAvatarIndex}`;
                     avatarEl.alt = `Avatar por defecto de ${slotColor}`;
-                    console.log(`[Avatar] Usando avatar por defecto para ${player.playerName || slotColor}: índice ${defaultAvatarIndex}`);
                 }
                 // Forzar recarga de la imagen si es la misma URL
                 avatarEl.onerror = function() {
-                    console.warn(`[Avatar] Error cargando avatar para ${player.playerName || slotColor}, usando por defecto`);
                     const defaultAvatarIndex = (['yellow', 'green', 'red', 'blue'].indexOf(slotColor) % 10) + 1;
                     this.src = `https://i.pravatar.cc/150?img=${defaultAvatarIndex}`;
                 };
-                // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
             }
         } else {
             infoBox.style.visibility = 'hidden';
