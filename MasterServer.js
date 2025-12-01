@@ -4871,6 +4871,8 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA ▼▼▼
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
 async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTimeout = false) {
+    console.log(`[DEBUG handlePlayerDeparture] 🔍 INICIO - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
+    console.log(`[DEBUG handlePlayerDeparture] 🔍 Stack trace:`, new Error().stack);
     const room = la51Rooms[roomId];
 
     // Cancelar timeout de inactividad: el jugador está saliendo (igual que en Ludo)
@@ -4988,6 +4990,8 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
             delete leavingSocket.currentRoomId;
             console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${leavingPlayerId}`);
         }
+        console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ HACIENDO socket.leave - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
+        console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
         leavingSocket.leave(roomId);
         console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
         
@@ -7315,8 +7319,11 @@ socket.on('accionDescartar', async (data) => {
     // Solo eliminar de connectedUsers si NO está en una partida activa de La 51 Y NO hay timeout activo
     // Si está en una partida activa de La 51 o hay timeout activo, se eliminará después de que se complete el timeout
     let wasInList = false;
+    console.log(`[DEBUG DISCONNECT] 🔍 Verificando eliminación de connectedUsers - shouldKeepInConnectedUsers: ${shouldKeepInConnectedUsers}, hasActiveInactivityTimeout: ${hasActiveInactivityTimeout}, connectedUsers[socket.id]: ${!!connectedUsers[socket.id]}`);
     if (!shouldKeepInConnectedUsers && !hasActiveInactivityTimeout && connectedUsers[socket.id]) {
         wasInList = true;
+        console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ ELIMINANDO DE CONNECTEDUSERS ANTES DEL TIMEOUT - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
+        console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace de eliminación:`, new Error().stack);
         delete connectedUsers[socket.id];
     } else if (shouldKeepInConnectedUsers || hasActiveInactivityTimeout) {
         console.log(`[DISCONNECT] ${username || socket.id} se desconectó pero tiene timeout activo o está en partida activa de La 51. NO se elimina de connectedUsers todavía.`);
@@ -7576,11 +7583,14 @@ socket.on('accionDescartar', async (data) => {
             // ▼▼▼ LOGICA SIMPLE COMO LUDO: Si se desconecta durante partida activa, iniciar timeout si es su turno ▼▼▼
             const leavingPlayerSeat = la51Room.seats[seatIndex];
             
+            console.log(`[DEBUG DISCONNECT] 🔍 LA 51 PARTIDA ACTIVA - seatIndex: ${seatIndex}, leavingPlayerSeat: ${!!leavingPlayerSeat}, active: ${leavingPlayerSeat?.active}, status: ${leavingPlayerSeat?.status}`);
+            
             if (leavingPlayerSeat && leavingPlayerSeat.active !== false && leavingPlayerSeat.status !== 'waiting') {
                 console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos de inactividad cuando le toque el turno.`);
                 
                 // Verificar si es su turno actualmente
                 const isCurrentTurn = la51Room.currentPlayerId === socket.id;
+                console.log(`[DEBUG DISCONNECT] 🔍 Verificando turno - currentPlayerId: ${la51Room.currentPlayerId}, socket.id: ${socket.id}, isCurrentTurn: ${isCurrentTurn}`);
                 
                 // Verificar si el jugador ya fue eliminado
                 const globalPenaltyKey = `${roomId}_${userId}`;
@@ -7694,6 +7704,8 @@ socket.on('accionDescartar', async (data) => {
                 }
             } else {
                 // Si está en espera, eliminar inmediatamente
+                console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ LLAMANDO handlePlayerDeparture DESDE DISCONNECT (esperando) - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
+                console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
                 handlePlayerDeparture(roomId, socket.id, io);
             }
             // ▲▲▲ FIN: LOGICA SIMPLE COMO LUDO ▲▲▲
@@ -8065,10 +8077,16 @@ socket.on('accionDescartar', async (data) => {
   // ▼▼▼ REEMPLAZA TU LISTENER socket.on('leaveGame',...) ENTERO CON ESTE ▼▼▼
   socket.on('leaveGame', (data) => {
     const { roomId } = data;
+    const username = connectedUsers[socket.id]?.username || socket.userId?.replace(/^user_/, '') || socket.id;
+    
+    console.log(`[DEBUG leaveGame] 🔍 INICIO leaveGame - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
+    console.log(`[DEBUG leaveGame] 🔍 Stack trace:`, new Error().stack);
 
     // ▼▼▼ CRÍTICO: Detectar si es una sala de Ludo o La 51 ▼▼▼
     const isLudoRoom = roomId && ludoRooms[roomId];
     const isLa51Room = roomId && la51Rooms[roomId];
+    
+    console.log(`[DEBUG leaveGame] 🔍 isLudoRoom: ${isLudoRoom}, isLa51Room: ${isLa51Room}`);
     
     // ▼▼▼ CRÍTICO: Si la sala no existe, limpiar estado y salir ▼▼▼
     if (!isLudoRoom && !isLa51Room && roomId) {
@@ -8134,6 +8152,8 @@ socket.on('accionDescartar', async (data) => {
     // 2. (ORDEN CORREGIDO) AHORA, con la lógica del juego ya resuelta,
     // limpiamos el estado del socket de forma segura.
     if (roomId) {
+        console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ HACIENDO socket.leave DESDE leaveGame - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
+        console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
         socket.leave(roomId);
         console.log(`[leaveGame] Socket ${socket.id} ha salido de la sala Socket.IO: ${roomId}`);
     }
