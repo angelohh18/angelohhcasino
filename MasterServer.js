@@ -1119,12 +1119,12 @@ function ludoPeriodicOrphanRoomCleanup(io) {
 // Funciones auxiliares de Ludo extraídas y adaptadas
 
 // === handlePlayerDeparture ===
-async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAbandonment = false) {
+async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAbandonment = false, isInactivityTimeout = false) {
     const room = ludoRooms[roomId];
 
     if (!room) return;
 
-    console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}. ${isVoluntaryAbandonment ? '(ABANDONO VOLUNTARIO - PROCESAR INMEDIATAMENTE)' : ''}`);
+    console.log(`Gestionando salida del jugador ${leavingPlayerId} de la sala ${roomId}. ${isVoluntaryAbandonment ? '(ABANDONO VOLUNTARIO - PROCESAR INMEDIATAMENTE)' : ''} ${isInactivityTimeout ? '(ELIMINADO POR INACTIVIDAD - EXPULSAR AL LOBBY)' : ''}`);
     
     // Declarar roomCurrency al inicio para evitar duplicación
     const roomCurrency = room.settings.betCurrency || 'USD';
@@ -1755,6 +1755,86 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 console.log(`[${roomId}] Era el turno del jugador que abandonó. Pasando al siguiente INMEDIATAMENTE...`);
                 ludoPassTurn(room, io);
             }
+            
+            // ▼▼▼ CRÍTICO: Si es por inactividad, expulsar automáticamente al lobby con modal específico ▼▼▼
+            if (isInactivityTimeout) {
+                // Buscar el socket del jugador eliminado
+                let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+                if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === leavingPlayerSeat.userId) {
+                            leavingPlayerSocket = socket;
+                            break;
+                        }
+                    }
+                }
+                
+                if (leavingPlayerSocket) {
+                    // Obtener información del usuario
+                    const leavingPlayerUsername = leavingPlayerSeat.userId.replace('user_', '');
+                    let leavingPlayerInfo = users[leavingPlayerSeat.userId];
+                    
+                    if (!leavingPlayerInfo) {
+                        try {
+                            if (DISABLE_DB) {
+                                const userFromMemory = inMemoryUsers.get(leavingPlayerUsername);
+                                if (userFromMemory) {
+                                    leavingPlayerInfo = {
+                                        credits: parseFloat(userFromMemory.credits || 0),
+                                        currency: userFromMemory.currency || 'EUR',
+                                        username: leavingPlayerUsername,
+                                        avatar: leavingPlayerSeat.avatar || ''
+                                    };
+                                    users[leavingPlayerSeat.userId] = leavingPlayerInfo;
+                                }
+                            } else {
+                                const userData = await getUserByUsername(leavingPlayerUsername);
+                                if (userData) {
+                                    leavingPlayerInfo = {
+                                        ...userData,
+                                        username: leavingPlayerUsername,
+                                        avatar: leavingPlayerSeat.avatar || userData.avatar || ''
+                                    };
+                                    users[leavingPlayerSeat.userId] = leavingPlayerInfo;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`[${roomId}] Error obteniendo datos de usuario eliminado por inactividad:`, error);
+                        }
+                    } else {
+                        leavingPlayerInfo.username = leavingPlayerUsername;
+                        leavingPlayerInfo.avatar = leavingPlayerSeat.avatar || leavingPlayerInfo.avatar || '';
+                    }
+                    
+                    // Enviar userStateUpdated antes de expulsar
+                    if (leavingPlayerInfo) {
+                        leavingPlayerSocket.emit('userStateUpdated', leavingPlayerInfo);
+                    }
+                    
+                    // Forzar salida del socket de la sala
+                    if (leavingPlayerSocket.currentRoomId === roomId) {
+                        leavingPlayerSocket.leave(roomId);
+                        delete leavingPlayerSocket.currentRoomId;
+                        console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de eliminación por inactividad`);
+                    }
+                    
+                    // Enviar evento específico para inactividad que redirige al lobby y muestra modal
+                    leavingPlayerSocket.emit('inactivityTimeout', {
+                        message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
+                        redirect: true,
+                        forceExit: true,
+                        reason: 'inactivity',
+                        username: leavingPlayerUsername,
+                        userId: leavingPlayerSeat.userId,
+                        avatar: leavingPlayerSeat.avatar || '',
+                        userCurrency: leavingPlayerInfo?.currency || 'EUR'
+                    });
+                    
+                    console.log(`[${roomId}] Jugador ${leavingPlayerUsername} expulsado al lobby por inactividad. Modal de inactividad enviado.`);
+                }
+            }
+            // ▲▲▲ FIN EXPULSIÓN POR INACTIVIDAD ▲▲▲
         } else {
             console.log(`[${roomId}] No quedan jugadores activos después del abandono.`);
         }
@@ -2019,7 +2099,7 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         
         // Eliminar al jugador por inactividad usando la misma lógica que abandono voluntario
         console.log(`[${roomId}] 🚨 ELIMINANDO JUGADOR POR INACTIVIDAD: ${nextPlayer.playerName} (asiento ${nextPlayerIndex})`);
-        ludoHandlePlayerDeparture(roomId, nextPlayer.playerId, io);
+        ludoHandlePlayerDeparture(roomId, nextPlayer.playerId, io, false, true); // true = isInactivityTimeout
         
         // Limpiar el timeout y el estado de desconexión
         delete ludoInactivityTimeouts[newTimeoutKey];
@@ -6794,9 +6874,9 @@ socket.on('accionDescartar', async (data) => {
                         }
                         // ▲▲▲ FIN DE REGISTRO DE PENALIZACIÓN GLOBAL ▲▲▲
                         
-                        // Eliminar al jugador por abandono
+                        // Eliminar al jugador por abandono (por inactividad de desconexión)
                         console.log(`[LUDO DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN: ${username} (asiento ${seatIndex})`);
-                        ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io, false);
+                        ludoHandlePlayerDeparture(roomId, leavingPlayerSeat.playerId, io, false, true); // true = isInactivityTimeout
                         
                         // Limpiar
                         delete ludoInactivityTimeouts[inactivityTimeoutKey];

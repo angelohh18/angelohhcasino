@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.162'; // Actualizado: Prevención de reactivación de timeout para jugadores eliminados por abandono
+const CACHE_NAME = 'mutijuego-v1.12.163'; // Actualizado: Expulsión automática al lobby con modal específico para inactividad
 const urlsToCache = [
   '/',
   '/index.html',
