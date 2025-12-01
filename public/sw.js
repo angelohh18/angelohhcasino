@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.176'; // Actualizado: Eliminado sistema de timeout de La 51 y copiado exactamente el sistema de Ludo
+const CACHE_NAME = 'mutijuego-v1.12.177'; // Actualizado: Eliminada lógica de desconexión que causaba desconexión prematura - ahora solo el timeout existente maneja la eliminación
 const urlsToCache = [
   '/',
   '/index.html',
