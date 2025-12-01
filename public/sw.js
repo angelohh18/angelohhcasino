@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.173'; // Actualizado: Garantía absoluta - jugador NO se desconecta antes de 2 minutos, se elimina DESPUÉS con usuario preservado
+const CACHE_NAME = 'mutijuego-v1.12.174'; // Actualizado: Aplicada lógica de Ludo a La 51 - jugador NO se elimina de connectedUsers antes del timeout
 const urlsToCache = [
   '/',
   '/index.html',

@@ -6926,15 +6926,37 @@ socket.on('accionDescartar', async (data) => {
     console.log(`❌ Jugador desconectado: ${socket.id}`);
     const username = connectedUsers[socket.id]?.username;
     const roomId = socket.currentRoomId;
+    const userId = socket.userId;
 
-    // 1. Elimina al jugador de la lista INMEDIATAMENTE
+    // ▼▼▼ CRÍTICO: Verificar si hay timeout de inactividad activo ANTES de eliminar de connectedUsers ▼▼▼
+    // Si hay timeout activo, NO eliminar de connectedUsers todavía - el timeout se encargará de eso
+    let hasActiveInactivityTimeout = false;
+    if (roomId && userId) {
+        // Verificar en La 51
+        if (la51Rooms[roomId]) {
+            const la51TimeoutKeyByPlayerId = `${roomId}_${socket.id}`;
+            const la51TimeoutKeyByUserId = `${roomId}_${userId}`;
+            hasActiveInactivityTimeout = la51InactivityTimeouts[la51TimeoutKeyByPlayerId] || 
+                                        la51InactivityTimeouts[la51TimeoutKeyByUserId];
+        }
+        // Verificar en Ludo
+        if (ludoRooms[roomId]) {
+            const ludoTimeoutKey = `${roomId}_${userId}`;
+            hasActiveInactivityTimeout = hasActiveInactivityTimeout || ludoInactivityTimeouts[ludoTimeoutKey];
+        }
+    }
+    
+    // Solo eliminar de connectedUsers si NO hay timeout activo
+    // Si hay timeout activo, se eliminará después de que se complete el timeout
     let wasInList = false;
-    if (connectedUsers[socket.id]) {
+    if (!hasActiveInactivityTimeout && connectedUsers[socket.id]) {
         wasInList = true;
         delete connectedUsers[socket.id];
+    } else if (hasActiveInactivityTimeout) {
+        console.log(`[DISCONNECT] ${username || socket.id} se desconectó pero tiene timeout activo. NO se elimina de connectedUsers todavía.`);
     }
 
-    // 2. Si estaba en la lista, actualizar inmediatamente (antes de manejar salas)
+    // 2. Si estaba en la lista y se eliminó, actualizar inmediatamente (antes de manejar salas)
     if (wasInList) {
         broadcastUserListUpdate(io);
         console.log(`[User List] Usuario ${username || socket.id} eliminado de la lista. Actualización enviada.`);
@@ -7298,6 +7320,20 @@ socket.on('accionDescartar', async (data) => {
                                     }
                                 }
                             }
+                            
+                            // ▼▼▼ CRÍTICO: Eliminar de connectedUsers AHORA que el timeout se completó ▼▼▼
+                            if (leavingUserId) {
+                                // Buscar y eliminar cualquier entrada de connectedUsers para este userId
+                                Object.keys(connectedUsers).forEach(socketId => {
+                                    const userData = connectedUsers[socketId];
+                                    if (userData && (socketId === socket.id || (leavingUserId && socketId.includes(leavingUserId)))) {
+                                        delete connectedUsers[socketId];
+                                        console.log(`[LA 51 DISCONNECT TIMEOUT] ✅ Eliminado de connectedUsers: ${socketId}`);
+                                    }
+                                });
+                                broadcastUserListUpdate(io);
+                            }
+                            // ▲▲▲ FIN ELIMINACIÓN DE CONNECTEDUSERS ▲▲▲
                             
                             console.log(`[LA 51 DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN: ${username} (asiento ${seatIndex}, userId: ${currentSeatAtIndex.userId})`);
                             if (playerIdToUse) {
