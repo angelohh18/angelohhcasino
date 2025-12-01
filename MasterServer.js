@@ -1871,8 +1871,23 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         const foundSeatIndex = seats.findIndex(s => s && s.color === nextColor && s.status !== 'waiting');
 
         if (foundSeatIndex !== -1) {
+            const candidateSeat = seats[foundSeatIndex];
+            // ▼▼▼ CRÍTICO: Verificar que el jugador NO esté eliminado antes de asignarlo como siguiente jugador ▼▼▼
+            if (candidateSeat && candidateSeat.userId) {
+                const candidatePenaltyKey = `${roomId}_${candidateSeat.userId}`;
+                const isEliminated = ludoGlobalPenaltyApplied[candidatePenaltyKey] || 
+                                    (room.penaltyApplied && room.penaltyApplied[candidateSeat.userId]) ||
+                                    (room.abandonmentFinalized && room.abandonmentFinalized[candidateSeat.userId]);
+                
+                if (isEliminated) {
+                    console.log(`[${roomId}] ⚠️ Jugador ${candidateSeat.playerName} (asiento ${foundSeatIndex}) está eliminado. Buscando siguiente jugador...`);
+                    continue; // Saltar este jugador y buscar el siguiente
+                }
+            }
+            // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN ▲▲▲
+            
             nextPlayerIndex = foundSeatIndex;
-            nextPlayer = seats[foundSeatIndex];
+            nextPlayer = candidateSeat;
             break;
         }
     }
@@ -1979,7 +1994,7 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
             return;
         }
         
-        // ▼▼▼ CRÍTICO: REGISTRAR EN abandonmentFinalized ANTES DE ELIMINAR ▼▼▼
+        // ▼▼▼ CRÍTICO: REGISTRAR EN abandonmentFinalized Y PENALIZACIÓN GLOBAL ANTES DE ELIMINAR ▼▼▼
         // Esto permite que si el jugador regresa, se le muestre el modal
         if (!room.abandonmentFinalized) {
             room.abandonmentFinalized = {};
@@ -1990,6 +2005,16 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
             timestamp: Date.now()
         };
         console.log(`[${roomId}] ✅ Jugador ${nextPlayer.playerName} registrado en abandonmentFinalized para mostrar modal si regresa.`);
+        
+        // ▼▼▼ CRÍTICO: REGISTRAR PENALIZACIÓN GLOBAL ANTES DE ELIMINAR PARA EVITAR QUE SE REACTIVE EL TIMEOUT ▼▼▼
+        const globalPenaltyKeyForElimination = `${roomId}_${nextPlayer.userId}`;
+        ludoGlobalPenaltyApplied[globalPenaltyKeyForElimination] = true;
+        if (!room.penaltyApplied) {
+            room.penaltyApplied = {};
+        }
+        room.penaltyApplied[nextPlayer.userId] = true;
+        console.log(`[${roomId}] ✅ Jugador ${nextPlayer.playerName} registrado en ludoGlobalPenaltyApplied para evitar que se reactive el timeout.`);
+        // ▲▲▲ FIN DE REGISTRO DE PENALIZACIÓN GLOBAL ▲▲▲
         // ▲▲▲ FIN DE REGISTRO ▲▲▲
         
         // Eliminar al jugador por inactividad usando la misma lógica que abandono voluntario
@@ -6753,6 +6778,21 @@ socket.on('accionDescartar', async (data) => {
                             delete ludoDisconnectedPlayers[disconnectKey];
                             return;
                         }
+                        
+                        // ▼▼▼ CRÍTICO: REGISTRAR PENALIZACIÓN GLOBAL ANTES DE ELIMINAR PARA EVITAR QUE SE REACTIVE EL TIMEOUT ▼▼▼
+                        if (leavingPlayerSeat.userId) {
+                            const globalPenaltyKeyForElimination = `${roomId}_${leavingPlayerSeat.userId}`;
+                            ludoGlobalPenaltyApplied[globalPenaltyKeyForElimination] = true;
+                            const currentRoomForPenalty = ludoRooms[roomId];
+                            if (currentRoomForPenalty) {
+                                if (!currentRoomForPenalty.penaltyApplied) {
+                                    currentRoomForPenalty.penaltyApplied = {};
+                                }
+                                currentRoomForPenalty.penaltyApplied[leavingPlayerSeat.userId] = true;
+                                console.log(`[${roomId}] ✅ Jugador ${username} registrado en ludoGlobalPenaltyApplied antes de eliminar por timeout de desconexión.`);
+                            }
+                        }
+                        // ▲▲▲ FIN DE REGISTRO DE PENALIZACIÓN GLOBAL ▲▲▲
                         
                         // Eliminar al jugador por abandono
                         console.log(`[LUDO DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN: ${username} (asiento ${seatIndex})`);
