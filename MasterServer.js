@@ -7268,12 +7268,18 @@ socket.on('accionDescartar', async (data) => {
                             if (playerIdToUse) {
                                 handlePlayerDeparture(roomId, playerIdToUse, io, true); // true = isInactivityTimeout
                             } else {
-                                // Si no hay playerId, eliminar directamente el asiento
+                                // Si no hay playerId, marcar como inactivo y eliminar el asiento
                                 console.log(`[${roomId}] ⚠️ Jugador ${username} está desconectado sin socket. Eliminando asiento directamente.`);
+                                if (currentSeatAtIndex) {
+                                    currentSeatAtIndex.active = false;
+                                }
                                 currentRoom.seats[seatIndex] = null;
-                                currentRoom.seats[seatIndex].active = false;
+                                
                                 // Pasar el turno si era su turno
-                                if (currentRoom.currentPlayerId === socket.id || currentRoom.currentPlayerId === playerIdToUse) {
+                                const wasCurrentTurn = currentRoom.currentPlayerId === socket.id || 
+                                                     (playerIdToUse && currentRoom.currentPlayerId === playerIdToUse) ||
+                                                     (currentSeatAtIndex && currentRoom.currentPlayerId === currentSeatAtIndex.playerId);
+                                if (wasCurrentTurn) {
                                     // Buscar siguiente jugador activo
                                     const activeSeats = currentRoom.seats.filter(s => s && s.active !== false);
                                     if (activeSeats.length > 1) {
@@ -7284,6 +7290,8 @@ socket.on('accionDescartar', async (data) => {
                                             const nextSeat = currentRoom.seats[nextIndex];
                                             if (nextSeat && nextSeat.active !== false) {
                                                 currentRoom.currentPlayerId = nextSeat.playerId;
+                                                // Iniciar timeout para el nuevo jugador
+                                                startLa51InactivityTimeout(currentRoom, nextSeat.playerId, io);
                                                 break;
                                             }
                                             nextIndex = (nextIndex + 1) % currentRoom.seats.length;
