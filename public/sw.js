@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.165'; // Actualizado: Manejo del evento inactivityTimeout en cliente con modal específico
+const CACHE_NAME = 'mutijuego-v1.12.166'; // Actualizado: Corrección de manejo de faltas en práctica de La 51
 const urlsToCache = [
   '/',
   '/index.html',

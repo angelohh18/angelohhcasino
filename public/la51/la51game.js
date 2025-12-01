@@ -1934,10 +1934,12 @@ function showRoomsOverview() {
         console.log('[playerEliminated] data.playerId:', data.playerId);
         console.log('[playerEliminated] data.redirect:', data.redirect);
 
-        // ▼▼▼ CRÍTICO: NO PROCESAR ELIMINACIONES DE MESAS DE PRÁCTICA ▼▼▼
-        if (currentGameSettings && currentGameSettings.isPractice) {
-            console.log('[playerEliminated] Ignorando eliminación de mesa de práctica. Las mesas de práctica no deben interferir con mesas reales.');
-            return; // Salir inmediatamente sin mostrar modal ni redirigir
+        // ▼▼▼ CRÍTICO: MANEJAR ELIMINACIONES DE MESAS DE PRÁCTICA ESPECIALMENTE ▼▼▼
+        // En práctica, se debe mostrar el modal de falta pero NO redirigir al lobby
+        const isPracticeGame = currentGameSettings && currentGameSettings.isPractice;
+        if (isPracticeGame) {
+            console.log('[playerEliminated] Eliminación en mesa de práctica detectada. Mostrando modal de falta.');
+            // NO retornar aquí, continuar para mostrar el modal de falta
         }
         // ▲▲▲ FIN DE VERIFICACIÓN DE MESA DE PRÁCTICA ▲▲▲
 
@@ -2038,8 +2040,12 @@ function showRoomsOverview() {
                 showEliminationMessage(data.playerName, faultInfo);
                 
                 // NO redirigir, el jugador puede seguir viendo el resto del juego
+                // EXCEPTO en práctica, donde se mostrará el modal de reinicio después
                 shouldRedirectToLobbyAfterElimination = false;
                 eliminationGameType = null;
+                
+                // Si es práctica, la bandera practiceGameEndedByHumanFault ya fue activada por el evento practiceGameHumanFaultEnd
+                // y se mostrará el modal de reinicio cuando se cierre el modal de falta
             }
             // ▲▲▲ FIN DE VERIFICACIÓN DE TIPO DE ELIMINACIÓN ▲▲▲
             
