@@ -7235,6 +7235,8 @@ socket.on('accionDescartar', async (data) => {
                     if (hasActiveInactivityTimeout) {
                         console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante su turno, pero ya hay un timeout de inactividad activo. NO se inicia nuevo timeout. El timeout existente esperará los 2 minutos completos.`);
                         // NO iniciar nuevo timeout, el existente se encargará de eliminar al jugador después de 2 minutos
+                        // NO eliminar de connectedUsers todavía - el timeout se encargará de eso
+                        return; // Salir inmediatamente, igual que en Ludo
                     } else {
                         // Si NO hay timeout activo, iniciar timeout de inactividad INMEDIATAMENTE
                         console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante su turno. Iniciando timeout de inactividad de 2 minutos.`);
@@ -7320,6 +7322,20 @@ socket.on('accionDescartar', async (data) => {
                                     }
                                 }
                             }
+                            
+                            // ▼▼▼ CRÍTICO: Eliminar de connectedUsers AHORA que el timeout se completó ▼▼▼
+                            if (leavingUserId) {
+                                // Buscar y eliminar cualquier entrada de connectedUsers para este userId
+                                Object.keys(connectedUsers).forEach(socketId => {
+                                    const userData = connectedUsers[socketId];
+                                    if (userData && (socketId === socket.id || (leavingUserId && socketId.includes(leavingUserId)))) {
+                                        delete connectedUsers[socketId];
+                                        console.log(`[LA 51 DISCONNECT TIMEOUT] ✅ Eliminado de connectedUsers: ${socketId}`);
+                                    }
+                                });
+                                broadcastUserListUpdate(io);
+                            }
+                            // ▲▲▲ FIN ELIMINACIÓN DE CONNECTEDUSERS ▲▲▲
                             
                             // ▼▼▼ CRÍTICO: Eliminar de connectedUsers AHORA que el timeout se completó ▼▼▼
                             if (leavingUserId) {
