@@ -669,11 +669,45 @@ function startLa51InactivityTimeout(room, playerId, io) {
     // Solo iniciar timeout para jugadores humanos (no bots)
     if (!playerSeat || playerSeat.isBot) return;
     
-    // Cancelar timeout anterior si existe
+    // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts posibles para este jugador (igual que en Ludo) ▼▼▼
+    // Cancelar timeout anterior si existe (por playerId)
     if (la51InactivityTimeouts[timeoutKey]) {
         clearTimeout(la51InactivityTimeouts[timeoutKey]);
         delete la51InactivityTimeouts[timeoutKey];
+        console.log(`[${roomId}] ✅ Timeout anterior cancelado para ${playerSeat.playerName} (playerId: ${playerId})`);
     }
+    
+    // Cancelar timeout anterior si existe (por userId)
+    if (playerSeat.userId) {
+        const timeoutKeyByUserId = `${roomId}_${playerSeat.userId}`;
+        if (la51InactivityTimeouts[timeoutKeyByUserId]) {
+            clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
+            delete la51InactivityTimeouts[timeoutKeyByUserId];
+            console.log(`[${roomId}] ✅ Timeout anterior cancelado para ${playerSeat.playerName} (userId: ${playerSeat.userId})`);
+        }
+    }
+    
+    // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${roomId}_`) && (key.includes(playerId) || (playerSeat.userId && key.includes(playerSeat.userId)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+            console.log(`[${roomId}] ✅ Timeout adicional cancelado: ${key}`);
+        }
+    });
+    // ▲▲▲ FIN CANCELACIÓN DE TODOS LOS TIMEOUTS ▲▲▲
+    
+    // ▼▼▼ CRÍTICO: Verificar si el jugador ya fue eliminado antes de iniciar timeout (igual que en Ludo) ▼▼▼
+    if (playerSeat.userId) {
+        const globalPenaltyKey = `${roomId}_${playerSeat.userId}`;
+        const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[playerSeat.userId]);
+        
+        if (alreadyPenalized) {
+            console.log(`[${roomId}] ⚠️ El jugador ${playerSeat.playerName} ya fue eliminado y penalizado. NO se inicia timeout de inactividad.`);
+            return; // NO iniciar timeout si ya fue eliminado
+        }
+    }
+    // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN ▲▲▲
     
     // Iniciar timeout INMEDIATAMENTE cuando le toca el turno
     console.log(`[${roomId}] ⏰ [TIMEOUT INICIADO INMEDIATAMENTE] Iniciando timeout de inactividad para ${playerSeat.playerName} (${playerId}). Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
@@ -4764,14 +4798,53 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
     const nextPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
     console.log(`[${room.roomId}] [TURN CHANGE] Turno cambiado a ${nextPlayer.playerName} (${room.currentPlayerId}). Es bot: ${nextPlayerSeat?.isBot || false}`);
     
+    // ▼▼▼ CRÍTICO: Cancelar timeout del jugador anterior (igual que en Ludo) ▼▼▼
+    const previousPlayerId = discardingPlayerId;
+    const previousTimeoutKey = `${room.roomId}_${previousPlayerId}`;
+    if (la51InactivityTimeouts[previousTimeoutKey]) {
+        clearTimeout(la51InactivityTimeouts[previousTimeoutKey]);
+        delete la51InactivityTimeouts[previousTimeoutKey];
+        console.log(`[${room.roomId}] ✅ Timeout de inactividad cancelado para el jugador anterior (${previousPlayerId})`);
+    }
+    // Buscar y cancelar cualquier otro timeout del jugador anterior (por userId también)
+    const previousSeat = room.seats.find(s => s && s.playerId === previousPlayerId);
+    if (previousSeat && previousSeat.userId) {
+        const previousTimeoutKeyByUserId = `${room.roomId}_${previousSeat.userId}`;
+        if (la51InactivityTimeouts[previousTimeoutKeyByUserId]) {
+            clearTimeout(la51InactivityTimeouts[previousTimeoutKeyByUserId]);
+            delete la51InactivityTimeouts[previousTimeoutKeyByUserId];
+            console.log(`[${room.roomId}] ✅ Timeout de inactividad cancelado para el jugador anterior (userId: ${previousSeat.userId})`);
+        }
+    }
+    // Buscar y cancelar cualquier otro timeout del jugador anterior
+    Object.keys(la51InactivityTimeouts).forEach(key => {
+        if (key.startsWith(`${room.roomId}_`) && (key.includes(previousPlayerId) || (previousSeat && previousSeat.userId && key.includes(previousSeat.userId)))) {
+            clearTimeout(la51InactivityTimeouts[key]);
+            delete la51InactivityTimeouts[key];
+            console.log(`[${room.roomId}] ✅ Timeout adicional del jugador anterior cancelado: ${key}`);
+        }
+    });
+    // ▲▲▲ FIN CANCELACIÓN DE TIMEOUT ANTERIOR ▲▲▲
+    
     if (nextPlayerSeat && nextPlayerSeat.isBot) {
         console.log(`[${room.roomId}] [TURN CHANGE] Jugador es bot, iniciando botPlay...`);
         setTimeout(() => botPlay(room, room.currentPlayerId, io), 1000);
     } else {
-        // Iniciar timeout INMEDIATAMENTE para el nuevo jugador (ANTES de emitir turnChanged)
-        console.log(`[${room.roomId}] [TURN CHANGE] ⚡⚡⚡ LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
-        startLa51InactivityTimeout(room, room.currentPlayerId, io);
-        console.log(`[${room.roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
+        // ▼▼▼ CRÍTICO: Iniciar timeout SOLO UNA VEZ para el nuevo jugador (ANTES de emitir turnChanged) ▼▼▼
+        // Verificar que NO hay un timeout activo ya para este jugador
+        const nextTimeoutKey = `${room.roomId}_${room.currentPlayerId}`;
+        const nextTimeoutKeyByUserId = nextPlayerSeat && nextPlayerSeat.userId ? `${room.roomId}_${nextPlayerSeat.userId}` : null;
+        const hasActiveTimeout = la51InactivityTimeouts[nextTimeoutKey] || 
+                                (nextTimeoutKeyByUserId && la51InactivityTimeouts[nextTimeoutKeyByUserId]);
+        
+        if (hasActiveTimeout) {
+            console.log(`[${room.roomId}] ⚠️ ADVERTENCIA: Ya existe un timeout activo para ${nextPlayer.playerName}. NO se inicia otro timeout.`);
+        } else {
+            console.log(`[${room.roomId}] [TURN CHANGE] ⚡⚡⚡ LLAMANDO startLa51InactivityTimeout INMEDIATAMENTE para ${nextPlayer.playerName} (${room.currentPlayerId})...`);
+            startLa51InactivityTimeout(room, room.currentPlayerId, io);
+            console.log(`[${room.roomId}] [TURN CHANGE] ✅ startLa51InactivityTimeout ejecutado para ${nextPlayer.playerName}`);
+        }
+        // ▲▲▲ FIN INICIO DE TIMEOUT ÚNICO ▲▲▲
     }
 
     io.to(room.roomId).emit('turnChanged', {

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.174'; // Actualizado: Aplicada lógica de Ludo a La 51 - jugador NO se elimina de connectedUsers antes del timeout
+const CACHE_NAME = 'mutijuego-v1.12.175'; // Actualizado: Corrección crítica - solo se inicia UN timeout cuando cambia el turno en La 51
 const urlsToCache = [
   '/',
   '/index.html',
