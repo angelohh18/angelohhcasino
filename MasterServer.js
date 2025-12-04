@@ -4871,15 +4871,6 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA ▼▼▼
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
 async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTimeout = false) {
-    console.log(`[DEBUG handlePlayerDeparture] 🔍 INICIO - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
-    try {
-        const stackTrace = new Error().stack;
-        if (stackTrace) {
-            console.log(`[DEBUG handlePlayerDeparture] 🔍 Stack trace:\n${stackTrace}`);
-        }
-    } catch (err) {
-        console.log(`[DEBUG handlePlayerDeparture] 🔍 Stack trace no disponible`);
-    }
     const room = la51Rooms[roomId];
 
     // Cancelar timeout de inactividad: el jugador está saliendo (igual que en Ludo)
@@ -4937,8 +4928,6 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
             if (!isInactivityTimeout) {
             // Forzar salida de la sala de socket.io inmediatamente
             leavingSocket.leave(roomId);
-            } else {
-                console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ NO haciendo socket.leave porque isInactivityTimeout es true - el socket ya está desconectado y el timeout se encargará de todo`);
             }
             // ▲▲▲ FIN: NO hacer socket.leave si es timeout de inactividad ▲▲▲
         }
@@ -5013,17 +5002,8 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
         // ▼▼▼ CRÍTICO: NO hacer socket.leave si es timeout de inactividad ▼▼▼
         // Si es timeout de inactividad, el socket ya está desconectado y el timeout se encargará de todo
         // NO hacer socket.leave porque esto podría causar que el cliente se desconecte prematuramente
-        if (!isInactivityTimeout) {
-            console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ HACIENDO socket.leave - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
-            try {
-                const stackTrace = new Error().stack;
-                if (stackTrace) {
-                    console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace:\n${stackTrace}`);
-                }
-            } catch (err) {
-                console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace no disponible`);
-            }
-        leavingSocket.leave(roomId);
+            if (!isInactivityTimeout) {
+                leavingSocket.leave(roomId);
         console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
         
         if (leavingSocket.rooms) {
@@ -8078,15 +8058,6 @@ socket.on('accionDescartar', async (data) => {
     const { roomId } = data;
     const username = connectedUsers[socket.id]?.username || socket.userId?.replace(/^user_/, '') || socket.id;
     
-    console.log(`[DEBUG leaveGame] 🔍 INICIO leaveGame - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-    try {
-        const stackTrace = new Error().stack;
-        if (stackTrace) {
-            console.log(`[DEBUG leaveGame] 🔍 Stack trace:\n${stackTrace}`);
-        }
-    } catch (err) {
-        console.log(`[DEBUG leaveGame] 🔍 Stack trace no disponible`);
-    }
 
     // ▼▼▼ CRÍTICO: Detectar si es una sala de Ludo o La 51 ▼▼▼
     const isLudoRoom = roomId && ludoRooms[roomId];
@@ -8158,15 +8129,6 @@ socket.on('accionDescartar', async (data) => {
     // 2. (ORDEN CORREGIDO) AHORA, con la lógica del juego ya resuelta,
     // limpiamos el estado del socket de forma segura.
     if (roomId) {
-        console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ HACIENDO socket.leave DESDE leaveGame - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-        try {
-            const stackTrace = new Error().stack;
-            if (stackTrace) {
-                console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ Stack trace:\n${stackTrace}`);
-            }
-        } catch (err) {
-            console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ Stack trace no disponible`);
-        }
         socket.leave(roomId);
         console.log(`[leaveGame] Socket ${socket.id} ha salido de la sala Socket.IO: ${roomId}`);
     }
