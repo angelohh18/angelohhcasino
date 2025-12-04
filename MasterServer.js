@@ -586,11 +586,54 @@ function checkAndCleanRoom(roomId, io) {
 
 // ▼▼▼ FUNCIÓN CORREGIDA PARA ACTUALIZAR LISTA DE USUARIOS ▼▼▼
 function broadcastUserListUpdate(io) {
-    // Limpieza básica
+    // Limpieza básica - NO eliminar si está en partida activa
     Object.keys(connectedUsers).forEach(socketId => {
         const socket = io.sockets.sockets.get(socketId);
         if (!socket || !socket.connected) {
-            delete connectedUsers[socketId];
+            // ▼▼▼ CRÍTICO: Verificar si el jugador está en partida activa antes de eliminar ▼▼▼
+            const userId = socket ? (socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId)) : null;
+            const roomId = socket ? socket.currentRoomId : null;
+            
+            let shouldKeep = false;
+            if (roomId && userId) {
+                // Verificar Ludo
+                if (ludoRooms[roomId] && (ludoRooms[roomId].state === 'playing' || ludoRooms[roomId].state === 'post-game')) {
+                    const seatIndex = ludoRooms[roomId].seats.findIndex(s => s && s.userId === userId);
+                    if (seatIndex !== -1) {
+                        const seat = ludoRooms[roomId].seats[seatIndex];
+                        if (seat && seat.status !== 'waiting') {
+                            shouldKeep = true;
+                        }
+                    }
+                }
+                // Verificar La 51
+                if (la51Rooms[roomId] && la51Rooms[roomId].state === 'playing') {
+                    const seatIndex = la51Rooms[roomId].seats.findIndex(s => s && s.userId === userId);
+                    if (seatIndex !== -1) {
+                        const seat = la51Rooms[roomId].seats[seatIndex];
+                        if (seat && seat.status !== 'waiting') {
+                            shouldKeep = true;
+                        }
+                    }
+                }
+                // Verificar si hay timeout activo
+                if (!shouldKeep) {
+                    if (ludoRooms[roomId]) {
+                        const ludoTimeoutKey = `${roomId}_${userId}`;
+                        shouldKeep = ludoInactivityTimeouts[ludoTimeoutKey];
+                    }
+                    if (la51Rooms[roomId]) {
+                        const la51TimeoutKey = `${roomId}_${userId}`;
+                        shouldKeep = shouldKeep || la51InactivityTimeouts[la51TimeoutKey];
+                    }
+                }
+            }
+            
+            // Solo eliminar si NO está en partida activa Y NO hay timeout activo
+            if (!shouldKeep) {
+                delete connectedUsers[socketId];
+            }
+            // ▲▲▲ FIN VERIFICACIÓN DE PARTIDA ACTIVA ▲▲▲
         }
     });
     
@@ -6274,6 +6317,42 @@ io.on('connection', (socket) => {
         if (existingSeat && existingSeatIndex !== -1) {
             console.log(`[${roomId}] 🔄 Jugador ${user.username} reconectándose a su asiento [${existingSeatIndex}]. Actualizando socket.id de ${existingSeat.playerId} a ${socket.id}`);
             
+            // ▼▼▼ CRÍTICO: Actualizar connectedUsers con el nuevo socket.id manteniendo la información original ▼▼▼
+            // Buscar la información del usuario en cualquier socket anterior
+            let userInfo = null;
+            if (userId) {
+                // Buscar en connectedUsers por userId
+                Object.keys(connectedUsers).forEach(oldSocketId => {
+                    const oldSocket = io.sockets.sockets.get(oldSocketId);
+                    if (oldSocket && oldSocket.userId === userId) {
+                        userInfo = connectedUsers[oldSocketId];
+                        // Eliminar la entrada antigua
+                        delete connectedUsers[oldSocketId];
+                        console.log(`[${roomId}] ✅ Información de usuario transferida de socket ${oldSocketId} a ${socket.id}`);
+                    }
+                });
+            }
+            
+            // Si no se encontró, usar la información del socket actual o crear nueva
+            if (!userInfo) {
+                userInfo = connectedUsers[socket.id] || {
+                    username: user.username,
+                    status: `En partida de La 51`,
+                    currentLobby: 'La 51'
+                };
+            }
+            
+            // Actualizar connectedUsers con el nuevo socket.id
+            connectedUsers[socket.id] = {
+                ...userInfo,
+                username: user.username,
+                status: room.state === 'playing' ? `En partida de La 51` : `En el lobby de La 51`,
+                currentLobby: 'La 51'
+            };
+            broadcastUserListUpdate(io);
+            console.log(`[${roomId}] ✅ connectedUsers actualizado para socket ${socket.id} con información de ${user.username}`);
+            // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
+            
             // Actualizar el playerId con el nuevo socket.id
             existingSeat.playerId = socket.id;
             
@@ -7380,11 +7459,22 @@ socket.on('accionDescartar', async (data) => {
         }
     }
     
-    // Solo eliminar de connectedUsers si NO está en partida activa Y NO hay timeout activo
-    if (!shouldKeepInConnectedUsers && !hasActiveInactivityTimeout && connectedUsers[socket.id]) {
+    // ▼▼▼ CRÍTICO: Mantener información del jugador en connectedUsers por userId si está en partida activa ▼▼▼
+    // Si está en partida activa, NO eliminar de connectedUsers - mantener la información para reconexión
+    // La información se buscará por userId cuando el jugador se reconecte
+    if (shouldKeepInConnectedUsers && userId && connectedUsers[socket.id]) {
+        // Mantener la información del usuario - NO eliminar de connectedUsers
+        // Cuando el jugador se reconecte, se buscará esta información por userId y se transferirá al nuevo socket.id
+        const userInfo = connectedUsers[socket.id];
+        console.log(`[DISCONNECT] Manteniendo información de ${username} (userId: ${userId}) en memoria para reconexión. Socket ${socket.id} desconectado pero información preservada.`);
+        // NO eliminar de connectedUsers - se transferirá al nuevo socket.id cuando se reconecte
+        // La búsqueda por userId en la reconexión encontrará esta información
+    } else if (!shouldKeepInConnectedUsers && !hasActiveInactivityTimeout && connectedUsers[socket.id]) {
+        // Solo eliminar si NO está en partida activa Y NO hay timeout activo
         delete connectedUsers[socket.id];
         broadcastUserListUpdate(io);
     }
+    // ▲▲▲ FIN MANTENER INFORMACIÓN PARA RECONEXIÓN ▲▲▲
 
     // 3. Maneja la lógica de la sala (si estaba en una)
     if (roomId && ludoRooms[roomId]) {
@@ -8683,6 +8773,43 @@ socket.on('accionDescartar', async (data) => {
           }
           // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
           
+          // ▼▼▼ CRÍTICO: Actualizar connectedUsers con el nuevo socket.id manteniendo la información original ▼▼▼
+          // Buscar la información del usuario en cualquier socket anterior
+          let userInfo = null;
+          if (userId) {
+            // Buscar en connectedUsers por userId
+            Object.keys(connectedUsers).forEach(oldSocketId => {
+                const oldSocket = io.sockets.sockets.get(oldSocketId);
+                if (oldSocket && oldSocket.userId === userId) {
+                    userInfo = connectedUsers[oldSocketId];
+                    // Eliminar la entrada antigua
+                    delete connectedUsers[oldSocketId];
+                    console.log(`[${roomId}] ✅ Información de usuario transferida de socket ${oldSocketId} a ${socket.id}`);
+                }
+            });
+          }
+          
+          // Si no se encontró, usar la información del socket actual o crear nueva
+          if (!userInfo) {
+              const username = userId.replace('user_', '');
+              userInfo = connectedUsers[socket.id] || {
+                  username: username,
+                  status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+                  currentLobby: 'Ludo'
+              };
+          }
+          
+          // Actualizar connectedUsers con el nuevo socket.id
+          connectedUsers[socket.id] = {
+              ...userInfo,
+              username: userInfo.username || userId.replace('user_', ''),
+              status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+              currentLobby: 'Ludo'
+          };
+          broadcastUserListUpdate(io);
+          console.log(`[${roomId}] ✅ connectedUsers actualizado para socket ${socket.id} con información de ${userId}`);
+          // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
+          
           // IMPORTANTE: Actualizar socket.currentRoomId para que el jugador pueda interactuar
           socket.currentRoomId = roomId;
           socket.join(roomId);
@@ -8792,8 +8919,116 @@ socket.on('accionDescartar', async (data) => {
       // Si llegamos aquí, el jugador no está en reconnectSeats y la sala existe
       // Continuar con la lógica normal de asignación de asientos (nuevo jugador)
     
-      // Buscar el asiento del jugador por su 'userId' (que es el username)
+      // ▼▼▼ CRÍTICO: Verificar si el jugador ya está en la sala (RECONEXIÓN) ▼▼▼
+      // Buscar el asiento del jugador por su 'userId' (para reconexión)
       let mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
+      
+      // Si el jugador ya está en la sala, es una reconexión - actualizar socket.id y limpiar timeouts
+      if (mySeatIndex !== -1) {
+          const existingSeat = room.seats[mySeatIndex];
+          console.log(`[${roomId}] 🔄 Jugador ${userId} reconectándose a su asiento [${mySeatIndex}]. Actualizando socket.id de ${existingSeat.playerId} a ${socket.id}`);
+          
+          // Actualizar el playerId con el nuevo socket.id
+          existingSeat.playerId = socket.id;
+          
+          // Asegurar que el socket esté en la sala
+          socket.join(roomId);
+          socket.currentRoomId = roomId;
+          
+          // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts de inactividad ▼▼▼
+          const inactivityTimeoutKey = `${roomId}_${userId}`;
+          if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+              clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+              delete ludoInactivityTimeouts[inactivityTimeoutKey];
+              console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${userId} (jugador se reconectó)`);
+          }
+          // También buscar y cancelar cualquier timeout con socket.id anterior
+          if (existingSeat.playerId && existingSeat.playerId !== socket.id) {
+              const oldTimeoutKey = `${roomId}_${existingSeat.playerId}`;
+              if (ludoInactivityTimeouts[oldTimeoutKey]) {
+                  clearTimeout(ludoInactivityTimeouts[oldTimeoutKey]);
+                  delete ludoInactivityTimeouts[oldTimeoutKey];
+              }
+          }
+          // Buscar y cancelar cualquier otro timeout
+          Object.keys(ludoInactivityTimeouts).forEach(key => {
+              if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id))) {
+                  clearTimeout(ludoInactivityTimeouts[key]);
+                  delete ludoInactivityTimeouts[key];
+              }
+          });
+          // ▲▲▲ FIN CANCELACIÓN DE TIMEOUTS ▲▲▲
+          
+          // Limpiar estado de desconexión
+          const disconnectKey = `${roomId}_${userId}`;
+          if (ludoDisconnectedPlayers[disconnectKey]) {
+              delete ludoDisconnectedPlayers[disconnectKey];
+              console.log(`[${roomId}] ✓ Estado de desconexión limpiado para ${userId} (jugador se reconectó)`);
+          }
+          
+          // ▼▼▼ CRÍTICO: Actualizar connectedUsers con el nuevo socket.id ▼▼▼
+          let userInfo = null;
+          if (userId) {
+              Object.keys(connectedUsers).forEach(oldSocketId => {
+                  const oldSocket = io.sockets.sockets.get(oldSocketId);
+                  if (oldSocket && oldSocket.userId === userId) {
+                      userInfo = connectedUsers[oldSocketId];
+                      delete connectedUsers[oldSocketId];
+                      console.log(`[${roomId}] ✅ Información de usuario transferida de socket ${oldSocketId} a ${socket.id}`);
+                  }
+              });
+          }
+          
+          if (!userInfo) {
+              const username = userId.replace('user_', '');
+              userInfo = {
+                  username: username,
+                  status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+                  currentLobby: 'Ludo'
+              };
+          }
+          
+          connectedUsers[socket.id] = {
+              ...userInfo,
+              username: userInfo.username || userId.replace('user_', ''),
+              status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+              currentLobby: 'Ludo'
+          };
+          broadcastUserListUpdate(io);
+          // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
+          
+          // Enviar estado del juego al jugador reconectado
+          const sanitizedRoom = ludoGetSanitizedRoomForClient(room);
+          socket.emit('joinedRoomSuccessfully', {
+              roomId: roomId,
+              roomName: room.settings.roomName,
+              seats: room.seats,
+              settings: room.settings,
+              mySeatIndex: mySeatIndex,
+              gameState: room.gameState
+          });
+          
+          io.to(roomId).emit('playerJoined', sanitizedRoom);
+          
+          // Si el juego está en curso, enviar el estado completo
+          if (room.state === 'playing' && room.gameState) {
+              socket.emit('ludoGameStateUpdated', {
+                  newGameState: room.gameState,
+                  seats: room.seats,
+                  moveInfo: { type: 'reconnect_sync' }
+              });
+          }
+          
+          // Notificar a todos que el jugador se reconectó
+          io.to(roomId).emit('playerReconnected', {
+              playerName: existingSeat.playerName,
+              message: `${existingSeat.playerName} se reconectó.`
+          });
+          
+          console.log(`[${roomId}] ✅ Jugador ${userId} reconectado exitosamente a su asiento [${mySeatIndex}]`);
+          return; // Salir temprano, no procesar más
+      }
+      // ▲▲▲ FIN VERIFICACIÓN DE RECONEXIÓN ▲▲▲
 
       let playerName = null; // Variable para guardar el nombre
 
