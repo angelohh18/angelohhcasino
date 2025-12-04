@@ -4872,7 +4872,14 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
 async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTimeout = false) {
     console.log(`[DEBUG handlePlayerDeparture] 🔍 INICIO - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
-    console.log(`[DEBUG handlePlayerDeparture] 🔍 Stack trace:`, new Error().stack);
+    try {
+        const stackTrace = new Error().stack;
+        if (stackTrace) {
+            console.log(`[DEBUG handlePlayerDeparture] 🔍 Stack trace:\n${stackTrace}`);
+        }
+    } catch (err) {
+        console.log(`[DEBUG handlePlayerDeparture] 🔍 Stack trace no disponible`);
+    }
     const room = la51Rooms[roomId];
 
     // Cancelar timeout de inactividad: el jugador está saliendo (igual que en Ludo)
@@ -5008,7 +5015,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
         // NO hacer socket.leave porque esto podría causar que el cliente se desconecte prematuramente
         if (!isInactivityTimeout) {
             console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ HACIENDO socket.leave - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
-            console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
+            try {
+                const stackTrace = new Error().stack;
+                if (stackTrace) {
+                    console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace:\n${stackTrace}`);
+                }
+            } catch (err) {
+                console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace no disponible`);
+            }
         leavingSocket.leave(roomId);
         console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
         
@@ -7315,9 +7329,13 @@ socket.on('accionDescartar', async (data) => {
 
     console.log(`❌ Jugador desconectado: ${socket.id}`);
     console.log(`[DEBUG DISCONNECT] 🔍 INICIO DISCONNECT - Usuario: ${username}, userId: ${userId}, roomId: ${roomId}, socket.id: ${socket.id}`);
-    const stackTrace = new Error().stack;
-    if (stackTrace) {
-        console.log(`[DEBUG DISCONNECT] 🔍 Stack trace:\n${stackTrace}`);
+    try {
+        const stackTrace = new Error().stack;
+        if (stackTrace) {
+            console.log(`[DEBUG DISCONNECT] 🔍 Stack trace:\n${stackTrace}`);
+        }
+    } catch (err) {
+        console.log(`[DEBUG DISCONNECT] 🔍 Stack trace no disponible`);
     }
 
     // ▼▼▼ CRÍTICO: Verificar si está en una sala de La 51 en estado 'playing' ANTES de eliminar de connectedUsers ▼▼▼
@@ -7360,7 +7378,14 @@ socket.on('accionDescartar', async (data) => {
     if (!shouldKeepInConnectedUsers && !hasActiveInactivityTimeout && connectedUsers[socket.id]) {
         wasInList = true;
         console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ ELIMINANDO DE CONNECTEDUSERS ANTES DEL TIMEOUT - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-        console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace de eliminación:`, new Error().stack);
+        try {
+            const stackTrace = new Error().stack;
+            if (stackTrace) {
+                console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace de eliminación:\n${stackTrace}`);
+            }
+        } catch (err) {
+            console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace no disponible`);
+        }
         delete connectedUsers[socket.id];
     } else if (shouldKeepInConnectedUsers || hasActiveInactivityTimeout) {
         console.log(`[DISCONNECT] ${username || socket.id} se desconectó pero tiene timeout activo o está en partida activa de La 51. NO se elimina de connectedUsers todavía.`);
@@ -7742,7 +7767,14 @@ socket.on('accionDescartar', async (data) => {
             } else {
                 // Si está en espera, eliminar inmediatamente
                 console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ LLAMANDO handlePlayerDeparture DESDE DISCONNECT (esperando) - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-                console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
+                try {
+                    const stackTrace = new Error().stack;
+                    if (stackTrace) {
+                        console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace:\n${stackTrace}`);
+                    }
+                } catch (err) {
+                    console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace no disponible`);
+                }
                 handlePlayerDeparture(roomId, socket.id, io);
             }
             // ▲▲▲ FIN: LOGICA SIMPLE COMO LUDO ▲▲▲
@@ -8117,7 +8149,14 @@ socket.on('accionDescartar', async (data) => {
     const username = connectedUsers[socket.id]?.username || socket.userId?.replace(/^user_/, '') || socket.id;
     
     console.log(`[DEBUG leaveGame] 🔍 INICIO leaveGame - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-    console.log(`[DEBUG leaveGame] 🔍 Stack trace:`, new Error().stack);
+    try {
+        const stackTrace = new Error().stack;
+        if (stackTrace) {
+            console.log(`[DEBUG leaveGame] 🔍 Stack trace:\n${stackTrace}`);
+        }
+    } catch (err) {
+        console.log(`[DEBUG leaveGame] 🔍 Stack trace no disponible`);
+    }
 
     // ▼▼▼ CRÍTICO: Detectar si es una sala de Ludo o La 51 ▼▼▼
     const isLudoRoom = roomId && ludoRooms[roomId];
@@ -8190,7 +8229,14 @@ socket.on('accionDescartar', async (data) => {
     // limpiamos el estado del socket de forma segura.
     if (roomId) {
         console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ HACIENDO socket.leave DESDE leaveGame - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-        console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
+        try {
+            const stackTrace = new Error().stack;
+            if (stackTrace) {
+                console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ Stack trace:\n${stackTrace}`);
+            }
+        } catch (err) {
+            console.log(`[DEBUG leaveGame] ⚠️⚠️⚠️ Stack trace no disponible`);
+        }
         socket.leave(roomId);
         console.log(`[leaveGame] Socket ${socket.id} ha salido de la sala Socket.IO: ${roomId}`);
     }
