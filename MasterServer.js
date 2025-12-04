@@ -5159,23 +5159,27 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                     // ▼▼▼ CRÍTICO: Solo emitir inactivityTimeout si el socket está conectado ▼▼▼
                     if (leavingSocket.connected) {
                         leavingSocket.emit('inactivityTimeout', {
-                        playerId: leavingPlayerId,
-                        playerName: playerName,
-                        userId: leavingUserId,
-                        username: realUsername,
-                        avatar: userInfo ? userInfo.avatar : null,
-                        userCurrency: userInfo ? userInfo.currency : 'USD',
-                        message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
-                        reason: 'inactivity',
-                        redirect: true,
-                        forceExit: true
-                    });
-                    console.log(`[${roomId}] ✅ Evento inactivityTimeout enviado SOLO a ${playerName} (${leavingPlayerId}) para mostrar modal en el lobby. Los demás jugadores recibieron playerEliminated con redirect: false`);
-                    
-                    // ▼▼▼ CRÍTICO: Actualizar la lista de usuarios inmediatamente después de emitir el evento ▼▼▼
-                    broadcastUserListUpdate(io);
-                    console.log(`[${roomId}] ✅ Lista de usuarios actualizada después de eliminación por inactividad`);
-                    // ▲▲▲ FIN DE ACTUALIZACIÓN DE LISTA ▲▲▲
+                            playerId: leavingPlayerId,
+                            playerName: playerName,
+                            userId: leavingUserId,
+                            username: realUsername,
+                            avatar: userInfo ? userInfo.avatar : null,
+                            userCurrency: userInfo ? userInfo.currency : 'USD',
+                            message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
+                            reason: 'inactivity',
+                            redirect: true,
+                            forceExit: true
+                        });
+                        console.log(`[${roomId}] ✅ Evento inactivityTimeout enviado SOLO a ${playerName} (${leavingPlayerId}) para mostrar modal en el lobby. Los demás jugadores recibieron playerEliminated con redirect: false`);
+                        
+                        // ▼▼▼ CRÍTICO: Actualizar la lista de usuarios inmediatamente después de emitir el evento ▼▼▼
+                        broadcastUserListUpdate(io);
+                        console.log(`[${roomId}] ✅ Lista de usuarios actualizada después de eliminación por inactividad`);
+                        // ▲▲▲ FIN DE ACTUALIZACIÓN DE LISTA ▲▲▲
+                    } else {
+                        console.log(`[${roomId}] ⚠️ Socket ${leavingPlayerId} no está conectado. NO se envía inactivityTimeout. El jugador recibirá el evento cuando se reconecte.`);
+                    }
+                    // ▲▲▲ FIN: Solo emitir inactivityTimeout si el socket está conectado ▲▲▲
                 } else {
                     console.warn(`[${roomId}] ⚠️ No se encontró socket para ${playerName} (${leavingPlayerId}), pero se actualizará connectedUsers si existe`);
                     // Intentar actualizar connectedUsers de todas formas si existe alguna entrada
