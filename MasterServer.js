@@ -6926,11 +6926,8 @@ if (cards.length !== cardIds.length) {
   });
 
 socket.on('accionDescartar', async (data) => {
-    console.log(`[DEBUG] accionDescartar recibida de ${socket.id}:`, data);
     const { roomId, card } = data;
     const room = la51Rooms[roomId];
-    
-    console.log(`[DEBUG] Room encontrada:`, !!room);
     
     // Cancelar timeout de inactividad: el jugador está actuando (igual que en Ludo)
     const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
@@ -6950,10 +6947,8 @@ socket.on('accionDescartar', async (data) => {
             delete la51InactivityTimeouts[key];
         }
     });
-    console.log(`[DEBUG] Current player: ${room?.currentPlayerId}, Socket ID: ${socket.id}`);
     
     if (!room || room.currentPlayerId !== socket.id) {
-        console.log(`[DEBUG] Salida temprana: room=${!!room}, currentPlayer=${room?.currentPlayerId}, socket=${socket.id}`);
         return;
     }
 
@@ -7003,7 +6998,6 @@ socket.on('accionDescartar', async (data) => {
     // ▲▲▲ FIN CANCELACIÓN TIMEOUT Y LIMPIEZA DE DESCONEXIÓN ▲▲▲
 
     const playerSeat = room.seats.find(s => s && s.playerId === socket.id);
-    console.log(`[DEBUG] Player seat encontrado:`, !!playerSeat);
     if (!playerSeat) return;
 
     const playerHand = room.playerHands[socket.id];
