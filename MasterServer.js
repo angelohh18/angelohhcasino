@@ -4920,11 +4920,20 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
         });
         
         // 2. Limpiar referencia en el socket del jugador
+        // ▼▼▼ CRÍTICO: NO hacer socket.leave si es timeout de inactividad - el socket ya está desconectado y el timeout se encargará de todo ▼▼▼
         const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
         if (leavingSocket) {
             delete leavingSocket.currentRoomId;
+            // ▼▼▼ CRÍTICO: NO hacer socket.leave si es timeout de inactividad ▼▼▼
+            // Si es timeout de inactividad, el socket ya está desconectado y el timeout se encargará de todo
+            // NO hacer socket.leave porque esto podría causar que el cliente se desconecte prematuramente
+            if (!isInactivityTimeout) {
             // Forzar salida de la sala de socket.io inmediatamente
             leavingSocket.leave(roomId);
+            } else {
+                console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ NO haciendo socket.leave porque isInactivityTimeout es true - el socket ya está desconectado y el timeout se encargará de todo`);
+            }
+            // ▲▲▲ FIN: NO hacer socket.leave si es timeout de inactividad ▲▲▲
         }
         
         // 3. Eliminar la sala de la memoria global
@@ -4941,7 +4950,8 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
         }
         
         // 6. LIMPIEZA DEPREDADORA DE SOCKET (Para asegurar que createRoom no falle después)
-        if (leavingSocket && leavingSocket.rooms) {
+        // ▼▼▼ CRÍTICO: NO hacer socket.leave si es timeout de inactividad - el socket ya está desconectado y el timeout se encargará de todo ▼▼▼
+        if (leavingSocket && leavingSocket.rooms && !isInactivityTimeout) {
             // Iteramos sobre las salas del socket y lo sacamos de cualquier cosa que parezca una práctica
             for (const r of Array.from(leavingSocket.rooms)) {
                 if (r !== leavingSocket.id && (r.startsWith('practice-') || r === roomId)) {
@@ -4949,6 +4959,7 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                 }
             }
         }
+        // ▲▲▲ FIN: NO hacer socket.leave si es timeout de inactividad ▲▲▲
         
         // IMPORTANTE: NO emitimos 'playerEliminated' ni 'gameEnded'. 
         // Simplemente dejamos que el cliente vuelva al lobby por su propia acción de clic.
@@ -4984,14 +4995,20 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
     // NO liberar aquí todavía si el juego está activo, se liberará después de pasar el turno
     
     // 2. Limpiar referencia en el socket del jugador (igual que Ludo)
+    // ▼▼▼ CRÍTICO: NO hacer socket.leave si es timeout de inactividad - el socket ya está desconectado y el timeout se encargará de todo ▼▼▼
     const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
     if (leavingSocket) {
         if (leavingSocket.currentRoomId === roomId) {
             delete leavingSocket.currentRoomId;
             console.log(`[${roomId}] ✅ socket.currentRoomId eliminado para ${leavingPlayerId}`);
         }
-        console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ HACIENDO socket.leave - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
-        console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
+        
+        // ▼▼▼ CRÍTICO: NO hacer socket.leave si es timeout de inactividad ▼▼▼
+        // Si es timeout de inactividad, el socket ya está desconectado y el timeout se encargará de todo
+        // NO hacer socket.leave porque esto podría causar que el cliente se desconecte prematuramente
+        if (!isInactivityTimeout) {
+            console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ HACIENDO socket.leave - roomId: ${roomId}, leavingPlayerId: ${leavingPlayerId}, isInactivityTimeout: ${isInactivityTimeout}`);
+            console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ Stack trace:`, new Error().stack);
         leavingSocket.leave(roomId);
         console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} salió de la sala de socket.io`);
         
@@ -5002,6 +5019,10 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                 }
             }
         }
+        } else {
+            console.log(`[DEBUG handlePlayerDeparture] ⚠️⚠️⚠️ NO haciendo socket.leave porque isInactivityTimeout es true - el socket ya está desconectado y el timeout se encargará de todo`);
+        }
+        // ▲▲▲ FIN: NO hacer socket.leave si es timeout de inactividad ▲▲▲
     }
     
     // 3. Limpiar de initialSeats si existe
@@ -5086,14 +5107,14 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
             if (isInactivityTimeout) {
                 // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
                 io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
-                    playerId: leavingPlayerId,
-                    playerName: playerName,
-                    reason: reason,
-                    faultData: { reason: abandonmentReason },
+                playerId: leavingPlayerId,
+                playerName: playerName,
+                reason: reason,
+                faultData: { reason: abandonmentReason },
                     redirect: false, // NO redirigir a los demás jugadores
-                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
-                });
-                
+                penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+            });
+            
                 // Enviar SOLO al jugador eliminado el evento inactivityTimeout para mostrar modal en el lobby
                 const leavingUserIdForEvent = leavingPlayerSeat.userId;
                 let leavingSocket = io.sockets.sockets.get(leavingPlayerId);
@@ -5115,23 +5136,29 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                     const userInfo = leavingUserId ? users[leavingUserId] : null;
                     const realUsername = userInfo ? userInfo.username : playerName;
                     
-                    // ▼▼▼ CRÍTICO: Actualizar connectedUsers ANTES de emitir el evento ▼▼▼
+                    // ▼▼▼ CRÍTICO: Actualizar connectedUsers ANTES de emitir el evento (solo si el socket está conectado) ▼▼▼
                     // Asegurar que el nombre y estado se actualicen correctamente
-                    if (connectedUsers[leavingSocket.id]) {
+                    // IMPORTANTE: Solo actualizar si el socket está realmente conectado, no si está desconectado
+                    if (leavingSocket.connected && connectedUsers[leavingSocket.id]) {
                         connectedUsers[leavingSocket.id].username = realUsername;
                         connectedUsers[leavingSocket.id].status = 'En el lobby de La 51';
                         connectedUsers[leavingSocket.id].currentLobby = 'La 51';
-                    } else {
+                        console.log(`[${roomId}] ✅ connectedUsers actualizado para ${realUsername} (socket: ${leavingSocket.id})`);
+                    } else if (leavingSocket.connected && !connectedUsers[leavingSocket.id]) {
                         connectedUsers[leavingSocket.id] = {
                             username: realUsername,
                             status: 'En el lobby de La 51',
                             currentLobby: 'La 51'
                         };
+                        console.log(`[${roomId}] ✅ connectedUsers creado para ${realUsername} (socket: ${leavingSocket.id})`);
+                    } else {
+                        console.log(`[${roomId}] ⚠️ Socket ${leavingSocket.id} no está conectado. NO se actualiza connectedUsers. El timeout se encargará de eso.`);
                     }
-                    console.log(`[${roomId}] ✅ connectedUsers actualizado para ${realUsername} (socket: ${leavingSocket.id})`);
                     // ▲▲▲ FIN DE ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
                     
-                    leavingSocket.emit('inactivityTimeout', {
+                    // ▼▼▼ CRÍTICO: Solo emitir inactivityTimeout si el socket está conectado ▼▼▼
+                    if (leavingSocket.connected) {
+                        leavingSocket.emit('inactivityTimeout', {
                         playerId: leavingPlayerId,
                         playerName: playerName,
                         userId: leavingUserId,
@@ -5179,18 +5206,18 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                 });
                 
                 // Enviar SOLO al jugador eliminado con redirect: true para expulsarlo al lobby
-                const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
-                if (leavingSocket) {
-                    leavingSocket.emit('playerEliminated', {
-                        playerId: leavingPlayerId,
-                        playerName: playerName,
-                        reason: reason,
-                        faultData: { reason: abandonmentReason },
+            const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+            if (leavingSocket) {
+                leavingSocket.emit('playerEliminated', {
+                    playerId: leavingPlayerId,
+                    playerName: playerName,
+                    reason: reason,
+                    faultData: { reason: abandonmentReason },
                         redirect: true, // IMPORTANTE: Solo este jugador debe ser redirigido
-                        penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
-                    });
+                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                });
                     console.log(`[${roomId}] ✅ Evento playerEliminated enviado SOLO a ${playerName} (${leavingPlayerId}) con redirect: true. Los demás jugadores recibieron redirect: false`);
-                }
+            }
             }
             // ▲▲▲ FIN ENVÍO CORREGIDO ▲▲▲
 
@@ -7281,7 +7308,7 @@ socket.on('accionDescartar', async (data) => {
     const username = connectedUsers[socket.id]?.username || socket.userId?.replace(/^user_/, '') || socket.id;
     const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
     const roomId = socket.currentRoomId;
-    
+
     console.log(`❌ Jugador desconectado: ${socket.id}`);
     console.log(`[DEBUG DISCONNECT] 🔍 INICIO DISCONNECT - Usuario: ${username}, userId: ${userId}, roomId: ${roomId}, socket.id: ${socket.id}`);
     console.log(`[DEBUG DISCONNECT] 🔍 Stack trace:`, new Error().stack);

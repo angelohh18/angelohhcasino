@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.187'; // Actualizado: Agregados logs detallados en el cliente para identificar qué causa desconexión prematura
+const CACHE_NAME = 'mutijuego-v1.12.188'; // Actualizado: Corregido - NO hacer socket.leave ni actualizar connectedUsers cuando isInactivityTimeout es true
 const urlsToCache = [
   '/',
   '/index.html',
