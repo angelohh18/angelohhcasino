@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.189'; // Actualizado: Replicada EXACTAMENTE la lógica de desconexión de Ludo para La 51 - usa la51DisconnectedPlayers igual que Ludo
+const CACHE_NAME = 'mutijuego-v1.12.190'; // Actualizado: ELIMINADA toda la lógica conflictiva - simplificado handler de disconnect para La 51 igual que Ludo
 const urlsToCache = [
   '/',
   '/index.html',

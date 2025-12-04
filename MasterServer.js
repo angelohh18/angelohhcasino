@@ -7328,73 +7328,49 @@ socket.on('accionDescartar', async (data) => {
     const roomId = socket.currentRoomId;
 
     console.log(`❌ Jugador desconectado: ${socket.id}`);
-    console.log(`[DEBUG DISCONNECT] 🔍 INICIO DISCONNECT - Usuario: ${username}, userId: ${userId}, roomId: ${roomId}, socket.id: ${socket.id}`);
-    try {
-        const stackTrace = new Error().stack;
-        if (stackTrace) {
-            console.log(`[DEBUG DISCONNECT] 🔍 Stack trace:\n${stackTrace}`);
-        }
-    } catch (err) {
-        console.log(`[DEBUG DISCONNECT] 🔍 Stack trace no disponible`);
-    }
 
-    // ▼▼▼ CRÍTICO: Verificar si está en una sala de La 51 en estado 'playing' ANTES de eliminar de connectedUsers ▼▼▼
-    // Si está en una sala de La 51 en estado 'playing', NO eliminar de connectedUsers todavía - el timeout se encargará de eso
+    // ▼▼▼ SIMPLIFICADO: NO eliminar de connectedUsers si está en partida activa (Ludo o La 51) - el timeout se encargará ▼▼▼
     let shouldKeepInConnectedUsers = false;
-    if (roomId && la51Rooms[roomId]) {
-        const la51Room = la51Rooms[roomId];
-        const seatIndex = la51Room.seats.findIndex(s => s && s.playerId === socket.id);
-        if (seatIndex !== -1 && la51Room.state === 'playing') {
-            const leavingPlayerSeat = la51Room.seats[seatIndex];
-            if (leavingPlayerSeat && leavingPlayerSeat.active !== false && leavingPlayerSeat.status !== 'waiting') {
-                // Está en una partida activa de La 51 - NO eliminar de connectedUsers todavía
-                shouldKeepInConnectedUsers = true;
-                console.log(`[DISCONNECT] ${username || socket.id} se desconectó de La 51 durante partida activa. NO se elimina de connectedUsers todavía. El timeout se encargará de eso.`);
+    if (roomId) {
+        // Verificar Ludo
+        if (ludoRooms[roomId] && (ludoRooms[roomId].state === 'playing' || ludoRooms[roomId].state === 'post-game')) {
+            const seatIndex = ludoRooms[roomId].seats.findIndex(s => s && s.playerId === socket.id);
+            if (seatIndex !== -1) {
+                const seat = ludoRooms[roomId].seats[seatIndex];
+                if (seat && seat.status !== 'waiting') {
+                    shouldKeepInConnectedUsers = true;
+                }
+            }
+        }
+        // Verificar La 51
+        if (la51Rooms[roomId] && la51Rooms[roomId].state === 'playing') {
+            const seatIndex = la51Rooms[roomId].seats.findIndex(s => s && s.playerId === socket.id);
+            if (seatIndex !== -1) {
+                const seat = la51Rooms[roomId].seats[seatIndex];
+                if (seat && seat.status !== 'waiting') {
+                    shouldKeepInConnectedUsers = true;
+                }
             }
         }
     }
     
-    // Verificar también si hay timeout de inactividad activo (para Ludo o La 51)
+    // Verificar si hay timeout activo
     let hasActiveInactivityTimeout = false;
-    if (roomId && userId && !shouldKeepInConnectedUsers) {
-        // Verificar en La 51
-        if (la51Rooms[roomId]) {
-            const la51TimeoutKeyByPlayerId = `${roomId}_${socket.id}`;
-            const la51TimeoutKeyByUserId = `${roomId}_${userId}`;
-            hasActiveInactivityTimeout = la51InactivityTimeouts[la51TimeoutKeyByPlayerId] || 
-                                        la51InactivityTimeouts[la51TimeoutKeyByUserId];
-        }
-        // Verificar en Ludo
+    if (roomId && userId) {
         if (ludoRooms[roomId]) {
             const ludoTimeoutKey = `${roomId}_${userId}`;
-            hasActiveInactivityTimeout = hasActiveInactivityTimeout || ludoInactivityTimeouts[ludoTimeoutKey];
+            hasActiveInactivityTimeout = ludoInactivityTimeouts[ludoTimeoutKey];
+        }
+        if (la51Rooms[roomId]) {
+            const la51TimeoutKey = `${roomId}_${userId}`;
+            hasActiveInactivityTimeout = hasActiveInactivityTimeout || la51InactivityTimeouts[la51TimeoutKey];
         }
     }
     
-    // Solo eliminar de connectedUsers si NO está en una partida activa de La 51 Y NO hay timeout activo
-    // Si está en una partida activa de La 51 o hay timeout activo, se eliminará después de que se complete el timeout
-    let wasInList = false;
-    console.log(`[DEBUG DISCONNECT] 🔍 Verificando eliminación de connectedUsers - shouldKeepInConnectedUsers: ${shouldKeepInConnectedUsers}, hasActiveInactivityTimeout: ${hasActiveInactivityTimeout}, connectedUsers[socket.id]: ${!!connectedUsers[socket.id]}`);
+    // Solo eliminar de connectedUsers si NO está en partida activa Y NO hay timeout activo
     if (!shouldKeepInConnectedUsers && !hasActiveInactivityTimeout && connectedUsers[socket.id]) {
-        wasInList = true;
-        console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ ELIMINANDO DE CONNECTEDUSERS ANTES DEL TIMEOUT - Usuario: ${username}, socket.id: ${socket.id}, roomId: ${roomId}`);
-        try {
-            const stackTrace = new Error().stack;
-            if (stackTrace) {
-                console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace de eliminación:\n${stackTrace}`);
-            }
-        } catch (err) {
-            console.log(`[DEBUG DISCONNECT] ⚠️⚠️⚠️ Stack trace no disponible`);
-        }
         delete connectedUsers[socket.id];
-    } else if (shouldKeepInConnectedUsers || hasActiveInactivityTimeout) {
-        console.log(`[DISCONNECT] ${username || socket.id} se desconectó pero tiene timeout activo o está en partida activa de La 51. NO se elimina de connectedUsers todavía.`);
-    }
-
-    // 2. Si estaba en la lista y se eliminó, actualizar inmediatamente (antes de manejar salas)
-    if (wasInList) {
         broadcastUserListUpdate(io);
-        console.log(`[User List] Usuario ${username || socket.id} eliminado de la lista. Actualización enviada.`);
     }
 
     // 3. Maneja la lógica de la sala (si estaba en una)
@@ -7630,25 +7606,20 @@ socket.on('accionDescartar', async (data) => {
         }
 
     } else if (roomId && la51Rooms[roomId]) {
-        // ESTABA EN UNA SALA DE LA 51
+        // ESTABA EN UNA SALA DE LA 51 - LÓGICA SIMPLIFICADA IGUAL QUE LUDO
         const la51Room = la51Rooms[roomId];
         const seatIndex = la51Room.seats.findIndex(s => s && s.playerId === socket.id);
         const userId = socket.userId;
         
         if (seatIndex !== -1 && la51Room.state === 'waiting') {
-            // ESTABA EN EL LOBBY DE LA 51 (ESPERANDO)
-            // Liberar asiento inmediatamente sin reserva de reconexión
-            console.log(`[LA 51 DISCONNECT] ${username} se desconectó de la sala ${roomId} (esperando). Asiento liberado inmediatamente.`);
+            // ESTABA EN EL LOBBY DE LA 51 (ESPERANDO) - Eliminar inmediatamente
             handlePlayerDeparture(roomId, socket.id, io);
-            
         } else if (seatIndex !== -1 && la51Room.state === 'playing') {
-            // ▼▼▼ REPLICAR EXACTAMENTE LA LÓGICA DE LUDO: Si se desconecta durante partida activa, ESPERAR 2 MINUTOS DE INACTIVIDAD ▼▼▼
+            // PARTIDA ACTIVA - Esperar 2 minutos de inactividad (IGUAL QUE LUDO)
             const leavingPlayerSeat = la51Room.seats[seatIndex];
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
-                console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante partida activa. Esperando 2 minutos de inactividad cuando le toque el turno.`);
-                
-                // Marcar como desconectado (pero NO eliminar aún) - IGUAL QUE LUDO
+                // Marcar como desconectado
                 const disconnectKey = `${roomId}_${userId}`;
                 la51DisconnectedPlayers[disconnectKey] = {
                     disconnectedAt: Date.now(),
@@ -7657,163 +7628,89 @@ socket.on('accionDescartar', async (data) => {
                     userId: userId
                 };
                 
-                // Verificar si es su turno actualmente
+                // Verificar si es su turno
                 const isCurrentTurn = la51Room.currentPlayerId === socket.id;
                 
-                // ▼▼▼ CRÍTICO: Verificar si el jugador ya fue eliminado antes de iniciar timeout de desconexión ▼▼▼
-                const globalPenaltyKeyForDisconnect = `${roomId}_${userId}`;
-                const alreadyEliminated = (la51Room.penaltyApplied && la51Room.penaltyApplied[userId]);
-                
-                if (alreadyEliminated) {
-                    console.log(`[LA 51 DISCONNECT] ${username} ya fue eliminado por inactividad. NO se inicia nuevo timeout de desconexión.`);
-                    // Limpiar estado de desconexión
+                // Verificar si ya fue eliminado
+                if (la51Room.penaltyApplied && la51Room.penaltyApplied[userId]) {
                     delete la51DisconnectedPlayers[disconnectKey];
-                    return; // NO iniciar timeout si ya fue eliminado
+                    return;
                 }
-                // ▲▲▲ FIN VERIFICACIÓN DE ELIMINACIÓN ▲▲▲
                 
                 if (isCurrentTurn) {
-                    // Si es su turno, verificar si ya hay un timeout de inactividad activo
+                    // Verificar si ya hay timeout activo
                     const inactivityTimeoutKey = `${roomId}_${userId}`;
-                    const hasActiveInactivityTimeout = la51InactivityTimeouts[inactivityTimeoutKey];
-                    
-                    if (hasActiveInactivityTimeout) {
-                        console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante su turno, pero ya hay un timeout de inactividad activo. NO se inicia nuevo timeout.`);
-                        // NO iniciar nuevo timeout, el existente se encargará de eliminar al jugador
-                        return;
-                    }
-                    
-                    // Si NO hay timeout activo, iniciar timeout de inactividad INMEDIATAMENTE
-                    console.log(`[LA 51 DISCONNECT] ${username} se desconectó durante su turno. Iniciando timeout de inactividad de 2 minutos.`);
-                    
-                    // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts posibles (userId y playerId) para asegurar que siempre se espere 2 minutos completos ▼▼▼
-                    // Cancelar timeout anterior si existe (por userId)
                     if (la51InactivityTimeouts[inactivityTimeoutKey]) {
-                        clearTimeout(la51InactivityTimeouts[inactivityTimeoutKey]);
-                        delete la51InactivityTimeouts[inactivityTimeoutKey];
-                        console.log(`[LA 51 DISCONNECT] Timeout anterior cancelado para ${username} (userId: ${userId})`);
+                        return; // Ya hay timeout activo
                     }
-                    // Cancelar timeout anterior si existe (por playerId/socket.id)
-                    const inactivityTimeoutKeyByPlayerId = `${roomId}_${socket.id}`;
-                    if (la51InactivityTimeouts[inactivityTimeoutKeyByPlayerId]) {
-                        clearTimeout(la51InactivityTimeouts[inactivityTimeoutKeyByPlayerId]);
-                        delete la51InactivityTimeouts[inactivityTimeoutKeyByPlayerId];
-                        console.log(`[LA 51 DISCONNECT] Timeout anterior cancelado para ${username} (playerId: ${socket.id})`);
-                    }
-                    // Buscar y cancelar cualquier otro timeout que pueda existir para este jugador
+                    
+                    // Cancelar todos los timeouts posibles
                     Object.keys(la51InactivityTimeouts).forEach(key => {
                         if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id))) {
                             clearTimeout(la51InactivityTimeouts[key]);
                             delete la51InactivityTimeouts[key];
-                            console.log(`[LA 51 DISCONNECT] Timeout adicional cancelado: ${key}`);
                         }
                     });
-                    // ▲▲▲ FIN CANCELACIÓN DE TODOS LOS TIMEOUTS ▲▲▲
                     
-                    // Iniciar nuevo timeout de inactividad (SIEMPRE 2 minutos completos desde ahora)
+                    // Iniciar timeout de 2 minutos
                     la51InactivityTimeouts[inactivityTimeoutKey] = setTimeout(() => {
-                        console.log(`[LA 51 DISCONNECT TIMEOUT] ⏰ Han pasado 2 minutos desde que ${username} se desconectó. Eliminando por abandono.`);
-                        
-                        // Verificar que el jugador sigue desconectado
                         const currentRoom = la51Rooms[roomId];
-                        if (!currentRoom) {
+                        if (!currentRoom || !la51DisconnectedPlayers[disconnectKey]) {
                             delete la51InactivityTimeouts[inactivityTimeoutKey];
                             delete la51DisconnectedPlayers[disconnectKey];
                             return;
                         }
                         
-                        // Verificar que el jugador todavía está marcado como desconectado
-                        if (!la51DisconnectedPlayers[disconnectKey]) {
-                            console.log(`[LA 51 DISCONNECT TIMEOUT] ${username} se reconectó antes del timeout. No se elimina.`);
-                            delete la51InactivityTimeouts[inactivityTimeoutKey];
-                            return;
-                        }
-                        
-                        // Verificar que el turno todavía es de este jugador
-                        const currentSeatAtIndex = currentRoom.seats[seatIndex];
-                        if (!currentSeatAtIndex) {
-                            console.log(`[LA 51 DISCONNECT TIMEOUT] El asiento ${seatIndex} ya está vacío. No se elimina.`);
+                        const currentSeat = currentRoom.seats[seatIndex];
+                        if (!currentSeat || currentSeat.userId !== userId) {
                             delete la51InactivityTimeouts[inactivityTimeoutKey];
                             delete la51DisconnectedPlayers[disconnectKey];
                             return;
                         }
                         
-                        // Verificar que es el mismo jugador por userId
-                        if (!currentSeatAtIndex.userId || currentSeatAtIndex.userId !== leavingPlayerSeat.userId) {
-                            console.log(`[LA 51 DISCONNECT TIMEOUT] El jugador en el asiento ${seatIndex} ya no es el mismo. No se elimina.`);
+                        if (currentRoom.currentPlayerId !== currentSeat.playerId) {
                             delete la51InactivityTimeouts[inactivityTimeoutKey];
                             delete la51DisconnectedPlayers[disconnectKey];
                             return;
                         }
                         
-                        // Verificar que el turno todavía es de este jugador
-                        if (currentRoom.currentPlayerId !== currentSeatAtIndex.playerId) {
-                            const currentSeat = currentRoom.seats.find(s => s && s.userId === userId);
-                            if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
-                                console.log(`[LA 51 DISCONNECT TIMEOUT] El turno ya cambió. No se elimina al jugador por inactividad.`);
-                                delete la51InactivityTimeouts[inactivityTimeoutKey];
-                                delete la51DisconnectedPlayers[disconnectKey];
-                                return;
-                            }
-                        }
-                        
-                        // Registrar penalización antes de eliminar
                         if (!currentRoom.penaltyApplied) {
                             currentRoom.penaltyApplied = {};
                         }
                         currentRoom.penaltyApplied[userId] = true;
                         
-                        // Eliminar al jugador por abandono (por inactividad de desconexión)
-                        // Usar el playerId actual del asiento, o buscar por userId si no existe
-                        let playerIdToUse = currentSeatAtIndex.playerId;
+                        let playerIdToUse = currentSeat.playerId;
                         if (!playerIdToUse) {
-                            // Buscar cualquier socket del userId
                             for (const [socketId, socket] of io.sockets.sockets.entries()) {
                                 const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-                                if (socketUserId === currentSeatAtIndex.userId) {
+                                if (socketUserId === userId) {
                                     playerIdToUse = socketId;
                                     break;
                                 }
                             }
                         }
                         
-                        console.log(`[LA 51 DISCONNECT TIMEOUT] 🚨 ELIMINANDO JUGADOR POR DESCONEXIÓN: ${username} (asiento ${seatIndex}, userId: ${currentSeatAtIndex.userId})`);
                         if (playerIdToUse) {
-                            handlePlayerDeparture(roomId, playerIdToUse, io, true); // true = isInactivityTimeout
+                            handlePlayerDeparture(roomId, playerIdToUse, io, true);
                         } else {
-                            // Si no hay playerId, eliminar directamente el asiento
-                            console.log(`[${roomId}] ⚠️ Jugador ${username} está desconectado sin socket. Eliminando asiento directamente.`);
                             currentRoom.seats[seatIndex] = null;
-                            // Pasar el turno si era su turno
-                            if (currentRoom.currentPlayerId === currentSeatAtIndex.playerId) {
-                                advanceTurnAfterAction(currentRoom, currentSeatAtIndex.playerId, null, io);
+                            if (currentRoom.currentPlayerId === currentSeat.playerId) {
+                                advanceTurnAfterAction(currentRoom, currentSeat.playerId, null, io);
                             }
                         }
                         
-                        // Limpiar
                         delete la51InactivityTimeouts[inactivityTimeoutKey];
                         delete la51DisconnectedPlayers[disconnectKey];
                     }, LA51_INACTIVITY_TIMEOUT_MS);
-                    
-                    console.log(`[LA 51 DISCONNECT] ⏰ Timeout de inactividad iniciado para ${username} (userId: ${userId}). Si no vuelve en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
-                } else {
-                    // Si NO es su turno, esperar a que le toque el turno
-                    console.log(`[LA 51 DISCONNECT] ${username} se desconectó pero NO es su turno. Se eliminará cuando le toque el turno y no actúe en 2 minutos.`);
                 }
                 
-                // Notificar a todos que el jugador se desconectó (pero aún puede volver)
                 io.to(roomId).emit('playerDisconnected', {
                     playerName: leavingPlayerSeat.playerName,
                     message: `${leavingPlayerSeat.playerName} se desconectó. Esperando reconexión...`
                 });
             } else {
-                // Si está en espera, eliminar inmediatamente
                 handlePlayerDeparture(roomId, socket.id, io);
             }
-            // ▲▲▲ FIN: ESPERAR 2 MINUTOS DE INACTIVIDAD (IGUAL QUE LUDO) ▲▲▲
-        } else {
-            // Se desconectó del lobby de La 51 sin estar en una sala
-            console.log(`[Lobby Disconnect] ${username} se fue del lobby de La 51.`);
         }
     
     } else {
