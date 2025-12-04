@@ -2348,10 +2348,13 @@ function showRoomsOverview() {
         showToast(data.message || 'La revancha ya comenzó sin tu confirmación. Serás redirigido al lobby.', 5000);
         if (data.redirectToLobby) {
             setTimeout(() => {
-                console.log('🔌 [CLIENTE DEBUG] rematchGameAlreadyStarted - emitiendo leaveGame');
-                console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
+                console.log('🔌 [CLIENTE DEBUG] rematchGameStartedWithoutYou - limpiando estado');
                 resetClientGameState();
-                if (currentGameSettings && currentGameSettings.roomId) {
+                // ▼▼▼ CRÍTICO: Solo emitir leaveGame si el juego NO está activo ▼▼▼
+                // Si el juego ya comenzó, el servidor ya procesó la salida
+                const isGameActive = currentGameSettings && currentGameSettings.roomId && 
+                                    document.body.classList.contains('game-active');
+                if (currentGameSettings && currentGameSettings.roomId && !isGameActive) {
                     socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
                 }
                 currentGameSettings = null;
@@ -2366,10 +2369,13 @@ function showRoomsOverview() {
         showToast(data.message || 'La revancha ya comenzó. No puedes confirmar ahora. Serás redirigido al lobby.', 5000);
         if (data.redirectToLobby) {
             setTimeout(() => {
-                console.log('🔌 [CLIENTE DEBUG] rematchGameAlreadyStarted - emitiendo leaveGame');
-                console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
+                console.log('🔌 [CLIENTE DEBUG] rematchGameAlreadyStarted - limpiando estado');
                 resetClientGameState();
-                if (currentGameSettings && currentGameSettings.roomId) {
+                // ▼▼▼ CRÍTICO: Solo emitir leaveGame si el juego NO está activo ▼▼▼
+                // Si el juego ya comenzó, el servidor ya procesó la salida
+                const isGameActive = currentGameSettings && currentGameSettings.roomId && 
+                                    document.body.classList.contains('game-active');
+                if (currentGameSettings && currentGameSettings.roomId && !isGameActive) {
                     socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
                 }
                 currentGameSettings = null;
@@ -3372,12 +3378,20 @@ function updatePlayersView(seats, inGame = false) {
 
     // ▼▼▼ REEMPLAZA TU FUNCIÓN window.goBackToLobby ENTERA CON ESTA VERSIÓN SIMPLIFICADA ▼▼▼
     window.goBackToLobby = function() {
-        if (currentGameSettings && currentGameSettings.roomId) {
-            console.log('🔌 [CLIENTE DEBUG] goBackToLobby llamado - emitiendo leaveGame');
+        // ▼▼▼ CRÍTICO: Verificar si el juego está activo antes de emitir leaveGame ▼▼▼
+        // Si el juego está activo, NO emitir leaveGame - el servidor lo bloqueará y el timeout se encargará
+        const isGameActive = currentGameSettings && currentGameSettings.roomId && 
+                            document.body.classList.contains('game-active');
+        
+        if (currentGameSettings && currentGameSettings.roomId && !isGameActive) {
+            console.log('🔌 [CLIENTE DEBUG] goBackToLobby llamado - emitiendo leaveGame (juego no activo)');
             console.log('🔌 [CLIENTE DEBUG] Stack trace:', new Error().stack);
             console.log('Notificando al servidor la salida de la sala para limpieza...');
             socket.emit('leaveGame', { roomId: currentGameSettings.roomId });
+        } else if (isGameActive) {
+            console.log('🔌 [CLIENTE DEBUG] goBackToLobby llamado pero juego está activo - NO emitiendo leaveGame (el servidor lo bloqueará)');
         }
+        // ▲▲▲ FIN VERIFICACIÓN DE JUEGO ACTIVO ▲▲▲
 
         // --- EL BLOQUE DE "NUEVA IDENTIDAD" HA SIDO ELIMINADO ---
         // Ya no se genera un nuevo userId cada vez. La identidad del jugador

@@ -2995,10 +2995,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Botón "Sí" (volver al lobby)
         btnConfirmLeaveYes.addEventListener('click', () => {
-            // ▼▼▼ CRÍTICO: Emitir leaveGame ANTES de redirigir para eliminar al jugador inmediatamente ▼▼▼
+            // ▼▼▼ CRÍTICO: Verificar si el juego está activo antes de emitir leaveGame ▼▼▼
+            // Si el usuario confirma que quiere salir, intentar emitir leaveGame
+            // El servidor bloqueará si el juego está activo, pero es una acción voluntaria del usuario
+            const isGameActive = gameState && gameState.roomId && 
+                                document.body.classList.contains('game-active');
+            
             if (gameState && gameState.roomId) {
-                console.log('[btnConfirmLeaveYes] Emitiendo leaveGame para eliminar jugador inmediatamente de sala:', gameState.roomId);
-                socket.emit('leaveGame', { roomId: gameState.roomId });
+                if (!isGameActive) {
+                    console.log('[btnConfirmLeaveYes] Emitiendo leaveGame para eliminar jugador de sala:', gameState.roomId, '(juego no activo)');
+                    socket.emit('leaveGame', { roomId: gameState.roomId });
+                } else {
+                    console.log('[btnConfirmLeaveYes] Juego está activo - emitiendo leaveGame (usuario confirma salida voluntaria)');
+                    // Usuario confirma que quiere salir voluntariamente, emitir leaveGame
+                    // El servidor puede bloquearlo si está en partida activa, pero es la intención del usuario
+                    socket.emit('leaveGame', { roomId: gameState.roomId });
+                }
             }
             // Cerrar modal
             confirmLeaveModal.style.display = 'none';
@@ -3006,7 +3018,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 window.location.href = '/ludo';
             }, 200);
-            // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+            // ▲▲▲ FIN VERIFICACIÓN DE JUEGO ACTIVO ▲▲▲
         });
     }
 
@@ -3131,16 +3143,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función global para volver al lobby
     window.goBackToLobby = function() {
-        // ▼▼▼ CRÍTICO: Emitir leaveGame antes de redirigir para liberar el asiento correctamente ▼▼▼
-        if (gameState && gameState.roomId) {
-            console.log('[goBackToLobby] Emitiendo leaveGame para liberar asiento en sala:', gameState.roomId);
+        // ▼▼▼ CRÍTICO: Verificar si el juego está activo antes de emitir leaveGame ▼▼▼
+        // Si el juego está activo, NO emitir leaveGame - el servidor lo bloqueará y el timeout se encargará
+        const isGameActive = gameState && gameState.roomId && 
+                            document.body.classList.contains('game-active');
+        
+        if (gameState && gameState.roomId && !isGameActive) {
+            console.log('[goBackToLobby] Emitiendo leaveGame para liberar asiento en sala:', gameState.roomId, '(juego no activo)');
             socket.emit('leaveGame', { roomId: gameState.roomId });
+            // Pequeño delay para asegurar que el servidor procese el leaveGame antes de redirigir
+            setTimeout(() => {
+                window.location.href = '/ludo';
+            }, 100);
+        } else if (isGameActive) {
+            console.log('[goBackToLobby] Juego está activo - NO emitiendo leaveGame (el servidor lo bloqueará)');
+            // Redirigir sin emitir leaveGame
+            setTimeout(() => {
+                window.location.href = '/ludo';
+            }, 100);
+        } else {
+            // No hay juego, solo redirigir
+            setTimeout(() => {
+                window.location.href = '/ludo';
+            }, 100);
         }
-        // Pequeño delay para asegurar que el servidor procese el leaveGame antes de redirigir
-        setTimeout(() => {
-            window.location.href = '/ludo';
-        }, 100);
-        // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
+        // ▲▲▲ FIN VERIFICACIÓN DE JUEGO ACTIVO ▲▲▲
     };
     
     // Función para configurar la pantalla de revancha
