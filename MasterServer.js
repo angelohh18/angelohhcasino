@@ -2231,11 +2231,24 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
             existingSeat.playerId = socket.id;
             console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${mySeatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (ludoHandleParchisRoll - reconexión)`);
             
-            // Asegurar que el socket esté en la sala
-            socket.join(roomId);
-            socket.currentRoomId = roomId;
-            
-            // Actualizar connectedUsers si es necesario
+              // Asegurar que el socket esté en la sala
+              socket.join(roomId);
+              socket.currentRoomId = roomId;
+              
+              // ▼▼▼ CRÍTICO: Actualizar currentPlayerId si es el turno de este jugador ▼▼▼
+              if (room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === mySeatIndex) {
+                  // Si el currentPlayerId apunta al oldPlayerId, actualizarlo
+                  if (room.currentPlayerId === oldPlayerId || (room.gameState.turn.playerId === oldPlayerId)) {
+                      room.currentPlayerId = socket.id;
+                      if (room.gameState.turn) {
+                          room.gameState.turn.playerId = socket.id;
+                      }
+                      console.log(`[${roomId}] ✅ Actualizado currentPlayerId y turn.playerId de ${oldPlayerId} a ${socket.id} (jugador reconectado en su turno - ludoRollDice)`);
+                  }
+              }
+              // ▲▲▲ FIN ACTUALIZACIÓN DE CURRENTPLAYERID ▲▲▲
+              
+              // Actualizar connectedUsers si es necesario
             if (!connectedUsers[socket.id] && userId) {
                 let userInfo = null;
                 Object.keys(connectedUsers).forEach(oldSocketId => {
