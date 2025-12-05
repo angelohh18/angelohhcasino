@@ -3043,6 +3043,62 @@ function showRoomsOverview() {
     });
 });
 
+    // ▼▼▼ CRÍTICO: Handler para sincronización de estado durante reconexión (NO reinicia el juego) ▼▼▼
+    socket.on('gameStateSync', (gameState) => {
+        console.log('[gameStateSync] Sincronizando estado del juego durante reconexión:', gameState);
+        
+        // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO ANTES DE SINCRONIZAR ▼▼▼
+        if (shouldRedirectToLobbyAfterElimination) {
+            console.log('[gameStateSync] Jugador fue eliminado, ignorando sincronización');
+            return;
+        }
+        // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
+        
+        // NO llamar a resetClientGameState() - solo sincronizar el estado actual
+        // NO llamar a animateDealing() - las cartas ya están repartidas
+        
+        // Actualizar estado del juego sin reiniciar
+        if (gameState.hand && players[0]) {
+            players[0].hand = gameState.hand;
+        }
+        
+        discardPile = gameState.discardPile || [];
+        allMelds = gameState.melds || [];
+        turnMelds = [];
+        selectedCards = new Set();
+        
+        // Actualizar vista de jugadores
+        if (gameState.seats) {
+            updatePlayersView(gameState.seats, gameStarted);
+        }
+        
+        // Actualizar contadores de cartas
+        if (gameState.playerHandCounts) {
+            updatePlayerHandCounts(gameState.playerHandCounts);
+        }
+        
+        // Actualizar jugador actual
+        const currentPlayerSeat = gameState.seats?.find(sp => sp && sp.playerId === gameState.currentPlayerId);
+        if (currentPlayerSeat) {
+            currentPlayer = orderedSeats.findIndex(s => s && s.playerId === currentPlayerSeat.playerId);
+        }
+        
+        // Renderizar manos y actualizar UI sin animación de reparto
+        renderHands();
+        updateTurnIndicator();
+        updateActionButtons();
+        
+        // Actualizar pila de descarte
+        const discardEl = document.getElementById('discard');
+        if (discardEl && discardPile.length > 0) {
+            const topCard = discardPile[discardPile.length - 1];
+            discardEl.innerHTML = `<div class="card ${topCard.suit}">${topCard.rank}${topCard.suit === 'hearts' || topCard.suit === 'diamonds' ? '♥' : topCard.suit === 'clubs' || topCard.suit === 'spades' ? '♠' : ''}</div>`;
+        }
+        
+        console.log('[gameStateSync] ✅ Estado sincronizado correctamente sin reiniciar el juego');
+    });
+    // ▲▲▲ FIN HANDLER DE SINCRONIZACIÓN DE ESTADO ▲▲▲
+
     socket.on('playerJoined', (roomData) => {
         console.log('Un jugador se ha unido a la sala:', roomData);
         currentGameSettings = { ...currentGameSettings, ...roomData };

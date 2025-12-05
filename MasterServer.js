@@ -6650,21 +6650,25 @@ io.on('connection', (socket) => {
                 }
                 // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
                 
-                // Enviar estado del juego actual
+                // ▼▼▼ CRÍTICO: Enviar evento de sincronización de estado en lugar de gameStarted para reconexión ▼▼▼
+                // gameStarted reinicia el juego y reparte cartas, lo cual no queremos durante una reconexión
                 const playerHandCounts = {};
                 room.seats.forEach(s => { 
                     if(s) playerHandCounts[s.playerId] = room.playerHands[s.playerId]?.length || 0; 
                 });
                 
-                socket.emit('gameStarted', {
+                // Enviar evento de sincronización que NO reinicia el juego
+                socket.emit('gameStateSync', {
                     hand: room.playerHands[socket.id] || [],
                     discardPile: room.discardPile || [],
                     seats: room.seats,
                     currentPlayerId: room.currentPlayerId,
                     playerHandCounts: playerHandCounts,
                     melds: room.melds || [],
-                    isPractice: room.isPractice || false
+                    isPractice: room.isPractice || false,
+                    isReconnection: true // Flag para indicar que es una reconexión
                 });
+                console.log(`[${roomId}] ✅ Enviado gameStateSync (reconexión) a ${user.username} (${socket.id}) - NO se reinicia el juego`);
             }
             
             // Notificar a todos que el jugador se reconectó
