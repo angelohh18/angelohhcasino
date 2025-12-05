@@ -5627,10 +5627,16 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAba
             }
             // ▲▲▲ FIN DE ACTUALIZACIÓN DE ESTADO ▲▲▲
             
-            const activePlayers = room.seats.filter(s => s && s.active !== false);
+            // ▼▼▼ CRÍTICO: Verificar si solo queda un jugador activo DESPUÉS de marcar como inactivo ▼▼▼
+            // Filtrar jugadores activos (que existan, no sean null, y tengan active !== false)
+            const activePlayers = room.seats.filter(s => s && s !== null && s.active !== false);
+            console.log(`[${roomId}] 🔍 Jugadores activos después de eliminar a ${playerName}: ${activePlayers.length}`);
+            
             if (activePlayers.length === 1) {
-                await endGameAndCalculateScores(room, activePlayers[0], io, { name: playerName });
-                return;
+                const winnerSeat = activePlayers[0];
+                console.log(`[${roomId}] 🏆 ¡VICTORIA POR ABANDONO! Solo queda un jugador activo: ${winnerSeat.playerName}. Declarando ganador...`);
+                await endGameAndCalculateScores(room, winnerSeat, io, { name: playerName, reason: 'Abandono por inactividad' });
+                return; // Salir de la función - el juego terminó
             } else if (activePlayers.length > 1) {
                 if (room.currentPlayerId === leavingPlayerId) {
                     resetTurnState(room);
