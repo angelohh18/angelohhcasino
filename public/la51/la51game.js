@@ -3057,17 +3057,35 @@ function showRoomsOverview() {
         // NO llamar a resetClientGameState() - solo sincronizar el estado actual
         // NO llamar a animateDealing() - las cartas ya están repartidas
         
+        // Asegurar que gameStarted esté en true si el juego está en curso
+        if (!gameStarted && gameState.seats && gameState.seats.some(s => s && s.active !== false)) {
+            gameStarted = true;
+        }
+        
         // Actualizar estado del juego sin reiniciar
-        if (gameState.hand && players[0]) {
-            players[0].hand = gameState.hand;
+        if (gameState.hand) {
+            if (players.length === 0 || !players[0]) {
+                // Si no hay players, inicializar con la mano recibida
+                players = [{
+                    playerId: socket.id,
+                    hand: gameState.hand,
+                    playerName: currentUser.username || 'Jugador'
+                }];
+            } else {
+                players[0].hand = gameState.hand;
+            }
         }
         
         discardPile = gameState.discardPile || [];
         allMelds = gameState.melds || [];
         turnMelds = [];
-        selectedCards = new Set();
+        if (selectedCards) {
+            selectedCards.clear();
+        } else {
+            selectedCards = new Set();
+        }
         
-        // Actualizar vista de jugadores
+        // Actualizar vista de jugadores (esto también actualiza orderedSeats)
         if (gameState.seats) {
             updatePlayersView(gameState.seats, gameStarted);
         }
@@ -3078,9 +3096,14 @@ function showRoomsOverview() {
         }
         
         // Actualizar jugador actual
-        const currentPlayerSeat = gameState.seats?.find(sp => sp && sp.playerId === gameState.currentPlayerId);
-        if (currentPlayerSeat) {
-            currentPlayer = orderedSeats.findIndex(s => s && s.playerId === currentPlayerSeat.playerId);
+        if (gameState.seats && gameState.currentPlayerId) {
+            const currentPlayerSeat = gameState.seats.find(sp => sp && sp.playerId === gameState.currentPlayerId);
+            if (currentPlayerSeat && orderedSeats && orderedSeats.length > 0) {
+                const playerIndex = orderedSeats.findIndex(s => s && s.playerId === currentPlayerSeat.playerId);
+                if (playerIndex !== -1) {
+                    currentPlayer = playerIndex;
+                }
+            }
         }
         
         // Renderizar manos y actualizar UI sin animación de reparto
@@ -3088,11 +3111,16 @@ function showRoomsOverview() {
         updateTurnIndicator();
         updateActionButtons();
         
-        // Actualizar pila de descarte
+        // Actualizar pila de descarte visualmente
         const discardEl = document.getElementById('discard');
-        if (discardEl && discardPile.length > 0) {
-            const topCard = discardPile[discardPile.length - 1];
-            discardEl.innerHTML = `<div class="card ${topCard.suit}">${topCard.rank}${topCard.suit === 'hearts' || topCard.suit === 'diamonds' ? '♥' : topCard.suit === 'clubs' || topCard.suit === 'spades' ? '♠' : ''}</div>`;
+        if (discardEl) {
+            if (discardPile.length > 0) {
+                const topCard = discardPile[discardPile.length - 1];
+                const suitSymbol = topCard.suit === 'hearts' ? '♥' : topCard.suit === 'diamonds' ? '♦' : topCard.suit === 'clubs' ? '♣' : '♠';
+                discardEl.innerHTML = `<div class="card ${topCard.suit}">${topCard.rank}${suitSymbol}</div>`;
+            } else {
+                discardEl.innerHTML = 'Descarte<br>Vacío';
+            }
         }
         
         console.log('[gameStateSync] ✅ Estado sincronizado correctamente sin reiniciar el juego');
