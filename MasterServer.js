@@ -1772,8 +1772,8 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 ludoPassTurn(room, io);
             }
             
-            // ▼▼▼ CRÍTICO: Si es por inactividad, expulsar automáticamente al lobby con modal específico ▼▼▼
-            if (isInactivityTimeout) {
+            // ▼▼▼ CRÍTICO: Si es abandono voluntario O por inactividad, expulsar automáticamente al lobby ▼▼▼
+            if (isVoluntaryAbandonment || isInactivityTimeout) {
                 // Buscar el socket del jugador eliminado
                 let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
                 if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
@@ -1835,22 +1835,38 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                         console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de eliminación por inactividad`);
                     }
                     
-                    // Enviar evento específico para inactividad que redirige al lobby y muestra modal
-                    leavingPlayerSocket.emit('inactivityTimeout', {
-                        message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
-                        redirect: true,
-                        forceExit: true,
-                        reason: 'inactivity',
-                        username: leavingPlayerUsername,
-                        userId: leavingPlayerSeat.userId,
-                        avatar: leavingPlayerSeat.avatar || '',
-                        userCurrency: leavingPlayerInfo?.currency || 'EUR'
-                    });
-                    
-                    console.log(`[${roomId}] Jugador ${leavingPlayerUsername} expulsado al lobby por inactividad. Modal de inactividad enviado.`);
+                    // Enviar evento específico según el tipo de abandono
+                    if (isInactivityTimeout) {
+                        leavingPlayerSocket.emit('inactivityTimeout', {
+                            message: 'Has sido eliminado de la mesa por falta de inactividad por 2 minutos.',
+                            redirect: true,
+                            forceExit: true,
+                            reason: 'inactivity',
+                            username: leavingPlayerUsername,
+                            userId: leavingPlayerSeat.userId,
+                            avatar: leavingPlayerSeat.avatar || '',
+                            userCurrency: leavingPlayerInfo?.currency || 'EUR'
+                        });
+                        console.log(`[${roomId}] Jugador ${leavingPlayerUsername} expulsado al lobby por inactividad. Modal de inactividad enviado.`);
+                    } else if (isVoluntaryAbandonment) {
+                        // Abandono voluntario - enviar gameEnded con razón de abandono
+                        leavingPlayerSocket.emit('gameEnded', {
+                            reason: 'abandonment',
+                            message: `Has abandonado la partida voluntariamente. La apuesta ya fue descontada al iniciar la partida.`,
+                            redirect: true,
+                            forceExit: true,
+                            penalty: 0,
+                            currency: room.settings.betCurrency || 'USD',
+                            username: leavingPlayerUsername,
+                            userId: leavingPlayerSeat.userId,
+                            avatar: leavingPlayerSeat.avatar || '',
+                            userCurrency: leavingPlayerInfo?.currency || 'EUR'
+                        });
+                        console.log(`[${roomId}] Jugador ${leavingPlayerUsername} expulsado al lobby por abandono voluntario.`);
+                    }
                 }
             }
-            // ▲▲▲ FIN EXPULSIÓN POR INACTIVIDAD ▲▲▲
+            // ▲▲▲ FIN EXPULSIÓN POR ABANDONO VOLUNTARIO O INACTIVIDAD ▲▲▲
         } else {
             console.log(`[${roomId}] No quedan jugadores activos después del abandono.`);
         }
@@ -5025,7 +5041,7 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
 
 // ▼▼▼ AÑADE ESTA FUNCIÓN COMPLETA ▼▼▼
 // ▼▼▼ REEMPLAZA LA FUNCIÓN handlePlayerDeparture ENTERA CON ESTA VERSIÓN ▼▼▼
-async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTimeout = false) {
+async function handlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAbandonment = false, isInactivityTimeout = false) {
     const room = la51Rooms[roomId];
 
     if (!room) return;
@@ -5378,30 +5394,111 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isInactivityTi
                     }
                 }
             } else {
-                // ▼▼▼ CRÍTICO: Enviar evento SOLO al jugador eliminado con redirect: true, y a los demás sin redirect ▼▼▼
-                // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
-                io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
-                    playerId: leavingPlayerId,
-                    playerName: playerName,
-                    reason: reason,
-                    faultData: { reason: abandonmentReason },
-                    redirect: false, // NO redirigir a los demás jugadores
-                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
-                });
-                
-                // Enviar SOLO al jugador eliminado con redirect: true para expulsarlo al lobby
-            const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
-            if (leavingSocket) {
-                leavingSocket.emit('playerEliminated', {
-                    playerId: leavingPlayerId,
-                    playerName: playerName,
-                    reason: reason,
-                    faultData: { reason: abandonmentReason },
-                        redirect: true, // IMPORTANTE: Solo este jugador debe ser redirigido
-                    penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
-                });
-                    console.log(`[${roomId}] ✅ Evento playerEliminated enviado SOLO a ${playerName} (${leavingPlayerId}) con redirect: true. Los demás jugadores recibieron redirect: false`);
-            }
+                // ▼▼▼ CRÍTICO: Si es abandono voluntario, expulsar automáticamente al lobby ▼▼▼
+                if (isVoluntaryAbandonment) {
+                    // Buscar el socket del jugador eliminado
+                    let leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+                    if (!leavingSocket && leavingUserId) {
+                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                            if (socketUserId === leavingUserId) {
+                                leavingSocket = socket;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (leavingSocket) {
+                        // Obtener información del usuario
+                        const leavingPlayerUsername = leavingUserId ? leavingUserId.replace('user_', '') : playerName;
+                        let leavingPlayerInfo = users[leavingUserId];
+                        
+                        if (!leavingPlayerInfo && leavingUserId) {
+                            try {
+                                if (DISABLE_DB) {
+                                    const userFromMemory = inMemoryUsers.get(leavingPlayerUsername);
+                                    if (userFromMemory) {
+                                        leavingPlayerInfo = {
+                                            credits: parseFloat(userFromMemory.credits || 0),
+                                            currency: userFromMemory.currency || 'EUR',
+                                            username: leavingPlayerUsername,
+                                            avatar: leavingPlayerSeat.avatar || ''
+                                        };
+                                        users[leavingUserId] = leavingPlayerInfo;
+                                    }
+                                } else {
+                                    const userData = await getUserByUsername(leavingPlayerUsername);
+                                    if (userData) {
+                                        leavingPlayerInfo = {
+                                            ...userData,
+                                            username: leavingPlayerUsername,
+                                            avatar: leavingPlayerSeat.avatar || userData.avatar || ''
+                                        };
+                                        users[leavingUserId] = leavingPlayerInfo;
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`[${roomId}] Error obteniendo datos de usuario eliminado por abandono voluntario:`, error);
+                            }
+                        } else if (leavingPlayerInfo) {
+                            leavingPlayerInfo.username = leavingPlayerUsername;
+                            leavingPlayerInfo.avatar = leavingPlayerSeat.avatar || leavingPlayerInfo.avatar || '';
+                        }
+                        
+                        // Enviar userStateUpdated antes de expulsar
+                        if (leavingPlayerInfo) {
+                            leavingSocket.emit('userStateUpdated', leavingPlayerInfo);
+                        }
+                        
+                        // Forzar salida del socket de la sala
+                        if (leavingSocket.currentRoomId === roomId) {
+                            leavingSocket.leave(roomId);
+                            delete leavingSocket.currentRoomId;
+                            console.log(`[${roomId}] Socket ${leavingPlayerId} forzado a salir de la sala después de abandono voluntario`);
+                        }
+                        
+                        // Enviar evento específico para abandono voluntario que redirige al lobby
+                        leavingSocket.emit('gameEnded', {
+                            reason: 'abandonment',
+                            message: `Has abandonado la partida voluntariamente. La apuesta ya fue descontada al iniciar la partida.`,
+                            redirect: true,
+                            forceExit: true,
+                            penalty: 0,
+                            currency: room.settings.betCurrency || 'USD',
+                            username: leavingPlayerUsername,
+                            userId: leavingUserId,
+                            avatar: leavingPlayerSeat.avatar || '',
+                            userCurrency: leavingPlayerInfo?.currency || 'EUR'
+                        });
+                        
+                        console.log(`[${roomId}] Jugador ${leavingPlayerUsername} expulsado al lobby por abandono voluntario.`);
+                    }
+                } else {
+                    // ▼▼▼ CRÍTICO: Enviar evento SOLO al jugador eliminado con redirect: true, y a los demás sin redirect ▼▼▼
+                    // Enviar a los demás jugadores (sin redirect) para que solo vean la notificación
+                    io.to(roomId).except(leavingPlayerId).emit('playerEliminated', {
+                        playerId: leavingPlayerId,
+                        playerName: playerName,
+                        reason: reason,
+                        faultData: { reason: abandonmentReason },
+                        redirect: false, // NO redirigir a los demás jugadores
+                        penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                    });
+                    
+                    // Enviar SOLO al jugador eliminado con redirect: true para expulsarlo al lobby
+                    const leavingSocket = io.sockets.sockets.get(leavingPlayerId);
+                    if (leavingSocket) {
+                        leavingSocket.emit('playerEliminated', {
+                            playerId: leavingPlayerId,
+                            playerName: playerName,
+                            reason: reason,
+                            faultData: { reason: abandonmentReason },
+                            redirect: true, // IMPORTANTE: Solo este jugador debe ser redirigido
+                            penaltyInfo: { amount: penaltyAmount, reason: 'Abandono' }
+                        });
+                        console.log(`[${roomId}] ✅ Evento playerEliminated enviado SOLO a ${playerName} (${leavingPlayerId}) con redirect: true. Los demás jugadores recibieron redirect: false`);
+                    }
+                }
             }
             // ▲▲▲ FIN ENVÍO CORREGIDO ▲▲▲
 
@@ -8378,41 +8475,56 @@ socket.on('accionDescartar', async (data) => {
     // antes de limpiar el estado del socket.
     if (isLudoRoom) {
         // Es una sala de Ludo - usar ludoHandlePlayerDeparture
-        // ▼▼▼ CRÍTICO: Verificar si el jugador está en una partida activa antes de eliminar ▼▼▼
-        // Si está en una partida activa, NO eliminar - el timeout se encargará de eso
+        // ▼▼▼ CRÍTICO: Si es abandono voluntario durante partida activa, procesar INMEDIATAMENTE ▼▼▼
+        // El abandono voluntario debe eliminarse inmediatamente, liberar asiento y pasar turno
         const ludoRoom = ludoRooms[roomId];
         if (ludoRoom && (ludoRoom.state === 'playing' || ludoRoom.state === 'post-game')) {
             const seatIndex = ludoRoom.seats.findIndex(s => s && s.playerId === socket.id);
             if (seatIndex !== -1) {
                 const playerSeat = ludoRoom.seats[seatIndex];
                 if (playerSeat && playerSeat.status !== 'waiting') {
-                    // Está en una partida activa - NO eliminar, el timeout se encargará
-                    console.log(`[leaveGame] ⚠️ Jugador ${socket.id} intentó salir de partida activa de Ludo. NO se elimina - el timeout se encargará.`);
-                    return; // NO procesar leaveGame si está en partida activa
+                    // Está en una partida activa - ABANDONO VOLUNTARIO: procesar INMEDIATAMENTE
+                    console.log(`[leaveGame] 🚨 Jugador ${socket.id} abandonó VOLUNTARIAMENTE durante partida activa de Ludo. Procesando eliminación inmediata.`);
+                    ludoHandlePlayerDeparture(roomId, socket.id, io, true, false);
+                } else {
+                    // Está en espera - procesar normalmente
+                    ludoHandlePlayerDeparture(roomId, socket.id, io, true, false);
                 }
+            } else {
+                // No está en la sala - procesar normalmente
+                ludoHandlePlayerDeparture(roomId, socket.id, io, true, false);
             }
+        } else {
+            // No está en partida activa - procesar normalmente
+            ludoHandlePlayerDeparture(roomId, socket.id, io, true, false);
         }
-        // ▲▲▲ FIN VERIFICACIÓN DE PARTIDA ACTIVA ▲▲▲
-        // Solo procesar si NO está en partida activa
-        ludoHandlePlayerDeparture(roomId, socket.id, io, true);
+        // ▲▲▲ FIN PROCESAMIENTO DE ABANDONO VOLUNTARIO ▲▲▲
     } else if (isLa51Room) {
         // Es una sala de La 51 - usar handlePlayerDeparture
-        // ▼▼▼ CRÍTICO: Verificar si el jugador está en una partida activa antes de eliminar ▼▼▼
-        // Si está en una partida activa, NO eliminar - el timeout se encargará de eso
+        // ▼▼▼ CRÍTICO: Si es abandono voluntario durante partida activa, procesar INMEDIATAMENTE ▼▼▼
+        // El abandono voluntario debe eliminarse inmediatamente, liberar asiento y pasar turno
         const la51Room = la51Rooms[roomId];
         if (la51Room && la51Room.state === 'playing') {
             const seatIndex = la51Room.seats.findIndex(s => s && s.playerId === socket.id);
             if (seatIndex !== -1) {
                 const playerSeat = la51Room.seats[seatIndex];
                 if (playerSeat && playerSeat.active !== false && playerSeat.status !== 'waiting') {
-                    // Está en una partida activa - NO eliminar, el timeout se encargará
-                    console.log(`[leaveGame] ⚠️ Jugador ${socket.id} intentó salir de partida activa de La 51. NO se elimina - el timeout se encargará.`);
-                    return; // NO procesar leaveGame si está en partida activa
+                    // Está en una partida activa - ABANDONO VOLUNTARIO: procesar INMEDIATAMENTE
+                    console.log(`[leaveGame] 🚨 Jugador ${socket.id} abandonó VOLUNTARIAMENTE durante partida activa de La 51. Procesando eliminación inmediata.`);
+                    handlePlayerDeparture(roomId, socket.id, io, true, false);
+                } else {
+                    // Está en espera - procesar normalmente
+                    handlePlayerDeparture(roomId, socket.id, io, true, false);
                 }
+            } else {
+                // No está en la sala - procesar normalmente
+                handlePlayerDeparture(roomId, socket.id, io, true, false);
             }
+        } else {
+            // No está en partida activa - procesar normalmente
+            handlePlayerDeparture(roomId, socket.id, io, true, false);
         }
-        // ▲▲▲ FIN VERIFICACIÓN DE PARTIDA ACTIVA ▲▲▲
-        handlePlayerDeparture(roomId, socket.id, io);
+        // ▲▲▲ FIN PROCESAMIENTO DE ABANDONO VOLUNTARIO ▲▲▲
     }
 
     // 2. (ORDEN CORREGIDO) AHORA, con la lógica del juego ya resuelta,
