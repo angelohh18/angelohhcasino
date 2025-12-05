@@ -5635,7 +5635,15 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAba
             if (activePlayers.length === 1) {
                 const winnerSeat = activePlayers[0];
                 console.log(`[${roomId}] 🏆 ¡VICTORIA POR ABANDONO! Solo queda un jugador activo: ${winnerSeat.playerName}. Declarando ganador...`);
+                
+                // ▼▼▼ CRÍTICO: NO emitir playerLeft aquí - endGameAndCalculateScores emitirá gameEnd que maneja todo ▼▼▼
+                // El evento gameEnd ya actualiza la vista de jugadores y muestra el modal de victoria
+                // Emitir playerLeft aquí causaría que se muestre el modal de bienvenido antes del de victoria
+                
                 await endGameAndCalculateScores(room, winnerSeat, io, { name: playerName, reason: 'Abandono por inactividad' });
+                
+                // NO emitir playerLeft ni handleHostLeaving aquí - el juego ya terminó
+                // NO llamar a checkAndCleanRoom aquí - endGameAndCalculateScores ya lo maneja
                 return; // Salir de la función - el juego terminó
             } else if (activePlayers.length > 1) {
                 if (room.currentPlayerId === leavingPlayerId) {
