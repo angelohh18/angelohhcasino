@@ -6965,6 +6965,10 @@ io.on('connection', (socket) => {
     const { roomId, cardIds, targetMeldIndex } = data;
     const room = la51Rooms[roomId];
     
+    if (!room) {
+        return console.log('Acción de meld inválida: sala no encontrada.');
+    }
+    
     // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
     const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
     let playerSeat = room.seats.find(s => s && s.playerId === socket.id);
@@ -7014,7 +7018,7 @@ io.on('connection', (socket) => {
         }
     }
     
-    if (!room || !playerSeat) {
+    if (!playerSeat) {
         return console.log('Acción de meld inválida: jugador no encontrado.');
     }
     
