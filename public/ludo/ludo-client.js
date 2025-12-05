@@ -1857,11 +1857,13 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Jugador en espera: Interacciones deshabilitadas');
         }
 
-        // 5. Lógica del botón de inicio (sin cambios)
-        if (btnStartGame && gameState.mySeatIndex === gameState.settings.hostSeatIndex && gameState.state === 'waiting') {
+        // 5. Lógica del botón de inicio (ACTUALIZADA para usar room.state)
+        // ▼▼▼ CRÍTICO: Usar room.state en lugar de gameState.state para detectar correctamente el estado de la sala ▼▼▼
+        const roomState = room.state || gameState.state || 'waiting';
+        if (btnStartGame && gameState.mySeatIndex === gameState.settings.hostSeatIndex && roomState === 'waiting') {
             btnStartGame.style.display = 'block';
             // --- INICIO LÓGICA DE HABILITACIÓN DE BOTÓN (REFORZADA) ---
-            const seatedPlayers = gameState.seats.filter(s => s !== null).length;
+            const seatedPlayers = room.seats ? room.seats.filter(s => s !== null).length : gameState.seats.filter(s => s !== null).length;
             const gameType = gameState.settings.gameType;
             const parchisMode = gameState.settings.parchisMode;
 
@@ -1882,6 +1884,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 canStart = (seatedPlayers >= 2);
             }
 
+            console.log(`[playerJoined] Actualizando botón de inicio: seatedPlayers=${seatedPlayers}, canStart=${canStart}, roomState=${roomState}`);
+
             if (canStart) {
                 btnStartGame.disabled = false;
                 btnStartGame.textContent = 'Iniciar Juego';
@@ -1891,6 +1895,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             // --- FIN LÓGICA DE HABILITACIÓN ---
         }
+        // ▲▲▲ FIN ACTUALIZACIÓN CRÍTICA ▲▲▲
     });
     // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
     

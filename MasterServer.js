@@ -946,6 +946,7 @@ function ludoGetSanitizedRoomForClient(room) {
         settings: room.settings,
         seats: room.seats,
         state: room.state,
+        gameState: room.gameState || null, // ▼▼▼ CRÍTICO: Incluir gameState para que el cliente pueda actualizar el botón de inicio ▼▼▼
         spectators: room.spectators || [],
         gameState: room.gameState
     };
