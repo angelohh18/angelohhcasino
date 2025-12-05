@@ -5753,9 +5753,19 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAba
         }
     }
     
-    handleHostLeaving(room, leavingPlayerId, io);
-    io.to(roomId).emit('playerLeft', getSanitizedRoomForClient(room));
-    checkAndCleanRoom(roomId, io);
+    // ▼▼▼ CRÍTICO: Solo emitir playerLeft y handleHostLeaving si el juego NO terminó ▼▼▼
+    // Si el juego terminó (solo quedó un jugador), endGameAndCalculateScores ya emitió gameEnd
+    // y no necesitamos emitir playerLeft porque causaría que se muestre el modal de bienvenido
+    if (room.state === 'playing') {
+        handleHostLeaving(room, leavingPlayerId, io);
+        io.to(roomId).emit('playerLeft', getSanitizedRoomForClient(room));
+        checkAndCleanRoom(roomId, io);
+    } else {
+        // El juego terminó - solo limpiar la sala si es necesario
+        console.log(`[${roomId}] ⚠️ Juego terminó (state: ${room.state}). NO emitiendo playerLeft para evitar mostrar modal de bienvenido.`);
+        checkAndCleanRoom(roomId, io);
+    }
+    // ▲▲▲ FIN VERIFICACIÓN DE ESTADO DEL JUEGO ▲▲▲
 }
 
 function createAndStartPracticeGame(socket, username, avatar, io) {
