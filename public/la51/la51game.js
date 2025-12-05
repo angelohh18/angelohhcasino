@@ -257,7 +257,7 @@ let clientExchangeRates = {}; // Para guardar las tasas
 let lastKnownRooms = []; // <-- AÑADE ESTA LÍNEA
 let shouldRedirectToLobbyAfterElimination = false; // Variable global para rastrear si debe redirigir al lobby después de cerrar el modal de eliminación
 let eliminationGameType = null; // Variable global para guardar el tipo de juego (la51, ludo, parchis) cuando el jugador es eliminado
-
+let currentGameSettings = null; // ▼▼▼ CRÍTICO: Declarar currentGameSettings como variable global para evitar ReferenceError ▼▼▼
 
 // Variables globales para el estado del usuario (migración segura)
 let currentUser = {
@@ -272,7 +272,8 @@ socket.on('connect', () => {
     socket.emit('requestInitialData'); // Un nuevo evento que crearemos en el servidor
     
     // ▼▼▼ CRÍTICO: Reconexión automática si estaba en una partida activa ▼▼▼
-    const savedRoomId = sessionStorage.getItem('la51RoomId') || (currentGameSettings && currentGameSettings.roomId);
+    // Usar sessionStorage primero, luego currentGameSettings si está disponible
+    const savedRoomId = sessionStorage.getItem('la51RoomId') || (typeof currentGameSettings !== 'undefined' && currentGameSettings && currentGameSettings.roomId ? currentGameSettings.roomId : null);
     if (savedRoomId && savedRoomId !== `practice-${socket.id}`) {
         const username = sessionStorage.getItem('username') || localStorage.getItem('username');
         if (username) {
@@ -330,7 +331,7 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('focus', () => {
     if (socket.connected) {
-        const savedRoomId = sessionStorage.getItem('la51RoomId') || (currentGameSettings && currentGameSettings.roomId);
+        const savedRoomId = sessionStorage.getItem('la51RoomId') || (typeof currentGameSettings !== 'undefined' && currentGameSettings && currentGameSettings.roomId ? currentGameSettings.roomId : null);
         if (savedRoomId && savedRoomId !== `practice-${socket.id}`) {
             const username = sessionStorage.getItem('username') || localStorage.getItem('username');
             if (username) {
@@ -2745,7 +2746,8 @@ function showRoomsOverview() {
         }
     });
 
-    let currentGameSettings = {};
+    // currentGameSettings ya está declarado como variable global arriba
+    // let currentGameSettings = {}; // ▼▼▼ ELIMINADO: Ya está declarado como variable global ▼▼▼
     let players = [];
     let gameStarted = false;
     let deck = [], discardPile = [], currentPlayer = 0, allMelds = [], turnMelds = []; // Añadir turnMelds
