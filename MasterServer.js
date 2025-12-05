@@ -10207,13 +10207,50 @@ socket.on('accionDescartar', async (data) => {
                       broadcastUserListUpdate(io);
                   }
               }
+              
+              // ▼▼▼ CRÍTICO: Cancelar timeout de inactividad y limpiar estado de desconexión INMEDIATAMENTE después de actualizar playerId ▼▼▼
+              // Esto asegura que el jugador pueda jugar sin problemas después de reconectarse
+              if (userId) {
+                  const inactivityTimeoutKey = `${roomId}_${userId}`;
+                  if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
+                      clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
+                      delete ludoInactivityTimeouts[inactivityTimeoutKey];
+                      console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${userId} (jugador reconectado y actuando)`);
+                  }
+                  
+                  // También buscar y cancelar cualquier timeout con socket.id o oldPlayerId
+                  const inactivityTimeoutKeyBySocket = `${roomId}_${socket.id}`;
+                  if (ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]) {
+                      clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKeyBySocket]);
+                      delete ludoInactivityTimeouts[inactivityTimeoutKeyBySocket];
+                      console.log(`[${roomId}] ✓ Timeout de inactividad cancelado (por socket.id) para ${socket.id}`);
+                  }
+                  
+                  if (oldPlayerId && oldPlayerId !== socket.id) {
+                      const oldTimeoutKey = `${roomId}_${oldPlayerId}`;
+                      if (ludoInactivityTimeouts[oldTimeoutKey]) {
+                          clearTimeout(ludoInactivityTimeouts[oldTimeoutKey]);
+                          delete ludoInactivityTimeouts[oldTimeoutKey];
+                          console.log(`[${roomId}] ✓ Timeout cancelado usando playerId antiguo: ${oldPlayerId}`);
+                      }
+                  }
+                  
+                  // Limpiar estado de desconexión si existe
+                  const disconnectKey = `${roomId}_${userId}`;
+                  if (ludoDisconnectedPlayers[disconnectKey]) {
+                      delete ludoDisconnectedPlayers[disconnectKey];
+                      console.log(`[${roomId}] ✓ Estado de desconexión limpiado para ${userId} (jugador reconectado y actuando)`);
+                  }
+              }
+              // ▲▲▲ FIN CANCELACIÓN TIMEOUT Y LIMPIEZA DESPUÉS DE RECONEXIÓN ▲▲▲
           }
       }
       // ▲▲▲ FIN BÚSQUEDA Y ACTUALIZACIÓN DE ASIENTO ▲▲▲
       
       // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD Y LIMPIAR ESTADO DE DESCONEXIÓN: El jugador está actuando ▼▼▼
       // CRÍTICO: Usar userId en lugar de socket.id para cancelar correctamente el timeout
-      if (userId) {
+      // Solo hacer esto si NO se encontró el asiento por userId (ya se canceló arriba si se encontró)
+      if (mySeatIndex !== -1 && userId) {
           const inactivityTimeoutKey = `${roomId}_${userId}`;
           if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
               clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
@@ -10252,6 +10289,7 @@ socket.on('accionDescartar', async (data) => {
               });
               return;
           }
+          console.log(`[${roomId}] ⚠️ Jugador ${socket.id} (userId: ${userId}) no encontrado en ningún asiento. Emitiendo error.`);
           return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
       }
       
