@@ -5052,7 +5052,9 @@ async function advanceTurnAfterAction(room, discardingPlayerId, discardedCard, i
                                     }
                                 } else if (activeSeats.length === 1) {
                                     // Solo queda un jugador - declarar ganador
-                                    await endGameAndCalculateScores(currentRoom, activeSeats[0], io, { name: currentSeat.playerName });
+                                    endGameAndCalculateScores(currentRoom, activeSeats[0], io, { name: currentSeat.playerName }).catch(err => {
+                                        console.error(`[${room.roomId}] Error al calcular puntuaciones:`, err);
+                                    });
                                 }
                             }
                         }
