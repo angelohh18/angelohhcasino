@@ -6690,6 +6690,71 @@ io.on('connection', (socket) => {
                 }
                 // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
                 
+                // ▼▼▼ CRÍTICO: Verificar si el jugador tiene el turno y si el timeout debería estar activo ▼▼▼
+                const isMyTurn = room.currentPlayerId === socket.id;
+                if (isMyTurn) {
+                    // El jugador tiene el turno - verificar si el timeout está activo
+                    const timeoutKey = `${roomId}_${userId}`;
+                    const hasActiveTimeout = la51InactivityTimeouts[timeoutKey];
+                    
+                    if (!hasActiveTimeout) {
+                        // El timeout no está activo - iniciarlo ahora (el jugador se reconectó en su turno)
+                        console.log(`[${roomId}] ⚠️ Jugador ${user.username} se reconectó en su turno pero el timeout no está activo. Iniciando timeout ahora...`);
+                        
+                        // Cancelar cualquier timeout anterior primero
+                        if (la51InactivityTimeouts[timeoutKey]) {
+                            clearTimeout(la51InactivityTimeouts[timeoutKey]);
+                            delete la51InactivityTimeouts[timeoutKey];
+                        }
+                        const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
+                        if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+                            clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
+                            delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+                        }
+                        
+                        // Verificar si el jugador ya fue eliminado
+                        const alreadyPenalized = (room.penaltyApplied && room.penaltyApplied[userId]);
+                        if (!alreadyPenalized) {
+                            // Iniciar timeout de inactividad
+                            la51InactivityTimeouts[timeoutKey] = setTimeout(() => {
+                                const currentRoom = la51Rooms[roomId];
+                                if (!currentRoom || currentRoom.currentPlayerId !== socket.id) {
+                                    const currentSeat = currentRoom.seats.find(s => s && s.userId === userId);
+                                    if (!currentSeat || currentRoom.currentPlayerId !== currentSeat.playerId) {
+                                        delete la51InactivityTimeouts[timeoutKey];
+                                        return;
+                                    }
+                                }
+                                const currentSeat = currentRoom.seats.find(s => s && s.userId === userId);
+                                if (!currentSeat || currentSeat.userId !== userId) {
+                                    delete la51InactivityTimeouts[timeoutKey];
+                                    return;
+                                }
+                                if (!currentRoom.penaltyApplied) currentRoom.penaltyApplied = {};
+                                currentRoom.penaltyApplied[currentSeat.userId] = true;
+                                let playerIdToUse = currentSeat.playerId;
+                                if (!playerIdToUse && currentSeat.userId) {
+                                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                                        if (socketUserId === currentSeat.userId) {
+                                            playerIdToUse = socketId;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (playerIdToUse) {
+                                    handlePlayerDeparture(roomId, playerIdToUse, io, false, true);
+                                }
+                                delete la51InactivityTimeouts[timeoutKey];
+                            }, LA51_INACTIVITY_TIMEOUT_MS);
+                            console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${user.username} (userId: ${userId}) después de reconexión. Si no actúa en ${LA51_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+                        }
+                    } else {
+                        console.log(`[${roomId}] ✅ Jugador ${user.username} se reconectó en su turno y el timeout ya está activo. No se reinicia el timeout.`);
+                    }
+                }
+                // ▲▲▲ FIN VERIFICACIÓN DE TIMEOUT AL RECONECTARSE ▲▲▲
+                
                 // ▼▼▼ CRÍTICO: Enviar evento de sincronización de estado en lugar de gameStarted para reconexión ▼▼▼
                 // gameStarted reinicia el juego y reparte cartas, lo cual no queremos durante una reconexión
                 const playerHandCounts = {};
