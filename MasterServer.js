@@ -10015,6 +10015,19 @@ socket.on('accionDescartar', async (data) => {
               socket.join(roomId);
               socket.currentRoomId = roomId;
               
+              // ▼▼▼ CRÍTICO: Actualizar currentPlayerId si es el turno de este jugador ▼▼▼
+              if (room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === mySeatIndex) {
+                  // Si el currentPlayerId apunta al oldPlayerId, actualizarlo
+                  if (room.currentPlayerId === oldPlayerId || (room.gameState.turn.playerId === oldPlayerId)) {
+                      room.currentPlayerId = socket.id;
+                      if (room.gameState.turn) {
+                          room.gameState.turn.playerId = socket.id;
+                      }
+                      console.log(`[${roomId}] ✅ Actualizado currentPlayerId y turn.playerId de ${oldPlayerId} a ${socket.id} (jugador reconectado en su turno - ludoRollDice)`);
+                  }
+              }
+              // ▲▲▲ FIN ACTUALIZACIÓN DE CURRENTPLAYERID ▲▲▲
+              
               // Actualizar connectedUsers si es necesario
               if (!connectedUsers[socket.id] && userId) {
                   let userInfo = null;
@@ -10520,14 +10533,57 @@ socket.on('accionDescartar', async (data) => {
       // Si no se encuentra por socket.id, buscar por userId (reconexión)
       if (mySeatIndex === -1 && userId) {
           mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
-          // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id
+          // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id INMEDIATAMENTE
           if (mySeatIndex !== -1) {
-              room.seats[mySeatIndex].playerId = socket.id;
-              console.log(`[${roomId}] Actualizado playerId del asiento ${mySeatIndex} a ${socket.id} para userId ${userId}`);
+              const existingSeat = room.seats[mySeatIndex];
+              const oldPlayerId = existingSeat.playerId;
+              existingSeat.playerId = socket.id;
+              console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${mySeatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (ludoMovePiece - reconexión)`);
+              
+              // Asegurar que el socket esté en la sala
+              socket.join(roomId);
+              socket.currentRoomId = roomId;
+              
+              // ▼▼▼ CRÍTICO: Actualizar currentPlayerId si es el turno de este jugador ▼▼▼
+              if (room.gameState && room.gameState.turn && room.gameState.turn.playerIndex === mySeatIndex) {
+                  // Si el currentPlayerId apunta al oldPlayerId, actualizarlo
+                  if (room.currentPlayerId === oldPlayerId || (room.gameState.turn.playerId === oldPlayerId)) {
+                      room.currentPlayerId = socket.id;
+                      if (room.gameState.turn) {
+                          room.gameState.turn.playerId = socket.id;
+                      }
+                      console.log(`[${roomId}] ✅ Actualizado currentPlayerId y turn.playerId de ${oldPlayerId} a ${socket.id} (jugador reconectado en su turno)`);
+                  }
+              }
+              // ▲▲▲ FIN ACTUALIZACIÓN DE CURRENTPLAYERID ▲▲▲
+              
+              // Actualizar connectedUsers si es necesario
+              if (!connectedUsers[socket.id] && userId) {
+                  let userInfo = null;
+                  Object.keys(connectedUsers).forEach(oldSocketId => {
+                      const oldSocket = io.sockets.sockets.get(oldSocketId);
+                      if (oldSocket && oldSocket.userId === userId) {
+                          userInfo = connectedUsers[oldSocketId];
+                          delete connectedUsers[oldSocketId];
+                      }
+                  });
+                  if (userInfo) {
+                      connectedUsers[socket.id] = {
+                          ...userInfo,
+                          username: userInfo.username || userId.replace('user_', ''),
+                          status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+                          currentLobby: 'Ludo'
+                      };
+                      broadcastUserListUpdate(io);
+                  }
+              }
           }
       }
       
-      if (mySeatIndex === -1) return socket.emit('ludoError', { message: 'No estás sentado.' });
+      if (mySeatIndex === -1) {
+          console.log(`[${roomId}] ❌ Jugador ${socket.id} (userId: ${userId}) no está sentado en esta mesa (ludoMovePiece).`);
+          return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
+      }
       
       // --- VALIDACIÓN: Jugador en espera no puede interactuar ---
       const mySeat = room.seats[mySeatIndex];
