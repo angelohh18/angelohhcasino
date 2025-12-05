@@ -180,6 +180,14 @@ function showGameView(settings) {
     document.body.classList.add('game-active'); // >> AÑADE ESTA LÍNEA <<
     document.getElementById('lobby-overlay').style.display = 'none';
     document.getElementById('game-container').style.display = 'block';
+    
+    // ▼▼▼ CRÍTICO: Guardar roomId en sessionStorage para reconexión automática ▼▼▼
+    if (settings && settings.roomId && !settings.isPractice) {
+        sessionStorage.setItem('la51RoomId', settings.roomId);
+        console.log(`[showGameView] Guardado roomId en sessionStorage: ${settings.roomId}`);
+    }
+    // ▲▲▲ FIN GUARDAR ROOMID ▲▲▲
+    
     if (typeof initializeGame === 'function') {
         initializeGame(settings);
     }
@@ -264,7 +272,8 @@ socket.on('connect', () => {
     socket.emit('requestInitialData'); // Un nuevo evento que crearemos en el servidor
     
     // ▼▼▼ CRÍTICO: Reconexión automática si estaba en una partida activa ▼▼▼
-    if (currentGameSettings && currentGameSettings.roomId && !currentGameSettings.isPractice) {
+    const savedRoomId = sessionStorage.getItem('la51RoomId') || (currentGameSettings && currentGameSettings.roomId);
+    if (savedRoomId && savedRoomId !== `practice-${socket.id}`) {
         const username = sessionStorage.getItem('username') || localStorage.getItem('username');
         if (username) {
             const user = {
@@ -273,8 +282,8 @@ socket.on('connect', () => {
                 credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
                 currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
             };
-            console.log(`[RECONNECT] Reconectando automáticamente a sala ${currentGameSettings.roomId}...`);
-            socket.emit('joinRoom', { roomId: currentGameSettings.roomId, user: user });
+            console.log(`[RECONNECT] Reconectando automáticamente a sala ${savedRoomId}...`);
+            socket.emit('joinRoom', { roomId: savedRoomId, user: user });
         }
     }
     // ▲▲▲ FIN RECONEXIÓN AUTOMÁTICA ▲▲▲
@@ -301,33 +310,39 @@ socket.on('disconnect', (reason) => {
 
 // ▼▼▼ CRÍTICO: Reconexión automática cuando la página vuelve a estar visible ▼▼▼
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && socket.connected && currentGameSettings && currentGameSettings.roomId && !currentGameSettings.isPractice) {
-        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
-        if (username) {
-            const user = {
-                username: username,
-                avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
-                credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
-                currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
-            };
-            console.log(`[RECONNECT] Página visible - reconectando automáticamente a sala ${currentGameSettings.roomId}...`);
-            socket.emit('joinRoom', { roomId: currentGameSettings.roomId, user: user });
+    if (!document.hidden && socket.connected) {
+        const savedRoomId = sessionStorage.getItem('la51RoomId') || (currentGameSettings && currentGameSettings.roomId);
+        if (savedRoomId && savedRoomId !== `practice-${socket.id}`) {
+            const username = sessionStorage.getItem('username') || localStorage.getItem('username');
+            if (username) {
+                const user = {
+                    username: username,
+                    avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
+                    credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
+                    currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
+                };
+                console.log(`[RECONNECT] Página visible - reconectando automáticamente a sala ${savedRoomId}...`);
+                socket.emit('joinRoom', { roomId: savedRoomId, user: user });
+            }
         }
     }
 });
 
 window.addEventListener('focus', () => {
-    if (socket.connected && currentGameSettings && currentGameSettings.roomId && !currentGameSettings.isPractice) {
-        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
-        if (username) {
-            const user = {
-                username: username,
-                avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
-                credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
-                currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
-            };
-            console.log(`[RECONNECT] Ventana enfocada - reconectando automáticamente a sala ${currentGameSettings.roomId}...`);
-            socket.emit('joinRoom', { roomId: currentGameSettings.roomId, user: user });
+    if (socket.connected) {
+        const savedRoomId = sessionStorage.getItem('la51RoomId') || (currentGameSettings && currentGameSettings.roomId);
+        if (savedRoomId && savedRoomId !== `practice-${socket.id}`) {
+            const username = sessionStorage.getItem('username') || localStorage.getItem('username');
+            if (username) {
+                const user = {
+                    username: username,
+                    avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
+                    credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
+                    currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
+                };
+                console.log(`[RECONNECT] Ventana enfocada - reconectando automáticamente a sala ${savedRoomId}...`);
+                socket.emit('joinRoom', { roomId: savedRoomId, user: user });
+            }
         }
     }
 });

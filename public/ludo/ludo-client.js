@@ -5,9 +5,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Conectar al mismo servidor (namespace por defecto para sincronización correcta)
     const socket = io();
     
+    // ▼▼▼ CRÍTICO: Reconexión automática cuando el socket se conecta ▼▼▼
+    socket.on('connect', () => {
+        console.log('🔌 Conexión global con el servidor establecida. ID:', socket.id);
+        
+        // Reconexión automática si estaba en una partida activa
+        const savedRoomId = sessionStorage.getItem('ludoRoomId');
+        if (savedRoomId) {
+            const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            if (userId) {
+                console.log(`[RECONNECT] Reconectando automáticamente a sala ${savedRoomId}...`);
+                socket.emit('joinLudoGame', { roomId: savedRoomId, userId: userId });
+            }
+        }
+    });
+    // ▲▲▲ FIN RECONEXIÓN AUTOMÁTICA ▲▲▲
+    
     // Obtener el ID de la sala desde la URL
     const urlParams = new URLSearchParams(window.location.search);
-    const roomId = urlParams.get('roomId');
+    let roomId = urlParams.get('roomId');
+    
+    // ▼▼▼ CRÍTICO: Guardar roomId en sessionStorage para reconexión automática ▼▼▼
+    if (roomId) {
+        sessionStorage.setItem('ludoRoomId', roomId);
+    } else {
+        // Si no hay roomId en la URL, intentar obtenerlo de sessionStorage (reconexión)
+        roomId = sessionStorage.getItem('ludoRoomId');
+    }
+    // ▲▲▲ FIN GUARDAR ROOMID ▲▲▲
     
     if (!roomId) {
         alert('Error: No se encontró ID de la sala.');
@@ -1689,6 +1714,12 @@ document.addEventListener('DOMContentLoaded', function() {
             state: data.gameState ? 'playing' : 'waiting',
             gameState: data.gameState || { pot: 0, turn: {}, pieces: {}, board: {} }
         };
+        
+        // ▼▼▼ CRÍTICO: Guardar roomId en sessionStorage para reconexión automática ▼▼▼
+        if (data.roomId) {
+            sessionStorage.setItem('ludoRoomId', data.roomId);
+        }
+        // ▲▲▲ FIN GUARDAR ROOMID ▲▲▲
         
         myPlayerId = socket.id;
         
