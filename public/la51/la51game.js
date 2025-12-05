@@ -545,14 +545,12 @@ function showPwaInstallModal() {
         
         // ▼▼▼ CRÍTICO: Si el juego ya está en curso, NO llamar a showGameView (evita reiniciar el juego) ▼▼▼
         // Si el juego está en curso, solo actualizar el estado sin reiniciar
-        if (roomData.state === 'playing' && gameStarted) {
+        if (roomData.state === 'playing' && typeof gameStarted !== 'undefined' && gameStarted) {
             console.log('[joinedRoomSuccessfully] Juego ya en curso - NO reiniciando. Solo actualizando estado.');
             // Actualizar currentGameSettings sin reiniciar el juego
             currentGameSettings = { ...currentGameSettings, ...roomData };
-            // Actualizar vista de jugadores sin reiniciar
-            if (roomData.seats) {
-                updatePlayersView(roomData.seats, gameStarted);
-            }
+            // NO actualizar la vista aquí - gameStateSync se encargará de eso
+            // Solo retornar para evitar que se reinicie el juego
             return; // NO llamar a showGameView - el juego ya está en curso
         }
         // ▲▲▲ FIN VERIFICACIÓN DE JUEGO EN CURSO ▲▲▲
