@@ -312,7 +312,7 @@ socket.on('disconnect', (reason) => {
 // ▼▼▼ CRÍTICO: Reconexión automática cuando la página vuelve a estar visible ▼▼▼
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden && socket.connected) {
-        const savedRoomId = sessionStorage.getItem('la51RoomId') || (currentGameSettings && currentGameSettings.roomId);
+        const savedRoomId = sessionStorage.getItem('la51RoomId') || (typeof currentGameSettings !== 'undefined' && currentGameSettings && currentGameSettings.roomId ? currentGameSettings.roomId : null);
         if (savedRoomId && savedRoomId !== `practice-${socket.id}`) {
             const username = sessionStorage.getItem('username') || localStorage.getItem('username');
             if (username) {
