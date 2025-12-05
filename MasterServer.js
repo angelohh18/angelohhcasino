@@ -9481,6 +9481,16 @@ socket.on('accionDescartar', async (data) => {
           });
           // ▲▲▲ FIN CANCELACIÓN DE TIMEOUTS ▲▲▲
           
+          // ▼▼▼ CRÍTICO: Limpiar abandonmentFinalized si existe (jugador se reconectó antes del timeout) ▼▼▼
+          if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+              delete room.abandonmentFinalized[userId];
+              if (Object.keys(room.abandonmentFinalized).length === 0) {
+                  delete room.abandonmentFinalized;
+              }
+              console.log(`[${roomId}] ✅ abandonmentFinalized limpiado para ${userId} (jugador se reconectó antes del timeout)`);
+          }
+          // ▲▲▲ FIN LIMPIEZA ABANDONMENTFINALIZED ▲▲▲
+          
           // Limpiar estado de desconexión
           const disconnectKey = `${roomId}_${userId}`;
           if (ludoDisconnectedPlayers[disconnectKey]) {
