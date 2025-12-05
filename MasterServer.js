@@ -2199,13 +2199,54 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
         return;
     }
 
-    const mySeatIndex = room.seats.findIndex((s) => s && s.playerId === socket.id);
+    // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
+    const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    const roomId = room.roomId;
+    let mySeatIndex = room.seats.findIndex((s) => s && s.playerId === socket.id);
+    
+    // Si no se encuentra por socket.id, buscar por userId (reconexión) - ACTUALIZAR INMEDIATAMENTE
+    if (mySeatIndex === -1 && userId) {
+        mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
+        // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id INMEDIATAMENTE
+        if (mySeatIndex !== -1) {
+            const existingSeat = room.seats[mySeatIndex];
+            const oldPlayerId = existingSeat.playerId;
+            existingSeat.playerId = socket.id;
+            console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${mySeatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (ludoHandleParchisRoll - reconexión)`);
+            
+            // Asegurar que el socket esté en la sala
+            socket.join(roomId);
+            socket.currentRoomId = roomId;
+            
+            // Actualizar connectedUsers si es necesario
+            if (!connectedUsers[socket.id] && userId) {
+                let userInfo = null;
+                Object.keys(connectedUsers).forEach(oldSocketId => {
+                    const oldSocket = io.sockets.sockets.get(oldSocketId);
+                    if (oldSocket && oldSocket.userId === userId) {
+                        userInfo = connectedUsers[oldSocketId];
+                        delete connectedUsers[oldSocketId];
+                    }
+                });
+                if (userInfo) {
+                    connectedUsers[socket.id] = {
+                        ...userInfo,
+                        username: userInfo.username || userId.replace('user_', ''),
+                        status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+                        currentLobby: 'Ludo'
+                    };
+                    broadcastUserListUpdate(io);
+                }
+            }
+        }
+    }
+    // ▲▲▲ FIN BÚSQUEDA Y ACTUALIZACIÓN DE ASIENTO ▲▲▲
+    
     if (mySeatIndex === -1) {
         return socket.emit('ludoError', { message: 'No estás sentado en esta mesa.' });
     }
 
     const seat = room.seats[mySeatIndex];
-    const roomId = room.roomId;
     const seatColor = seat.color;
     const playerColor = ludoGetControlledColorForSeat(room, mySeatIndex) || seatColor;
     const playerName = seat.playerName || 'Jugador';
@@ -6923,11 +6964,79 @@ io.on('connection', (socket) => {
     let highlightInfo = null;
     const { roomId, cardIds, targetMeldIndex } = data;
     const room = la51Rooms[roomId];
-    const playerSeat = room.seats.find(s => s && s.playerId === socket.id);
-
-    if (!room || !playerSeat || room.currentPlayerId !== socket.id) {
-        return console.log('Acción de meld inválida: fuera de turno o jugador no encontrado.');
+    
+    // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
+    const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    let playerSeat = room.seats.find(s => s && s.playerId === socket.id);
+    let oldPlayerId = null;
+    
+    // Si no se encuentra por socket.id, buscar por userId (reconexión)
+    if (!playerSeat && userId) {
+        const seatIndex = room.seats.findIndex(s => s && s.userId === userId);
+        if (seatIndex !== -1) {
+            playerSeat = room.seats[seatIndex];
+            oldPlayerId = playerSeat.playerId; // Guardar el playerId antiguo
+            // Actualizar el playerId con el nuevo socket.id
+            playerSeat.playerId = socket.id;
+            console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${seatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (meldAction)`);
+            
+            // Asegurar que el socket esté en la sala
+            socket.join(roomId);
+            socket.currentRoomId = roomId;
+            
+            // Actualizar playerHands si existe
+            if (room.playerHands && oldPlayerId && room.playerHands[oldPlayerId]) {
+                room.playerHands[socket.id] = room.playerHands[oldPlayerId];
+                delete room.playerHands[oldPlayerId];
+                console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}`);
+            }
+            
+            // Actualizar connectedUsers si es necesario
+            if (!connectedUsers[socket.id] && userId) {
+                let userInfo = null;
+                Object.keys(connectedUsers).forEach(oldSocketId => {
+                    const oldSocket = io.sockets.sockets.get(oldSocketId);
+                    if (oldSocket && oldSocket.userId === userId) {
+                        userInfo = connectedUsers[oldSocketId];
+                        delete connectedUsers[oldSocketId];
+                    }
+                });
+                if (userInfo) {
+                    connectedUsers[socket.id] = {
+                        ...userInfo,
+                        username: userInfo.username || userId.replace('user_', ''),
+                        status: room.state === 'playing' ? `En partida de La 51` : `En el lobby de La 51`,
+                        currentLobby: 'La 51'
+                    };
+                    broadcastUserListUpdate(io);
+                }
+            }
+        }
     }
+    
+    if (!room || !playerSeat) {
+        return console.log('Acción de meld inválida: jugador no encontrado.');
+    }
+    
+    // ▼▼▼ CRÍTICO: Validar turno considerando reconexión ▼▼▼
+    let isMyTurn = room.currentPlayerId === socket.id;
+    
+    // Si no es mi turno por socket.id, verificar si es mi turno por userId (reconexión)
+    if (!isMyTurn && userId) {
+        const currentPlayerSeat = room.seats.find(s => s && s.playerId === room.currentPlayerId);
+        if (currentPlayerSeat && currentPlayerSeat.userId === userId) {
+            // Es mi turno pero el currentPlayerId tiene el socket.id antiguo - actualizar
+            room.currentPlayerId = socket.id;
+            isMyTurn = true;
+            console.log(`[${roomId}] ✅ Actualizado currentPlayerId de ${currentPlayerSeat.playerId} a ${socket.id} (meldAction)`);
+        }
+    }
+    
+    if (!isMyTurn) {
+        return console.log('Acción de meld inválida: fuera de turno.');
+    }
+    // ▲▲▲ FIN VALIDACIÓN DE TURNO CON RECONEXIÓN ▲▲▲
+    // ▲▲▲ FIN BÚSQUEDA MEJORADA DE ASIENTO ▲▲▲
     
     // Cancelar timeout de inactividad: el jugador está actuando (igual que en Ludo)
     const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
@@ -7141,11 +7250,36 @@ socket.on('accionDescartar', async (data) => {
             playerSeat.playerId = socket.id;
             console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${seatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (accionDescartar)`);
             
+            // Asegurar que el socket esté en la sala
+            socket.join(roomId);
+            socket.currentRoomId = roomId;
+            
             // Actualizar playerHands si existe
             if (room.playerHands && oldPlayerId && room.playerHands[oldPlayerId]) {
                 room.playerHands[socket.id] = room.playerHands[oldPlayerId];
                 delete room.playerHands[oldPlayerId];
                 console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}`);
+            }
+            
+            // Actualizar connectedUsers si es necesario
+            if (!connectedUsers[socket.id] && userId) {
+                let userInfo = null;
+                Object.keys(connectedUsers).forEach(oldSocketId => {
+                    const oldSocket = io.sockets.sockets.get(oldSocketId);
+                    if (oldSocket && oldSocket.userId === userId) {
+                        userInfo = connectedUsers[oldSocketId];
+                        delete connectedUsers[oldSocketId];
+                    }
+                });
+                if (userInfo) {
+                    connectedUsers[socket.id] = {
+                        ...userInfo,
+                        username: userInfo.username || userId.replace('user_', ''),
+                        status: room.state === 'playing' ? `En partida de La 51` : `En el lobby de La 51`,
+                        currentLobby: 'La 51'
+                    };
+                    broadcastUserListUpdate(io);
+                }
             }
         }
     }
@@ -7327,8 +7461,62 @@ socket.on('accionDescartar', async (data) => {
     const room = la51Rooms[roomId];
     if (!room) return;
     
-    // ▼▼▼ CRÍTICO: Validar turno considerando reconexión ▼▼▼
+    // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
     const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    let playerSeat = room.seats.find(s => s && s.playerId === socket.id);
+    let oldPlayerId = null;
+    
+    // Si no se encuentra por socket.id, buscar por userId (reconexión)
+    if (!playerSeat && userId) {
+        const seatIndex = room.seats.findIndex(s => s && s.userId === userId);
+        if (seatIndex !== -1) {
+            playerSeat = room.seats[seatIndex];
+            oldPlayerId = playerSeat.playerId; // Guardar el playerId antiguo
+            // Actualizar el playerId con el nuevo socket.id
+            playerSeat.playerId = socket.id;
+            console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${seatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (drawFromDeck)`);
+            
+            // Asegurar que el socket esté en la sala
+            socket.join(roomId);
+            socket.currentRoomId = roomId;
+            
+            // Actualizar playerHands si existe
+            if (room.playerHands && oldPlayerId && room.playerHands[oldPlayerId]) {
+                room.playerHands[socket.id] = room.playerHands[oldPlayerId];
+                delete room.playerHands[oldPlayerId];
+                console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}`);
+            }
+            
+            // Actualizar connectedUsers si es necesario
+            if (!connectedUsers[socket.id] && userId) {
+                let userInfo = null;
+                Object.keys(connectedUsers).forEach(oldSocketId => {
+                    const oldSocket = io.sockets.sockets.get(oldSocketId);
+                    if (oldSocket && oldSocket.userId === userId) {
+                        userInfo = connectedUsers[oldSocketId];
+                        delete connectedUsers[oldSocketId];
+                    }
+                });
+                if (userInfo) {
+                    connectedUsers[socket.id] = {
+                        ...userInfo,
+                        username: userInfo.username || userId.replace('user_', ''),
+                        status: room.state === 'playing' ? `En partida de La 51` : `En el lobby de La 51`,
+                        currentLobby: 'La 51'
+                    };
+                    broadcastUserListUpdate(io);
+                }
+            }
+        }
+    }
+    
+    if (!playerSeat) {
+        console.log(`[${roomId}] ❌ Jugador ${socket.id} (userId: ${userId}) no está sentado en esta mesa.`);
+        return socket.emit('fault', { reason: 'No estás sentado en esta mesa.' });
+    }
+    // ▲▲▲ FIN BÚSQUEDA MEJORADA DE ASIENTO ▲▲▲
+    
+    // ▼▼▼ CRÍTICO: Validar turno considerando reconexión ▼▼▼
     let isMyTurn = room.currentPlayerId === socket.id;
     
     // Si no es mi turno por socket.id, verificar si es mi turno por userId (reconexión)
@@ -7424,8 +7612,62 @@ socket.on('accionDescartar', async (data) => {
       const room = la51Rooms[roomId];
       if (!room) return;
       
-      // ▼▼▼ CRÍTICO: Validar turno considerando reconexión ▼▼▼
+      // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
       const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+      let playerSeat = room.seats.find(s => s && s.playerId === socket.id);
+      let oldPlayerId = null;
+      
+      // Si no se encuentra por socket.id, buscar por userId (reconexión)
+      if (!playerSeat && userId) {
+          const seatIndex = room.seats.findIndex(s => s && s.userId === userId);
+          if (seatIndex !== -1) {
+              playerSeat = room.seats[seatIndex];
+              oldPlayerId = playerSeat.playerId; // Guardar el playerId antiguo
+              // Actualizar el playerId con el nuevo socket.id
+              playerSeat.playerId = socket.id;
+              console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${seatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (drawFromDiscard)`);
+              
+              // Asegurar que el socket esté en la sala
+              socket.join(roomId);
+              socket.currentRoomId = roomId;
+              
+              // Actualizar playerHands si existe
+              if (room.playerHands && oldPlayerId && room.playerHands[oldPlayerId]) {
+                  room.playerHands[socket.id] = room.playerHands[oldPlayerId];
+                  delete room.playerHands[oldPlayerId];
+                  console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}`);
+              }
+              
+              // Actualizar connectedUsers si es necesario
+              if (!connectedUsers[socket.id] && userId) {
+                  let userInfo = null;
+                  Object.keys(connectedUsers).forEach(oldSocketId => {
+                      const oldSocket = io.sockets.sockets.get(oldSocketId);
+                      if (oldSocket && oldSocket.userId === userId) {
+                          userInfo = connectedUsers[oldSocketId];
+                          delete connectedUsers[oldSocketId];
+                      }
+                  });
+                  if (userInfo) {
+                      connectedUsers[socket.id] = {
+                          ...userInfo,
+                          username: userInfo.username || userId.replace('user_', ''),
+                          status: room.state === 'playing' ? `En partida de La 51` : `En el lobby de La 51`,
+                          currentLobby: 'La 51'
+                      };
+                      broadcastUserListUpdate(io);
+                  }
+              }
+          }
+      }
+      
+      if (!playerSeat) {
+          console.log(`[${roomId}] ❌ Jugador ${socket.id} (userId: ${userId}) no está sentado en esta mesa.`);
+          return socket.emit('fault', { reason: 'No estás sentado en esta mesa.' });
+      }
+      // ▲▲▲ FIN BÚSQUEDA MEJORADA DE ASIENTO ▲▲▲
+      
+      // ▼▼▼ CRÍTICO: Validar turno considerando reconexión ▼▼▼
       let isMyTurn = room.currentPlayerId === socket.id;
       
       // Si no es mi turno por socket.id, verificar si es mi turno por userId (reconexión)
