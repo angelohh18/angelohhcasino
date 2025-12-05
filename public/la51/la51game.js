@@ -262,6 +262,22 @@ let currentUser = {
 socket.on('connect', () => {
     console.log('🔌 Conexión global con el servidor establecida. ID:', socket.id);
     socket.emit('requestInitialData'); // Un nuevo evento que crearemos en el servidor
+    
+    // ▼▼▼ CRÍTICO: Reconexión automática si estaba en una partida activa ▼▼▼
+    if (currentGameSettings && currentGameSettings.roomId && !currentGameSettings.isPractice) {
+        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
+        if (username) {
+            const user = {
+                username: username,
+                avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
+                credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
+                currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
+            };
+            console.log(`[RECONNECT] Reconectando automáticamente a sala ${currentGameSettings.roomId}...`);
+            socket.emit('joinRoom', { roomId: currentGameSettings.roomId, user: user });
+        }
+    }
+    // ▲▲▲ FIN RECONEXIÓN AUTOMÁTICA ▲▲▲
 });
 
 socket.on('connect_error', (error) => {
@@ -282,6 +298,40 @@ socket.on('disconnect', (reason) => {
         console.warn('⚠️ El servidor cerró la conexión. No se intentará reconectar automáticamente.');
     }
 });
+
+// ▼▼▼ CRÍTICO: Reconexión automática cuando la página vuelve a estar visible ▼▼▼
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && socket.connected && currentGameSettings && currentGameSettings.roomId && !currentGameSettings.isPractice) {
+        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
+        if (username) {
+            const user = {
+                username: username,
+                avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
+                credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
+                currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
+            };
+            console.log(`[RECONNECT] Página visible - reconectando automáticamente a sala ${currentGameSettings.roomId}...`);
+            socket.emit('joinRoom', { roomId: currentGameSettings.roomId, user: user });
+        }
+    }
+});
+
+window.addEventListener('focus', () => {
+    if (socket.connected && currentGameSettings && currentGameSettings.roomId && !currentGameSettings.isPractice) {
+        const username = sessionStorage.getItem('username') || localStorage.getItem('username');
+        if (username) {
+            const user = {
+                username: username,
+                avatar: sessionStorage.getItem('avatar') || localStorage.getItem('avatar') || '',
+                credits: parseFloat(sessionStorage.getItem('userCredits') || localStorage.getItem('userCredits') || 1000),
+                currency: sessionStorage.getItem('userCurrency') || localStorage.getItem('userCurrency') || 'USD'
+            };
+            console.log(`[RECONNECT] Ventana enfocada - reconectando automáticamente a sala ${currentGameSettings.roomId}...`);
+            socket.emit('joinRoom', { roomId: currentGameSettings.roomId, user: user });
+        }
+    }
+});
+// ▲▲▲ FIN RECONEXIÓN AUTOMÁTICA ▲▲▲
 
 
 // ▼▼▼ FUNCIÓN PWA INSTALL MODAL (GLOBAL) ▼▼▼

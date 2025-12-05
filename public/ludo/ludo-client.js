@@ -2440,6 +2440,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
     });
     
+    // ▼▼▼ CRÍTICO: Reconexión automática cuando la página vuelve a estar visible ▼▼▼
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && socket.connected && gameState && gameState.roomId) {
+            const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            if (userId) {
+                console.log(`[RECONNECT] Página visible - reconectando automáticamente a sala ${gameState.roomId}...`);
+                socket.emit('joinLudoGame', { roomId: gameState.roomId, userId: userId });
+            }
+        }
+    });
+    
+    window.addEventListener('focus', () => {
+        if (socket.connected && gameState && gameState.roomId) {
+            const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+            if (userId) {
+                console.log(`[RECONNECT] Ventana enfocada - reconectando automáticamente a sala ${gameState.roomId}...`);
+                socket.emit('joinLudoGame', { roomId: gameState.roomId, userId: userId });
+            }
+        }
+    });
+    // ▲▲▲ FIN RECONEXIÓN AUTOMÁTICA ▲▲▲
+    
     socket.on('playerLeft', (roomData) => {
         console.log('[playerLeft] Un jugador ha salido:', roomData);
         
