@@ -5241,7 +5241,11 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAba
 
     // ▼▼▼ LIMPIEZA AGRESIVA DE REGISTROS DEL JUGADOR ▼▼▼
     // 1. Marcar como inactivo primero (antes de liberar el asiento para que la lógica de turno funcione)
-    leavingPlayerSeat.active = false; // Marcar como inactivo
+    // CRÍTICO: Marcar el asiento REAL como inactivo, no solo la copia
+    if (room.seats[seatIndex]) {
+        room.seats[seatIndex].active = false; // Marcar como inactivo en el asiento real
+    }
+    leavingPlayerSeat.active = false; // También marcar en la copia para consistencia
     
     // 2. Liberar el asiento DESPUÉS de procesar la eliminación (se hará al final si es necesario)
     // NO liberar aquí todavía si el juego está activo, se liberará después de pasar el turno
