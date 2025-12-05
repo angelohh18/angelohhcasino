@@ -1811,6 +1811,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // ▼▼▼ CRÍTICO: Actualizar gameState.state con room.state para que el botón de inicio funcione correctamente ▼▼▼
+        if (room.state) {
+            gameState.state = room.state;
+            console.log(`[playerJoined] Estado de la sala actualizado: ${room.state}`);
+        }
+        // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
+        
         // ▼▼▼ CORRECCIÓN: Verificar si soy un jugador en espera ▼▼▼
         const mySeat = room.seats.find(s => s && s.playerId === socket.id);
         const isWaitingPlayer = mySeat && mySeat.status === 'waiting';
