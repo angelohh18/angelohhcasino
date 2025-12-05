@@ -6507,6 +6507,12 @@ io.on('connection', (socket) => {
                 });
             }
             
+            // Notificar a todos que el jugador se reconectó
+            io.to(roomId).emit('playerReconnected', {
+                playerName: existingSeat.playerName,
+                message: `${existingSeat.playerName} se reconectó.`
+            });
+            
             console.log(`[${roomId}] ✅ Jugador ${user.username} reconectado exitosamente a su asiento [${existingSeatIndex}]`);
             return; // Salir temprano, no procesar más
         }
@@ -7539,10 +7545,10 @@ socket.on('accionDescartar', async (data) => {
 
     // ▼▼▼ SIMPLIFICADO: NO eliminar de connectedUsers si está en partida activa (Ludo o La 51) - el timeout se encargará ▼▼▼
     let shouldKeepInConnectedUsers = false;
-    if (roomId) {
-        // Verificar Ludo
+    if (roomId && userId) {
+        // Verificar Ludo - buscar por userId (porque el socket.id puede haber cambiado)
         if (ludoRooms[roomId] && (ludoRooms[roomId].state === 'playing' || ludoRooms[roomId].state === 'post-game')) {
-            const seatIndex = ludoRooms[roomId].seats.findIndex(s => s && s.playerId === socket.id);
+            const seatIndex = ludoRooms[roomId].seats.findIndex(s => s && (s.playerId === socket.id || s.userId === userId));
             if (seatIndex !== -1) {
                 const seat = ludoRooms[roomId].seats[seatIndex];
                 if (seat && seat.status !== 'waiting') {
@@ -7550,9 +7556,9 @@ socket.on('accionDescartar', async (data) => {
                 }
             }
         }
-        // Verificar La 51
+        // Verificar La 51 - buscar por userId (porque el socket.id puede haber cambiado)
         if (la51Rooms[roomId] && la51Rooms[roomId].state === 'playing') {
-            const seatIndex = la51Rooms[roomId].seats.findIndex(s => s && s.playerId === socket.id);
+            const seatIndex = la51Rooms[roomId].seats.findIndex(s => s && (s.playerId === socket.id || s.userId === userId));
             if (seatIndex !== -1) {
                 const seat = la51Rooms[roomId].seats[seatIndex];
                 if (seat && seat.status !== 'waiting') {
@@ -7687,7 +7693,7 @@ socket.on('accionDescartar', async (data) => {
             
             if (leavingPlayerSeat && leavingPlayerSeat.status !== 'waiting') {
                 // ▼▼▼ CRÍTICO: Verificar si el jugador tiene el turno actual para el mensaje correcto ▼▼▼
-                const hasCurrentTurn = room.currentPlayerId === socket.id;
+                const hasCurrentTurn = la51Room.currentPlayerId === socket.id;
                 const turnMessage = hasCurrentTurn 
                     ? 'El timeout de inactividad de 2 minutos ya está activo. Si no actúa en ese tiempo, será eliminado.'
                     : 'El timeout de inactividad se iniciará cuando le toque el turno.';
