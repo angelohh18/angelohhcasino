@@ -6595,6 +6595,14 @@ io.on('connection', (socket) => {
             });
             // ▲▲▲ FIN CANCELACIÓN DE TIMEOUT AL RECONECTARSE ▲▲▲
             
+            // ▼▼▼ CRÍTICO: Limpiar la51EliminatedPlayers si existe (jugador se reconectó antes del timeout) ▼▼▼
+            const eliminatedKey = `${roomId}_${userId}`;
+            if (la51EliminatedPlayers && la51EliminatedPlayers[eliminatedKey]) {
+                delete la51EliminatedPlayers[eliminatedKey];
+                console.log(`[${roomId}] ✅ la51EliminatedPlayers limpiado para ${userId} (jugador se reconectó antes del timeout)`);
+            }
+            // ▲▲▲ FIN LIMPIEZA LA51ELIMINATEDPLAYERS ▲▲▲
+            
             // Limpiar de la lista de desconectados si existe
             const disconnectKey = `${roomId}_${userId}`;
             if (la51DisconnectedPlayers && la51DisconnectedPlayers[disconnectKey]) {
@@ -9204,6 +9212,16 @@ socket.on('accionDescartar', async (data) => {
           if (Object.keys(room.reconnectSeats).length === 0) {
               delete room.reconnectSeats;
           }
+          
+          // ▼▼▼ CRÍTICO: Limpiar abandonmentFinalized si existe (jugador se reconectó antes del timeout) ▼▼▼
+          if (room.abandonmentFinalized && room.abandonmentFinalized[userId]) {
+              delete room.abandonmentFinalized[userId];
+              if (Object.keys(room.abandonmentFinalized).length === 0) {
+                  delete room.abandonmentFinalized;
+              }
+              console.log(`[${roomId}] ✅ abandonmentFinalized limpiado para ${userId} (jugador se reconectó antes del timeout)`);
+          }
+          // ▲▲▲ FIN LIMPIEZA ABANDONMENTFINALIZED ▲▲▲
           
           // ▼▼▼ LIMPIAR ESTADO DE DESCONEXIÓN: El jugador se reconectó ▼▼▼
           const disconnectKey = `${roomId}_${userId}`;
