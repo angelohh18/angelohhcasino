@@ -542,6 +542,22 @@ function showPwaInstallModal() {
             return; // No mostrar la vista del juego
         }
         // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
+        
+        // ▼▼▼ CRÍTICO: Si el juego ya está en curso, NO llamar a showGameView (evita reiniciar el juego) ▼▼▼
+        // Si el juego está en curso, solo actualizar el estado sin reiniciar
+        if (roomData.state === 'playing' && gameStarted) {
+            console.log('[joinedRoomSuccessfully] Juego ya en curso - NO reiniciando. Solo actualizando estado.');
+            // Actualizar currentGameSettings sin reiniciar el juego
+            currentGameSettings = { ...currentGameSettings, ...roomData };
+            // Actualizar vista de jugadores sin reiniciar
+            if (roomData.seats) {
+                updatePlayersView(roomData.seats, gameStarted);
+            }
+            return; // NO llamar a showGameView - el juego ya está en curso
+        }
+        // ▲▲▲ FIN VERIFICACIÓN DE JUEGO EN CURSO ▲▲▲
+        
+        // Solo llamar a showGameView si el juego NO está en curso (nueva unión o juego en espera)
         showGameView({ ...roomData, isPractice: false });
     });
 

@@ -6664,9 +6664,18 @@ io.on('connection', (socket) => {
                 console.log(`[${roomId}] ✅ Limpiando la51DisconnectedPlayers para ${userId}`);
             }
             
-            // Enviar el estado actual de la sala al jugador reconectado
-            const sanitizedRoom = getSanitizedRoomForClient(room);
-            socket.emit('joinedRoomSuccessfully', sanitizedRoom);
+            // ▼▼▼ CRÍTICO: Solo enviar joinedRoomSuccessfully si el juego NO está en curso ▼▼▼
+            // Si el juego está en curso, NO enviar joinedRoomSuccessfully (evita que se reinicie el juego)
+            // En su lugar, solo enviar gameStateSync más abajo
+            if (room.state !== 'playing') {
+                // El juego está en espera - enviar joinedRoomSuccessfully normalmente
+                const sanitizedRoom = getSanitizedRoomForClient(room);
+                socket.emit('joinedRoomSuccessfully', sanitizedRoom);
+            } else {
+                // El juego está en curso - NO enviar joinedRoomSuccessfully, solo gameStateSync
+                console.log(`[${roomId}] ⚠️ Juego en curso - NO enviando joinedRoomSuccessfully para evitar reinicio del juego. Solo se enviará gameStateSync.`);
+            }
+            // ▲▲▲ FIN VERIFICACIÓN DE ESTADO DEL JUEGO ▲▲▲
             
             // Si el juego está en curso, enviar el estado del juego
             if (room.state === 'playing') {
