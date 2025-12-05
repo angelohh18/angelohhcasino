@@ -8974,35 +8974,46 @@ socket.on('accionDescartar', async (data) => {
       // Si el jugador ya está en la sala, es una reconexión - actualizar socket.id y limpiar timeouts
       if (mySeatIndex !== -1) {
           const existingSeat = room.seats[mySeatIndex];
-          console.log(`[${roomId}] 🔄 Jugador ${userId} reconectándose a su asiento [${mySeatIndex}]. Actualizando socket.id de ${existingSeat.playerId} a ${socket.id}`);
+          // ▼▼▼ CRÍTICO: Guardar el playerId antiguo ANTES de actualizarlo ▼▼▼
+          const oldPlayerId = existingSeat.playerId;
+          console.log(`[${roomId}] 🔄 Jugador ${userId} reconectándose a su asiento [${mySeatIndex}]. Actualizando socket.id de ${oldPlayerId} a ${socket.id}`);
           
-          // Actualizar el playerId con el nuevo socket.id
+          // Actualizar el playerId con el nuevo socket.id INMEDIATAMENTE
           existingSeat.playerId = socket.id;
           
           // Asegurar que el socket esté en la sala
           socket.join(roomId);
           socket.currentRoomId = roomId;
           
-          // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts de inactividad ▼▼▼
+          // ▼▼▼ CRÍTICO: Cancelar TODOS los timeouts de inactividad usando oldPlayerId, socket.id y userId ▼▼▼
           const inactivityTimeoutKey = `${roomId}_${userId}`;
           if (ludoInactivityTimeouts[inactivityTimeoutKey]) {
               clearTimeout(ludoInactivityTimeouts[inactivityTimeoutKey]);
               delete ludoInactivityTimeouts[inactivityTimeoutKey];
               console.log(`[${roomId}] ✓ Timeout de inactividad cancelado para ${userId} (jugador se reconectó)`);
           }
-          // También buscar y cancelar cualquier timeout con socket.id anterior
-          if (existingSeat.playerId && existingSeat.playerId !== socket.id) {
-              const oldTimeoutKey = `${roomId}_${existingSeat.playerId}`;
+          // Cancelar timeout usando el playerId antiguo
+          if (oldPlayerId && oldPlayerId !== socket.id) {
+              const oldTimeoutKey = `${roomId}_${oldPlayerId}`;
               if (ludoInactivityTimeouts[oldTimeoutKey]) {
                   clearTimeout(ludoInactivityTimeouts[oldTimeoutKey]);
                   delete ludoInactivityTimeouts[oldTimeoutKey];
+                  console.log(`[${roomId}] ✓ Timeout cancelado usando playerId antiguo: ${oldPlayerId}`);
               }
+          }
+          // Cancelar timeout usando el nuevo socket.id (por si acaso)
+          const newTimeoutKey = `${roomId}_${socket.id}`;
+          if (ludoInactivityTimeouts[newTimeoutKey]) {
+              clearTimeout(ludoInactivityTimeouts[newTimeoutKey]);
+              delete ludoInactivityTimeouts[newTimeoutKey];
+              console.log(`[${roomId}] ✓ Timeout cancelado usando nuevo socket.id: ${socket.id}`);
           }
           // Buscar y cancelar cualquier otro timeout
           Object.keys(ludoInactivityTimeouts).forEach(key => {
-              if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id))) {
+              if (key.startsWith(`${roomId}_`) && (key.includes(userId) || key.includes(socket.id) || (oldPlayerId && key.includes(oldPlayerId)))) {
                   clearTimeout(ludoInactivityTimeouts[key]);
                   delete ludoInactivityTimeouts[key];
+                  console.log(`[${roomId}] ✓ Timeout adicional cancelado: ${key}`);
               }
           });
           // ▲▲▲ FIN CANCELACIÓN DE TIMEOUTS ▲▲▲
@@ -9060,6 +9071,15 @@ socket.on('accionDescartar', async (data) => {
           
           // Si el juego está en curso, enviar el estado completo
           if (room.state === 'playing' && room.gameState) {
+              // ▼▼▼ CRÍTICO: Si es el turno de este jugador, actualizar el playerId en gameState.turn si es necesario ▼▼▼
+              // Esto asegura que el jugador pueda jugar inmediatamente después de reconectarse
+              const currentTurnSeat = room.seats[room.gameState.turn.playerIndex];
+              if (currentTurnSeat && currentTurnSeat.userId === userId && currentTurnSeat.playerId !== socket.id) {
+                  // El turno es de este jugador pero el playerId no coincide - ya está actualizado arriba
+                  console.log(`[${roomId}] ✅ Turno del jugador reconectado - playerId ya actualizado en asiento`);
+              }
+              // ▲▲▲ FIN ACTUALIZACIÓN DE TURNO ▲▲▲
+              
               socket.emit('ludoGameStateUpdated', {
                   newGameState: room.gameState,
                   seats: room.seats,
@@ -9502,19 +9522,47 @@ socket.on('accionDescartar', async (data) => {
           return socket.emit('ludoError', { message: 'El juego no ha comenzado.' });
       }
     
-      // Buscar asiento por socket.id primero, luego por userId (para casos de reconexión)
+      // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para casos de reconexión) ▼▼▼
       const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
       let mySeatIndex = room.seats.findIndex(s => s && s.playerId === socket.id);
       
-      // Si no se encuentra por socket.id, buscar por userId (reconexión)
+      // Si no se encuentra por socket.id, buscar por userId (reconexión) - ACTUALIZAR INMEDIATAMENTE
       if (mySeatIndex === -1 && userId) {
           mySeatIndex = room.seats.findIndex(s => s && s.userId === userId);
-          // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id
+          // Si se encuentra por userId, actualizar el playerId con el nuevo socket.id INMEDIATAMENTE
           if (mySeatIndex !== -1) {
-              room.seats[mySeatIndex].playerId = socket.id;
-              console.log(`[${roomId}] Actualizado playerId del asiento ${mySeatIndex} a ${socket.id} para userId ${userId} (ludoRollDice)`);
+              const existingSeat = room.seats[mySeatIndex];
+              const oldPlayerId = existingSeat.playerId;
+              existingSeat.playerId = socket.id;
+              console.log(`[${roomId}] ✅ Actualizado playerId del asiento ${mySeatIndex} de ${oldPlayerId} a ${socket.id} para userId ${userId} (ludoRollDice - reconexión)`);
+              
+              // Asegurar que el socket esté en la sala
+              socket.join(roomId);
+              socket.currentRoomId = roomId;
+              
+              // Actualizar connectedUsers si es necesario
+              if (!connectedUsers[socket.id] && userId) {
+                  let userInfo = null;
+                  Object.keys(connectedUsers).forEach(oldSocketId => {
+                      const oldSocket = io.sockets.sockets.get(oldSocketId);
+                      if (oldSocket && oldSocket.userId === userId) {
+                          userInfo = connectedUsers[oldSocketId];
+                          delete connectedUsers[oldSocketId];
+                      }
+                  });
+                  if (userInfo) {
+                      connectedUsers[socket.id] = {
+                          ...userInfo,
+                          username: userInfo.username || userId.replace('user_', ''),
+                          status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
+                          currentLobby: 'Ludo'
+                      };
+                      broadcastUserListUpdate(io);
+                  }
+              }
           }
       }
+      // ▲▲▲ FIN BÚSQUEDA Y ACTUALIZACIÓN DE ASIENTO ▲▲▲
       
       // ▼▼▼ CANCELAR TIMEOUT DE INACTIVIDAD Y LIMPIAR ESTADO DE DESCONEXIÓN: El jugador está actuando ▼▼▼
       // CRÍTICO: Usar userId en lugar de socket.id para cancelar correctamente el timeout
