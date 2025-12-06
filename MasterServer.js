@@ -8889,7 +8889,6 @@ socket.on('accionDescartar', async (data) => {
             delete socket.currentRoomId;
         
         // Actualizar estado del usuario usando la función helper
-        const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
         if (userId && connectedUsers[socket.id]) {
             const currentLobby = connectedUsers[socket.id].currentLobby || 'Ludo';
             updatePlayerStatus(socket.id, userId, null, null, currentLobby, io);
