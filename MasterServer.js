@@ -4557,17 +4557,12 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
     // Actualizar el estado de todos los jugadores de la sala para que regresen al lobby
     if (room.initialSeats) {
         room.initialSeats.forEach(seat => {
-            if (seat && seat.playerId) {
+            if (seat && seat.playerId && seat.userId) {
                 const socket = io.sockets.sockets.get(seat.playerId);
                 if (socket && connectedUsers[seat.playerId]) {
-                    // Actualizar estado según el lobby actual
+                    // Actualizar estado según el lobby actual usando la función helper
                     const currentLobby = connectedUsers[seat.playerId].currentLobby || 'La 51';
-                    connectedUsers[seat.playerId].status = `En el lobby de ${currentLobby}`;
-                    
-                    // Si el jugador no tiene currentLobby, establecerlo según el juego
-                    if (!connectedUsers[seat.playerId].currentLobby) {
-                        connectedUsers[seat.playerId].currentLobby = 'La 51';
-                    }
+                    updatePlayerStatus(seat.playerId, seat.userId, null, null, currentLobby, io);
                 }
             }
         });
