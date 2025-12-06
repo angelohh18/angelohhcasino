@@ -1915,6 +1915,15 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                     avatar: leavingPlayerSeat.avatar || '',
                     userCurrency: leavingPlayerInfo?.currency || 'EUR'
                 });
+                
+                // ▼▼▼ CRÍTICO: Emitir actualización de lista de jugadores DESPUÉS de gameEnded para sincronizar ▼▼▼
+                // Esto asegura que cuando el jugador regrese al lobby, vea la lista actualizada
+                setTimeout(() => {
+                    broadcastUserListUpdate(io);
+                    console.log(`[${roomId}] ✅ Lista de jugadores actualizada después de eliminación por inactividad`);
+                }, 500);
+                // ▲▲▲ FIN ACTUALIZACIÓN DE LISTA DE JUGADORES ▲▲▲
+                
                 // Forzar que el socket salga de la sala inmediatamente
                 if (leavingPlayerSocket.currentRoomId === roomId) {
                     leavingPlayerSocket.leave(roomId);
