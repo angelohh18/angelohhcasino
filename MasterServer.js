@@ -8888,15 +8888,11 @@ socket.on('accionDescartar', async (data) => {
         }
             delete socket.currentRoomId;
         
-        // Actualizar estado del usuario
-        if (connectedUsers[socket.id]) {
-            const currentLobby = connectedUsers[socket.id].currentLobby;
-            if (currentLobby) {
-                connectedUsers[socket.id].status = `En el lobby de ${currentLobby}`;
-            } else {
-                connectedUsers[socket.id].status = 'En el Lobby';
-            }
-            broadcastUserListUpdate(io);
+        // Actualizar estado del usuario usando la función helper
+        const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+        if (userId && connectedUsers[socket.id]) {
+            const currentLobby = connectedUsers[socket.id].currentLobby || 'Ludo';
+            updatePlayerStatus(socket.id, userId, null, null, currentLobby, io);
         }
         
         return; // Salir sin procesar abandono si la sala no existe
@@ -8983,14 +8979,10 @@ socket.on('accionDescartar', async (data) => {
     console.log(`[leaveGame] ✅ socket.currentRoomId eliminado para ${socket.id}`);
 
     // 3. Finalmente, actualizamos el estado del usuario basándose en su lobby actual
-    if (connectedUsers[socket.id]) {
-        const currentLobby = connectedUsers[socket.id].currentLobby;
-        if (currentLobby) {
-            connectedUsers[socket.id].status = `En el lobby de ${currentLobby}`;
-        } else {
-            connectedUsers[socket.id].status = 'En el Lobby';
-        }
-        broadcastUserListUpdate(io);
+    const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+    if (userId && connectedUsers[socket.id]) {
+        const currentLobby = connectedUsers[socket.id].currentLobby || 'Ludo';
+        updatePlayerStatus(socket.id, userId, null, null, currentLobby, io);
     }
     
     console.log(`[leaveGame] ✅ Estado final del socket ${socket.id}:`, {
@@ -9930,22 +9922,8 @@ socket.on('accionDescartar', async (data) => {
               });
           }
           
-          if (!userInfo) {
-              const username = userId.replace('user_', '');
-              userInfo = {
-                  username: username,
-                  status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
-                  currentLobby: 'Ludo'
-              };
-          }
-          
-          connectedUsers[socket.id] = {
-              ...userInfo,
-              username: userInfo.username || userId.replace('user_', ''),
-              status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
-              currentLobby: 'Ludo'
-          };
-          broadcastUserListUpdate(io);
+          // Actualizar connectedUsers usando la función helper
+          updatePlayerStatus(socket.id, userId, roomId, room.state, 'Ludo', io);
           // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
           
           // Enviar estado del juego al jugador reconectado
