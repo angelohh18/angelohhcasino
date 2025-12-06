@@ -1885,6 +1885,21 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 }
                 // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
                 
+                // ▼▼▼ CRÍTICO: Actualizar connectedUsers para reflejar que el jugador está en el lobby ▼▼▼
+                if (leavingPlayerSocket && leavingPlayerSeat.userId) {
+                    // Actualizar el estado del jugador en connectedUsers para reflejar que está en el lobby
+                    if (connectedUsers[leavingPlayerSocket.id]) {
+                        connectedUsers[leavingPlayerSocket.id].status = 'En el lobby de Ludo';
+                        connectedUsers[leavingPlayerSocket.id].currentLobby = 'Ludo';
+                        // Limpiar currentRoomId si existe
+                        if (leavingPlayerSocket.currentRoomId) {
+                            delete leavingPlayerSocket.currentRoomId;
+                        }
+                        console.log(`[${roomId}] ✅ Estado actualizado en connectedUsers para ${leavingPlayerUsername} - ahora está en el lobby`);
+                    }
+                }
+                // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
+                
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
                 leavingPlayerSocket.emit('gameEnded', { 
                     reason: 'abandonment', 
