@@ -641,6 +641,68 @@ function checkAndCleanRoom(roomId, io) {
     broadcastRoomListUpdate(io);
 }
 
+// ▼▼▼ FUNCIÓN HELPER PARA ACTUALIZAR ESTADO DE JUGADOR EN CONNECTEDUSERS ▼▼▼
+function updatePlayerStatus(socketId, userId, roomId, roomState, gameType, io) {
+    // gameType puede ser 'Ludo' o 'La 51'
+    // roomState puede ser 'waiting', 'playing', 'post-game', o null (si está en el lobby)
+    
+    if (!socketId || !userId) return;
+    
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) return;
+    
+    // Determinar el estado correcto
+    let status = '';
+    let currentLobby = '';
+    
+    if (!roomId || !roomState) {
+        // Jugador está en el lobby
+        status = gameType === 'Ludo' ? 'En el lobby de Ludo' : 'En el lobby de La 51';
+        currentLobby = gameType || 'Ludo';
+    } else if (roomState === 'playing') {
+        // Jugador está en partida activa
+        status = gameType === 'Ludo' ? 'En partida de Ludo' : 'En partida de La 51';
+        currentLobby = gameType || 'Ludo';
+    } else if (roomState === 'waiting' || roomState === 'post-game') {
+        // Jugador está en sala pero no jugando (esperando o post-game)
+        status = gameType === 'Ludo' ? 'En el lobby de Ludo' : 'En el lobby de La 51';
+        currentLobby = gameType || 'Ludo';
+    } else {
+        // Estado desconocido, usar lobby por defecto
+        status = gameType === 'Ludo' ? 'En el lobby de Ludo' : 'En el lobby de La 51';
+        currentLobby = gameType || 'Ludo';
+    }
+    
+    // Actualizar o crear entrada en connectedUsers
+    if (connectedUsers[socketId]) {
+        connectedUsers[socketId].status = status;
+        connectedUsers[socketId].currentLobby = currentLobby;
+        if (roomId) {
+            socket.currentRoomId = roomId;
+        } else {
+            delete socket.currentRoomId;
+        }
+        console.log(`[Status Update] ${connectedUsers[socketId].username || userId.replace('user_', '')} (${socketId}) -> ${status}`);
+    } else {
+        // Crear nueva entrada si no existe
+        const username = userId.replace('user_', '');
+        connectedUsers[socketId] = {
+            username: username,
+            status: status,
+            currentLobby: currentLobby,
+            userId: userId
+        };
+        if (roomId) {
+            socket.currentRoomId = roomId;
+        }
+        console.log(`[Status Update] Nuevo jugador ${username} (${socketId}) -> ${status}`);
+    }
+    
+    // Emitir actualización inmediatamente
+    broadcastUserListUpdate(io);
+}
+// ▲▲▲ FIN FUNCIÓN HELPER ▲▲▲
+
 // ▼▼▼ FUNCIÓN CORREGIDA PARA ACTUALIZAR LISTA DE USUARIOS ▼▼▼
 function broadcastUserListUpdate(io) {
     // ▼▼▼ CRÍTICO: NO eliminar jugadores en partidas activas, incluso si el socket está desconectado ▼▼▼
@@ -6829,14 +6891,8 @@ io.on('connection', (socket) => {
                 };
             }
             
-            // Actualizar connectedUsers con el nuevo socket.id
-            connectedUsers[socket.id] = {
-                ...userInfo,
-                username: user.username,
-                status: room.state === 'playing' ? `En partida de La 51` : `En el lobby de La 51`,
-                currentLobby: 'La 51'
-            };
-            broadcastUserListUpdate(io);
+            // Actualizar connectedUsers con el nuevo socket.id usando la función helper
+            updatePlayerStatus(socket.id, userId, roomId, room.state, 'La 51', io);
             console.log(`[${roomId}] ✅ connectedUsers actualizado para socket ${socket.id} con información de ${user.username}`);
             // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
             
@@ -7212,11 +7268,8 @@ io.on('connection', (socket) => {
     
     socket.join(roomId);
     
-    // ▼▼▼ CAMBIAR ESTADO A "JUGANDO" ▼▼▼
-    if (connectedUsers[socket.id]) {
-        connectedUsers[socket.id].status = 'Jugando';
-        broadcastUserListUpdate(io);
-    }
+    // ▼▼▼ ACTUALIZAR ESTADO DEL JUGADOR ▼▼▼
+    updatePlayerStatus(socket.id, userId, roomId, room.state, 'La 51', io);
     // ▲▲▲ FIN: BLOQUE AÑADIDO ▲▲▲
     
     // ▼▼▼ AÑADE ESTA LÍNEA AQUÍ ▼▼▼
@@ -7272,6 +7325,14 @@ io.on('connection', (socket) => {
         room.melds = [];
     room.pot = 0; // Inicializar el bote
     room.penaltiesPaid = {}; // Rastrear multas pagadas: { userId: { playerName, amount, reason } }
+    
+    // ▼▼▼ CRÍTICO: Actualizar estado de todos los jugadores cuando el juego comienza ▼▼▼
+    room.seats.forEach(seat => {
+        if (seat && seat.userId && seat.playerId) {
+            updatePlayerStatus(seat.playerId, seat.userId, roomId, 'playing', 'La 51', io);
+        }
+    });
+    // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO AL INICIAR JUEGO ▲▲▲
         
         room.seats.forEach(async (seat) => {
             if (seat) {
@@ -9674,14 +9735,8 @@ socket.on('accionDescartar', async (data) => {
               };
           }
           
-          // Actualizar connectedUsers con el nuevo socket.id
-          connectedUsers[socket.id] = {
-              ...userInfo,
-              username: userInfo.username || userId.replace('user_', ''),
-              status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
-              currentLobby: 'Ludo'
-          };
-          broadcastUserListUpdate(io);
+          // Actualizar connectedUsers con el nuevo socket.id usando la función helper
+          updatePlayerStatus(socket.id, userId, roomId, room.state, 'Ludo', io);
           console.log(`[${roomId}] ✅ connectedUsers actualizado para socket ${socket.id} con información de ${userId}`);
           // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
           
@@ -10327,6 +10382,14 @@ socket.on('accionDescartar', async (data) => {
       room.gameState.turn.canRoll = true;
 
       console.log(`[${roomId}] Juego iniciado. Bote: ${totalPot} ${room.settings.betCurrency}. Turno: Asiento ${room.settings.hostSeatIndex}`);
+
+      // ▼▼▼ CRÍTICO: Actualizar estado de todos los jugadores cuando el juego comienza ▼▼▼
+      room.seats.forEach(seat => {
+          if (seat && seat.userId && seat.playerId) {
+              updatePlayerStatus(seat.playerId, seat.userId, roomId, 'playing', 'Ludo', io);
+          }
+      });
+      // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO AL INICIAR JUEGO ▲▲▲
 
       // 6. Transmitir el inicio del juego a todos
       io.to(roomId).emit('ludoGameStarted', {
