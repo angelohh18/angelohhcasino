@@ -2127,15 +2127,21 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▼▼▼ CRÍTICO: Manejar salida durante post-game (revancha) ▼▼▼
         console.log(`Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
         
+        // El asiento ya fue liberado arriba (línea 1487), así que solo necesitamos verificar y limpiar
         // Verificar si quedan jugadores después de que este salga
         const remainingSeats = room.seats.filter(s => s !== null && s !== undefined);
-        const remainingCount = remainingSeats.length - 1; // -1 porque este jugador ya salió (asiento será null)
+        const remainingCount = remainingSeats.length;
         
         console.log(`[${roomId}] Jugadores restantes después de salida durante post-game: ${remainingCount}`);
         
         // Si no quedan jugadores, la sala se limpiará en ludoCheckAndCleanRoom
-        // Emitir actualización de la lista de salas inmediatamente
+        // Emitir actualización de la lista de salas inmediatamente para reflejar el cambio
         broadcastLudoRoomListUpdate(io);
+        
+        // Notificar a los demás jugadores (si quedan) que este jugador salió
+        if (remainingCount > 0) {
+            io.to(roomId).emit('playerLeft', ludoGetSanitizedRoomForClient(room));
+        }
     }
     // ▲▲▲ FIN MANEJO DE POST-GAME ▲▲▲
     
