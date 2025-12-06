@@ -571,11 +571,68 @@ function checkAndCleanRoom(roomId, io) {
         return;
     }
 
-    const playersInSeats = room.seats.filter(s => s !== null).length;
+    // ▼▼▼ CRÍTICO: Limpiar asientos "fantasma" (sockets desconectados sin timeout activo) ▼▼▼
+    let cleanedGhostSeats = 0;
+    room.seats.forEach((seat, index) => {
+        if (seat && seat.playerId) {
+            const socket = io.sockets.sockets.get(seat.playerId);
+            const socketUserId = socket ? (socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId)) : null;
+            const seatUserId = seat.userId;
+            
+            // Verificar si el socket está desconectado o no existe
+            if (!socket || !socket.connected) {
+                // Verificar si hay timeout activo para este jugador
+                const timeoutKey = `${roomId}_${seatUserId}`;
+                const hasActiveTimeout = la51InactivityTimeouts[timeoutKey] || 
+                                        (room.abandonmentTimeouts && room.abandonmentTimeouts[seatUserId]);
+                
+                // Si NO hay timeout activo, limpiar el asiento fantasma
+                if (!hasActiveTimeout) {
+                    console.log(`[LA51 Cleanup] Limpiando asiento fantasma ${index} (socket ${seat.playerId} desconectado sin timeout activo)`);
+                    room.seats[index] = null;
+                    cleanedGhostSeats++;
+                }
+            } else if (socketUserId && seatUserId && socketUserId !== seatUserId) {
+                // El socket existe pero el userId no coincide - limpiar el asiento
+                console.log(`[LA51 Cleanup] Limpiando asiento ${index} (userId no coincide: socket=${socketUserId}, seat=${seatUserId})`);
+                room.seats[index] = null;
+                cleanedGhostSeats++;
+            }
+        }
+    });
+    if (cleanedGhostSeats > 0) {
+        console.log(`[LA51 Cleanup] Limpiados ${cleanedGhostSeats} asientos fantasma en sala ${roomId}`);
+    }
+    // ▲▲▲ FIN LIMPIEZA DE ASIENTOS FANTASMA ▲▲▲
+
+    const playersInSeats = room.seats.filter(s => s !== null && s !== undefined).length;
 
     // UNA SALA ESTÁ VACÍA SI NO HAY NADIE EN LOS ASIENTOS.
     if (playersInSeats === 0) {
         console.log(`Mesa ${roomId} está completamente vacía. Eliminando...`);
+        
+        // Limpiar todos los timeouts relacionados con esta sala
+        Object.keys(la51InactivityTimeouts).forEach(key => {
+            if (key.startsWith(`${roomId}_`)) {
+                clearTimeout(la51InactivityTimeouts[key]);
+                delete la51InactivityTimeouts[key];
+            }
+        });
+        
+        // Limpiar jugadores desconectados
+        Object.keys(la51DisconnectedPlayers).forEach(key => {
+            if (key.startsWith(`${roomId}_`)) {
+                delete la51DisconnectedPlayers[key];
+            }
+        });
+        
+        // Limpiar jugadores eliminados
+        Object.keys(la51EliminatedPlayers).forEach(key => {
+            if (key.startsWith(`${roomId}_`)) {
+                delete la51EliminatedPlayers[key];
+            }
+        });
+        
         delete la51Rooms[roomId];
     }
 
@@ -855,8 +912,42 @@ function ludoCheckAndCleanRoom(roomId, io) {
     // 0. Limpiar reconexiones expiradas primero
     ludoCleanupExpiredReconnections(roomId, io);
 
-    // 1. Contar jugadores en los asientos.
-    const playersInSeats = room.seats.filter(s => s !== null).length;
+    // ▼▼▼ CRÍTICO: Limpiar asientos "fantasma" (sockets desconectados sin timeout activo) ▼▼▼
+    let cleanedGhostSeats = 0;
+    room.seats.forEach((seat, index) => {
+        if (seat && seat.playerId) {
+            const socket = io.sockets.sockets.get(seat.playerId);
+            const socketUserId = socket ? (socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId)) : null;
+            const seatUserId = seat.userId;
+            
+            // Verificar si el socket está desconectado o no existe
+            if (!socket || !socket.connected) {
+                // Verificar si hay timeout activo para este jugador
+                const timeoutKey = `${roomId}_${seatUserId}`;
+                const hasActiveTimeout = ludoInactivityTimeouts[timeoutKey] || ludoReconnectTimeouts[timeoutKey] || 
+                                        (room.abandonmentTimeouts && room.abandonmentTimeouts[seatUserId]);
+                
+                // Si NO hay timeout activo, limpiar el asiento fantasma
+                if (!hasActiveTimeout) {
+                    console.log(`[Ludo Cleanup] Limpiando asiento fantasma ${index} (socket ${seat.playerId} desconectado sin timeout activo)`);
+                    room.seats[index] = null;
+                    cleanedGhostSeats++;
+                }
+            } else if (socketUserId && seatUserId && socketUserId !== seatUserId) {
+                // El socket existe pero el userId no coincide - limpiar el asiento
+                console.log(`[Ludo Cleanup] Limpiando asiento ${index} (userId no coincide: socket=${socketUserId}, seat=${seatUserId})`);
+                room.seats[index] = null;
+                cleanedGhostSeats++;
+            }
+        }
+    });
+    if (cleanedGhostSeats > 0) {
+        console.log(`[Ludo Cleanup] Limpiados ${cleanedGhostSeats} asientos fantasma en sala ${roomId}`);
+    }
+    // ▲▲▲ FIN LIMPIEZA DE ASIENTOS FANTASMA ▲▲▲
+
+    // 1. Contar jugadores en los asientos (después de limpiar fantasmas).
+    const playersInSeats = room.seats.filter(s => s !== null && s !== undefined).length;
 
     // 3. Contar reconexiones pendientes (después de limpiar expiradas)
     const pendingReconnections = room.reconnectSeats ? Object.keys(room.reconnectSeats).length : 0;
@@ -873,10 +964,10 @@ function ludoCheckAndCleanRoom(roomId, io) {
                 // Verificar si algún socket conectado corresponde a un jugador en los asientos
                 for (const socketId of roomSockets) {
                     const socket = io.sockets.sockets.get(socketId);
-                    if (socket) {
+                    if (socket && socket.connected) {
                         const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
                         // Verificar si este userId está en algún asiento
-                        const isInSeat = room.seats.some(s => s && s.userId === socketUserId);
+                        const isInSeat = room.seats.some(s => s && s !== null && s.userId === socketUserId);
                         if (isInSeat) {
                             hasValidSockets = true;
                             break;
@@ -907,6 +998,21 @@ function ludoCheckAndCleanRoom(roomId, io) {
             if (key.startsWith(`${roomId}_`)) {
                 clearTimeout(ludoReconnectTimeouts[key]);
                 delete ludoReconnectTimeouts[key];
+            }
+        });
+        
+        // Limpiar timeouts de inactividad
+        Object.keys(ludoInactivityTimeouts).forEach(key => {
+            if (key.startsWith(`${roomId}_`)) {
+                clearTimeout(ludoInactivityTimeouts[key]);
+                delete ludoInactivityTimeouts[key];
+            }
+        });
+        
+        // Limpiar jugadores desconectados
+        Object.keys(ludoDisconnectedPlayers).forEach(key => {
+            if (key.startsWith(`${roomId}_`)) {
+                delete ludoDisconnectedPlayers[key];
             }
         });
         
