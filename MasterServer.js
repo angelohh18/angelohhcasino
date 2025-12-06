@@ -2123,12 +2123,27 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         
         // También emitir actualización global de la lista de salas
         broadcastLudoRoomListUpdate(io);
+    } else if (room.state === 'post-game') {
+        // ▼▼▼ CRÍTICO: Manejar salida durante post-game (revancha) ▼▼▼
+        console.log(`Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
+        
+        // Verificar si quedan jugadores después de que este salga
+        const remainingSeats = room.seats.filter(s => s !== null && s !== undefined);
+        const remainingCount = remainingSeats.length - 1; // -1 porque este jugador ya salió (asiento será null)
+        
+        console.log(`[${roomId}] Jugadores restantes después de salida durante post-game: ${remainingCount}`);
+        
+        // Si no quedan jugadores, la sala se limpiará en ludoCheckAndCleanRoom
+        // Emitir actualización de la lista de salas inmediatamente
+        broadcastLudoRoomListUpdate(io);
     }
+    // ▲▲▲ FIN MANEJO DE POST-GAME ▲▲▲
     
     ludoHandleHostLeaving(room, leavingPlayerId, io);
-    // REEMPLAZO: Llamamos a checkAndCleanRoom en lugar de solo transmitir.
+    // ▼▼▼ CRÍTICO: Llamar a checkAndCleanRoom SIEMPRE, incluso durante post-game ▼▼▼
     // checkAndCleanRoom se encargará de eliminar la sala si está vacía Y de transmitir la lista actualizada.
     ludoCheckAndCleanRoom(roomId, io);
+    // ▲▲▲ FIN LLAMADA A LIMPIEZA ▲▲▲
     
     // Asegurar actualización en tiempo real de la lista de salas después de cualquier abandono
     broadcastLudoRoomListUpdate(io);
