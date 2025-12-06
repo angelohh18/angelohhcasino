@@ -946,8 +946,43 @@ function ludoCheckAndCleanRoom(roomId, io) {
     }
     // ▲▲▲ FIN LIMPIEZA DE ASIENTOS FANTASMA ▲▲▲
 
-    // 1. Contar jugadores en los asientos (después de limpiar fantasmas).
-    const playersInSeats = room.seats.filter(s => s !== null && s !== undefined).length;
+    // 1. Contar jugadores REALMENTE conectados en los asientos (después de limpiar fantasmas).
+    // ▼▼▼ CRÍTICO: Verificar que los jugadores en los asientos estén realmente conectados ▼▼▼
+    let playersInSeats = 0;
+    let hasValidConnectedPlayers = false;
+    
+    room.seats.forEach((seat, index) => {
+        if (seat && seat !== null && seat !== undefined) {
+            const socket = io.sockets.sockets.get(seat.playerId);
+            // Verificar si el socket está conectado y el userId coincide
+            if (socket && socket.connected) {
+                const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                if (socketUserId === seat.userId) {
+                    playersInSeats++;
+                    hasValidConnectedPlayers = true;
+                } else {
+                    // El socket existe pero el userId no coincide - limpiar el asiento
+                    console.log(`[Ludo Cleanup] Limpiando asiento ${index} (userId no coincide: socket=${socketUserId}, seat=${seat.userId})`);
+                    room.seats[index] = null;
+                }
+            } else {
+                // El socket no está conectado - verificar si hay timeout activo
+                const timeoutKey = `${roomId}_${seat.userId}`;
+                const hasActiveTimeout = ludoInactivityTimeouts[timeoutKey] || ludoReconnectTimeouts[timeoutKey] || 
+                                        (room.abandonmentTimeouts && room.abandonmentTimeouts[seat.userId]);
+                
+                // Si NO hay timeout activo, limpiar el asiento
+                if (!hasActiveTimeout) {
+                    console.log(`[Ludo Cleanup] Limpiando asiento ${index} (socket ${seat.playerId} desconectado sin timeout activo)`);
+                    room.seats[index] = null;
+                } else {
+                    // Hay timeout activo, contar el asiento pero no como jugador conectado
+                    playersInSeats++;
+                }
+            }
+        }
+    });
+    // ▲▲▲ FIN VERIFICACIÓN DE JUGADORES CONECTADOS ▲▲▲
 
     // 3. Contar reconexiones pendientes (después de limpiar expiradas)
     const pendingReconnections = room.reconnectSeats ? Object.keys(room.reconnectSeats).length : 0;
@@ -988,10 +1023,11 @@ function ludoCheckAndCleanRoom(roomId, io) {
     const isRecentRoom = roomAge < RECENT_ROOM_THRESHOLD;
 
     // 6. Lógica de eliminación mejorada
-    // Si no hay jugadores en los asientos, no hay reconexiones pendientes, no hay sockets válidos (o no hay sockets), y la sala no es reciente, eliminar
-    if (playersInSeats === 0 && pendingReconnections === 0 && (!hasSockets || !hasValidSockets) && !isRecentRoom) {
-        // SOLO si no hay jugadores, no hay reconexiones pendientes, no hay sockets conectados, Y la sala no es reciente
-        console.log(`[Ludo Cleanup] Sala ${roomId} vacía (Jugadores: 0, Reconexiones: 0, Sockets: 0, Edad: ${Math.round(roomAge/1000)}s). Eliminando AHORA.`);
+    // ▼▼▼ CRÍTICO: Eliminar la mesa si NO hay jugadores REALMENTE conectados, sin importar la etapa del juego ▼▼▼
+    // Si no hay jugadores conectados, no hay reconexiones pendientes, no hay sockets válidos (o no hay sockets), y la sala no es reciente, eliminar
+    if (!hasValidConnectedPlayers && playersInSeats === 0 && pendingReconnections === 0 && (!hasSockets || !hasValidSockets) && !isRecentRoom) {
+        // SOLO si no hay jugadores conectados, no hay reconexiones pendientes, no hay sockets conectados, Y la sala no es reciente
+        console.log(`[Ludo Cleanup] Sala ${roomId} vacía (Jugadores conectados: 0, Reconexiones: 0, Sockets: 0, Edad: ${Math.round(roomAge/1000)}s). Eliminando COMPLETAMENTE sin importar etapa del juego.`);
         
         // Limpiar todos los timeouts relacionados con esta sala
         Object.keys(ludoReconnectTimeouts).forEach(key => {
@@ -1016,15 +1052,26 @@ function ludoCheckAndCleanRoom(roomId, io) {
             }
         });
         
+        // Limpiar abandonmentFinalized
+        if (room.abandonmentFinalized) {
+            Object.keys(room.abandonmentFinalized).forEach(userId => {
+                const globalPenaltyKey = `${roomId}_${userId}`;
+                delete ludoGlobalPenaltyApplied[globalPenaltyKey];
+            });
+        }
+        
+        // Eliminar la sala completamente
         delete ludoRooms[roomId];
+        console.log(`[Ludo Cleanup] ✅ Sala ${roomId} eliminada completamente.`);
     } else {
-        console.log(`[Ludo Cleanup] Mesa ${roomId} no se elimina (Jugadores: ${playersInSeats}, Reconexiones: ${pendingReconnections}, Sockets conectados: ${hasSockets}, Sockets válidos: ${hasValidSockets}, Reciente: ${isRecentRoom}).`);
+        console.log(`[Ludo Cleanup] Mesa ${roomId} no se elimina (Jugadores conectados: ${hasValidConnectedPlayers ? 'Sí' : 'No'}, Jugadores en asientos: ${playersInSeats}, Reconexiones: ${pendingReconnections}, Sockets conectados: ${hasSockets}, Sockets válidos: ${hasValidSockets}, Reciente: ${isRecentRoom}).`);
         
         // Si la sala está vacía pero tiene reconexiones pendientes, sockets válidos o es reciente, activar limpieza periódica
-        if (playersInSeats === 0 && (pendingReconnections > 0 || hasValidSockets || isRecentRoom)) {
+        if (!hasValidConnectedPlayers && playersInSeats === 0 && (pendingReconnections > 0 || hasValidSockets || isRecentRoom)) {
             ludoStartPeriodicCleanup(io);
         }
     }
+    // ▲▲▲ FIN LÓGICA DE ELIMINACIÓN MEJORADA ▲▲▲
 
     // 5. Notificar a todos los clientes del lobby sobre el cambio
     broadcastLudoRoomListUpdate(io);
