@@ -6398,26 +6398,58 @@ io.on('connection', (socket) => {
         const userId = 'user_' + username.toLowerCase();
         socket.userId = userId;
 
-        // ▼▼▼ CORRECCIÓN: Respetar estado previo si ya entró a un lobby específico ▼▼▼
-        let currentStatus = 'En el Lobby';
-        let currentLobby = null;
-
-        // Si el socket ya tenía un estado específico (ej: En el lobby de Ludo), lo mantenemos
-        if (connectedUsers[socket.id]) {
-            if (connectedUsers[socket.id].currentLobby) {
-                currentLobby = connectedUsers[socket.id].currentLobby;
-                currentStatus = `En el lobby de ${currentLobby}`;
+        // ▼▼▼ CRÍTICO: Verificar si el jugador ya está en una mesa antes de establecer estado ▼▼▼
+        // NO sobrescribir el estado si el jugador ya está en una mesa
+        let shouldUpdateStatus = true;
+        
+        // Verificar si el jugador está en una mesa de Ludo
+        for (const [roomId, room] of Object.entries(ludoRooms)) {
+            const seatIndex = room.seats.findIndex(s => s && s.userId === userId);
+            if (seatIndex !== -1) {
+                // El jugador está en una mesa, usar updatePlayerStatus para mantener el estado correcto
+                updatePlayerStatus(socket.id, userId, roomId, room.state, 'Ludo', io);
+                shouldUpdateStatus = false;
+                console.log(`[userLoggedIn] ✅ Jugador ${username} ya está en mesa ${roomId}, estado preservado: ${room.state}`);
+                break;
             }
         }
-
-        connectedUsers[socket.id] = {
-            username: username,
-            status: currentStatus, // Usamos el estado inteligente
-            currentLobby: currentLobby
-        };
-        // ▲▲▲ FIN CORRECCIÓN ▲▲▲
-
-        broadcastUserListUpdate(io);
+        
+        // Verificar si el jugador está en una mesa de La 51
+        if (shouldUpdateStatus) {
+            for (const [roomId, room] of Object.entries(la51Rooms)) {
+                const seatIndex = room.seats.findIndex(s => s && s.userId === userId);
+                if (seatIndex !== -1) {
+                    // El jugador está en una mesa, usar updatePlayerStatus para mantener el estado correcto
+                    updatePlayerStatus(socket.id, userId, roomId, room.state, 'La 51', io);
+                    shouldUpdateStatus = false;
+                    console.log(`[userLoggedIn] ✅ Jugador ${username} ya está en mesa ${roomId}, estado preservado: ${room.state}`);
+                    break;
+                }
+            }
+        }
+        
+        // Solo establecer estado inicial si NO está en ninguna mesa
+        if (shouldUpdateStatus) {
+            // Si el socket ya tenía un estado específico (ej: En el lobby de Ludo), lo mantenemos
+            let currentStatus = 'En el Lobby';
+            let currentLobby = null;
+            
+            if (connectedUsers[socket.id]) {
+                if (connectedUsers[socket.id].currentLobby) {
+                    currentLobby = connectedUsers[socket.id].currentLobby;
+                    currentStatus = `En el lobby de ${currentLobby}`;
+                }
+            }
+            
+            connectedUsers[socket.id] = {
+                username: username,
+                status: currentStatus,
+                currentLobby: currentLobby,
+                userId: userId
+            };
+            broadcastUserListUpdate(io);
+        }
+        // ▲▲▲ FIN VERIFICACIÓN DE MESA ▲▲▲
         
         // Enviar lista de salas de Ludo al usuario
         const ludoRoomsArray = Object.values(ludoRooms);
