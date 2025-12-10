@@ -2506,26 +2506,13 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
             }
             // ▲▲▲ FIN ACTUALIZACIÓN DE CURRENTPLAYERID ▲▲▲
             
-            // Actualizar connectedUsers si es necesario
-            if (!connectedUsers[socket.id] && userId) {
-                let userInfo = null;
-                Object.keys(connectedUsers).forEach(oldSocketId => {
-                    const oldSocket = io.sockets.sockets.get(oldSocketId);
-                    if (oldSocket && oldSocket.userId === userId) {
-                        userInfo = connectedUsers[oldSocketId];
-                        delete connectedUsers[oldSocketId];
-                    }
-                });
-                if (userInfo) {
-                    connectedUsers[socket.id] = {
-                        ...userInfo,
-                        username: userInfo.username || userId.replace('user_', ''),
-                        status: room.state === 'playing' ? `En partida de Ludo` : `En el lobby de Ludo`,
-                        currentLobby: 'Ludo'
-                    };
-                    broadcastUserListUpdate(io);
-                }
+            // ▼▼▼ CRÍTICO: Actualizar connectedUsers usando updatePlayerStatus si es necesario ▼▼▼
+            if (!connectedUsers[socket.id] && userId && roomId) {
+                // Usar updatePlayerStatus para asegurar actualización correcta y emisión a todos los clientes
+                updatePlayerStatus(socket.id, userId, roomId, room.state, 'Ludo', io);
+                console.log(`[${roomId}] ✅ Estado actualizado para ${userId} (Socket ${socket.id}) después de acción en ludoHandleParchisRoll`);
             }
+            // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
             
             // ▼▼▼ CRÍTICO: Cancelar timeout de inactividad y limpiar estado de desconexión INMEDIATAMENTE después de actualizar playerId ▼▼▼
             if (userId) {
