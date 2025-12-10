@@ -4037,7 +4037,45 @@ function updatePlayersView(seats, inGame = false) {
             return;
         }
         
-        console.log('[renderHands] ✅ Renderizando', humanPlayer.hand.length, 'cartas');
+        // ▼▼▼ CRÍTICO: Preservar el orden visual actual de las cartas ▼▼▼
+        // Obtener el orden visual actual del DOM basándose en data-cardId
+        const existingCards = Array.from(human.children);
+        const visualOrder = existingCards.map(cardEl => cardEl.dataset.cardId).filter(Boolean);
+        
+        // Crear un mapa de cartas por ID para acceso rápido
+        const cardMap = new Map();
+        humanPlayer.hand.forEach(card => {
+            if (card && card.id) {
+                cardMap.set(card.id, card);
+            }
+        });
+        
+        // Reorganizar el array hand según el orden visual, manteniendo las cartas nuevas al final
+        const orderedHand = [];
+        const usedCardIds = new Set();
+        
+        // Primero, agregar las cartas en el orden visual actual
+        visualOrder.forEach(cardId => {
+            const card = cardMap.get(cardId);
+            if (card) {
+                orderedHand.push(card);
+                usedCardIds.add(cardId);
+            }
+        });
+        
+        // Luego, agregar las cartas nuevas que no están en el orden visual
+        humanPlayer.hand.forEach(card => {
+            if (card && card.id && !usedCardIds.has(card.id)) {
+                orderedHand.push(card);
+                usedCardIds.add(card.id);
+            }
+        });
+        
+        // Actualizar el array hand con el orden preservado
+        humanPlayer.hand = orderedHand;
+        // ▲▲▲ FIN PRESERVAR ORDEN VISUAL ▲▲▲
+        
+        console.log('[renderHands] ✅ Renderizando', humanPlayer.hand.length, 'cartas (orden preservado)');
       
       const fragment = document.createDocumentFragment();
       humanPlayer.hand.forEach((card, idx) => {
