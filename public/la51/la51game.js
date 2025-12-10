@@ -3475,7 +3475,8 @@ function updatePlayersView(seats, inGame = false) {
     
     // 3. Crear un array de jugadores FRESCO. NO reutilizamos datos viejos.
     const newPlayers = [];
-    const myCurrentHand = (players && players[0]) ? players[0].hand : []; // Salvamos la mano actual del jugador humano.
+    const myCurrentHand = (players && players[0] && players[0].hand) ? players[0].hand : []; // Salvamos la mano actual del jugador humano.
+    console.log('[updatePlayersView] Mano actual del jugador humano guardada:', myCurrentHand.length, 'cartas');
 
     for (let i = 0; i < 4; i++) {
         const seat = orderedSeats[i];
