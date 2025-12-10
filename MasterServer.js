@@ -7120,21 +7120,31 @@ io.on('connection', (socket) => {
                     if(s) playerHandCounts[s.playerId] = room.playerHands[s.playerId]?.length || 0; 
                 });
                 
-                // ▼▼▼ CRÍTICO: Verificar que la mano existe antes de enviar gameStateSync ▼▼▼
-                const playerHand = room.playerHands[socket.id] || [];
-                if (playerHand.length === 0) {
-                    console.warn(`[${roomId}] ⚠️ ADVERTENCIA: playerHands[${socket.id}] está vacío. Buscando por userId...`);
-                    // Intentar buscar la mano por userId en los asientos
-                    const seat = room.seats.find(s => s && s.userId === userId);
-                    if (seat && room.playerHands[seat.playerId]) {
-                        room.playerHands[socket.id] = room.playerHands[seat.playerId];
-                        console.log(`[${roomId}] ✅ Mano encontrada y actualizada desde seat.playerId ${seat.playerId}. Mano tiene ${room.playerHands[socket.id].length} cartas`);
+                // ▼▼▼ CRÍTICO: Obtener la mano final - debe estar actualizada desde arriba ▼▼▼
+                // La actualización de playerHands ya se hizo al inicio de la reconexión
+                let finalHand = room.playerHands && room.playerHands[socket.id] ? room.playerHands[socket.id] : [];
+                
+                if (finalHand.length === 0) {
+                    console.error(`[${roomId}] ❌ ERROR CRÍTICO: playerHands[${socket.id}] está vacío después de actualización. Buscando alternativas...`);
+                    // Último intento: buscar en todos los asientos por userId
+                    for (const seat of room.seats) {
+                        if (seat && seat.userId === userId && room.playerHands && room.playerHands[seat.playerId] && room.playerHands[seat.playerId].length > 0) {
+                            finalHand = room.playerHands[seat.playerId];
+                            room.playerHands[socket.id] = finalHand;
+                            console.log(`[${roomId}] ✅ [ÚLTIMO INTENTO] Mano encontrada desde seat.playerId ${seat.playerId}. Mano tiene ${finalHand.length} cartas`);
+                            break;
+                        }
                     }
                 }
-                // ▲▲▲ FIN VERIFICACIÓN DE MANO ▲▲▲
+                
+                if (finalHand.length === 0) {
+                    console.error(`[${roomId}] ❌ ERROR: No se pudo encontrar la mano del jugador ${user.username} (${userId}) después de reconexión`);
+                } else {
+                    console.log(`[${roomId}] ✅ [gameStateSync] Mano final obtenida: ${finalHand.length} cartas para ${user.username}`);
+                }
+                // ▲▲▲ FIN OBTENER MANO FINAL ▲▲▲
                 
                 // Enviar evento de sincronización que NO reinicia el juego
-                const finalHand = room.playerHands[socket.id] || [];
                 socket.emit('gameStateSync', {
                     hand: finalHand,
                     discardPile: room.discardPile || [],
