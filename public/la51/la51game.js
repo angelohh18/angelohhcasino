@@ -3480,8 +3480,20 @@ function updatePlayersView(seats, inGame = false) {
     
     // 3. Crear un array de jugadores FRESCO. NO reutilizamos datos viejos.
     const newPlayers = [];
-    const myCurrentHand = (players && players[0] && players[0].hand) ? players[0].hand : []; // Salvamos la mano actual del jugador humano.
-    console.log('[updatePlayersView] Mano actual del jugador humano guardada:', myCurrentHand.length, 'cartas');
+    // ▼▼▼ CRÍTICO: Preservar la mano del jugador local SIEMPRE, incluso si el juego ya comenzó ▼▼▼
+    // Si el juego ya comenzó, NO debemos perder la mano del jugador local
+    let myCurrentHand = [];
+    if (players && players[0] && players[0].hand && Array.isArray(players[0].hand) && players[0].hand.length > 0) {
+        myCurrentHand = players[0].hand; // Preservar la mano existente
+        console.log('[updatePlayersView] ✅ Mano del jugador local preservada:', myCurrentHand.length, 'cartas');
+    } else if (gameStarted && players && players[0]) {
+        // Si el juego comenzó pero no hay mano, intentar preservar lo que haya
+        myCurrentHand = players[0].hand || [];
+        console.log('[updatePlayersView] ⚠️ Juego en curso pero mano vacía o no definida. Longitud:', myCurrentHand.length);
+    } else {
+        console.log('[updatePlayersView] ℹ️ No hay mano que preservar (juego no iniciado o jugador no existe)');
+    }
+    // ▲▲▲ FIN PRESERVAR MANO ▲▲▲
 
     for (let i = 0; i < 4; i++) {
         const seat = orderedSeats[i];
