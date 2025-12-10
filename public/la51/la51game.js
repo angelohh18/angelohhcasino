@@ -3347,6 +3347,10 @@ function showRoomsOverview() {
         document.getElementById('melds-display').innerHTML = '';
         renderDiscard();
         setupInGameLeaveButton();
+        
+        // ▼▼▼ CRÍTICO: Llamar a renderGameControls después de inicializar para mostrar el botón de iniciar si es el host ▼▼▼
+        renderGameControls();
+        // ▲▲▲ FIN LLAMADA A RENDERGAMECONTROLS ▲▲▲
     }
 
     function setupInGameLeaveButton() {
