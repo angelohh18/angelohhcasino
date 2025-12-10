@@ -7202,6 +7202,26 @@ io.on('connection', (socket) => {
                 // ▲▲▲ FIN OBTENER MANO FINAL ▲▲▲
                 
                 // Enviar evento de sincronización que NO reinicia el juego
+                // ▼▼▼ CRÍTICO: Verificación final antes de enviar ▼▼▼
+                if (finalHand.length === 0) {
+                    console.error(`[${roomId}] ❌ [gameStateSync] ERROR FATAL: Se está enviando una mano vacía a ${user.username} (${socket.id})`);
+                    console.error(`[${roomId}] [gameStateSync] playerHands completo:`, room.playerHands);
+                    console.error(`[${roomId}] [gameStateSync] Todas las claves en playerHands:`, room.playerHands ? Object.keys(room.playerHands) : 'playerHands no existe');
+                    // Intentar una última búsqueda desesperada
+                    for (const [playerIdKey, hand] of Object.entries(room.playerHands || {})) {
+                        if (Array.isArray(hand) && hand.length > 0) {
+                            const seatWithThisPlayerId = room.seats.find(s => s && s.playerId === playerIdKey && s.userId === userId);
+                            if (seatWithThisPlayerId) {
+                                finalHand = hand;
+                                room.playerHands[socket.id] = hand;
+                                console.log(`[${roomId}] ✅ [gameStateSync] [ÚLTIMO INTENTO] Mano encontrada en playerHands[${playerIdKey}] y asignada a ${socket.id}. Tiene ${finalHand.length} cartas`);
+                                break;
+                            }
+                        }
+                    }
+                }
+                // ▲▲▲ FIN VERIFICACIÓN FINAL ▲▲▲
+                
                 socket.emit('gameStateSync', {
                     hand: finalHand,
                     discardPile: room.discardPile || [],
@@ -7212,7 +7232,12 @@ io.on('connection', (socket) => {
                     isPractice: room.isPractice || false,
                     isReconnection: true // Flag para indicar que es una reconexión
                 });
-                console.log(`[${roomId}] ✅ Enviado gameStateSync (reconexión) a ${user.username} (${socket.id}) - NO se reinicia el juego. Mano enviada: ${finalHand.length} cartas`);
+                
+                if (finalHand.length === 0) {
+                    console.error(`[${roomId}] ❌ [gameStateSync] ERROR FATAL: Se envió una mano vacía a ${user.username} (${socket.id}) después de todos los intentos`);
+                } else {
+                    console.log(`[${roomId}] ✅ [gameStateSync] Enviado gameStateSync (reconexión) a ${user.username} (${socket.id}) - NO se reinicia el juego. Mano enviada: ${finalHand.length} cartas`);
+                }
             }
             
             // Notificar a todos que el jugador se reconectó
