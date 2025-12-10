@@ -10173,19 +10173,14 @@ socket.on('accionDescartar', async (data) => {
       // ▲▲▲ FIN DE LA LÍNEA A AÑADIR ▲▲▲
       // ▲▲▲ FIN DEL BLOQUE AÑADIDO ▲▲▲
 
-      // Actualizar el estado del usuario en la lista global
-      const username = userId.replace('user_', '');
-      if (username) {
-          // Preservar currentLobby si existe
-          const currentLobby = connectedUsers[socket.id]?.currentLobby || null;
-          connectedUsers[socket.id] = {
-              username: username,
-              status: 'Jugando', // Se actualizará en broadcastUserListUpdate con el tipo de juego
-              currentLobby: currentLobby
-          };
-          broadcastUserListUpdate(io);
-          console.log(`[Status Update] ${username} (Socket ${socket.id}) se ha unido a un juego. Estado -> Jugando`);
+      // ▼▼▼ CRÍTICO: Actualizar el estado del usuario usando la función helper updatePlayerStatus ▼▼▼
+      // Esto asegura que el estado se actualice correctamente y se emita a todos los clientes
+      if (mySeatIndex !== -1) {
+          // Solo actualizar si el jugador se sentó en un asiento (no es espectador)
+          updatePlayerStatus(socket.id, userId, roomId, room.state, 'Ludo', io);
+          console.log(`[${roomId}] ✅ Estado actualizado para ${userId} (Socket ${socket.id}) después de unirse a la mesa. Estado: ${room.state}`);
       }
+      // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
 
       // ▼▼▼ ¡AÑADE ESTE LOG DETALLADO AQUÍ! ▼▼▼
       console.log(`\n--- [JOIN SERVER EMIT] Intentando emitir 'ludoGameState' a socket ${socket.id} ---`);
