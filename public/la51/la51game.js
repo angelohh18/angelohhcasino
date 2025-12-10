@@ -3227,6 +3227,11 @@ function showRoomsOverview() {
         // MIGRACIÓN SEGURA: Mantener datos originales del usuario
         currentUser.name = currentUser.username || localStorage.getItem('username');
         currentUser.id = socket.id;
+        // ▼▼▼ CRÍTICO: Asegurar que userId esté establecido para verificación de host ▼▼▼
+        if (!currentUser.userId) {
+            currentUser.userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
+        }
+        // ▲▲▲ FIN ESTABLECER USERID ▲▲▲
 
         // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
         const gameContainer = document.getElementById('game-container');
