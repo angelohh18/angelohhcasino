@@ -3375,11 +3375,24 @@ function showRoomsOverview() {
     
     function renderGameControls() {
         const startGameBtn = document.getElementById('start-game-btn');
-        const isHost = currentGameSettings.hostId === currentUser.id;
+        
+        // ▼▼▼ CRÍTICO: Verificar si es el host comparando socket.id con hostId o userId con settings.userId ▼▼▼
+        // El hostId puede ser socket.id o podemos verificar por userId
+        const hostId = currentGameSettings?.hostId;
+        const hostUserId = currentGameSettings?.settings?.userId;
+        const myUserId = currentUser.userId || (sessionStorage.getItem('userId') || localStorage.getItem('userId'));
+        
+        // Verificar si es el host por socket.id o por userId
+        const isHostBySocketId = hostId === socket.id;
+        const isHostByUserId = hostUserId && myUserId && hostUserId === myUserId;
+        const isHost = isHostBySocketId || isHostByUserId;
+        
+        console.log(`[renderGameControls] Verificando si es host - hostId: ${hostId}, socket.id: ${socket.id}, hostUserId: ${hostUserId}, myUserId: ${myUserId}, isHost: ${isHost}, gameStarted: ${gameStarted}`);
+        // ▲▲▲ FIN VERIFICACIÓN DE HOST ▲▲▲
 
-        if (isHost && !gameStarted) {
+        if (isHost && !gameStarted && currentGameSettings && currentGameSettings.seats) {
             startGameBtn.style.display = 'block';
-            const playerCount = currentGameSettings.seats.filter(s => s !== null).length;
+            const playerCount = currentGameSettings.seats.filter(s => s !== null && s !== undefined).length;
             
             startGameBtn.disabled = playerCount < 2;
 
@@ -3393,8 +3406,11 @@ function showRoomsOverview() {
                 console.log("Host iniciando la partida...");
                 socket.emit('startGame', currentGameSettings.roomId);
             };
+            
+            console.log(`[renderGameControls] ✅ Botón de iniciar mostrado. Jugadores: ${playerCount}, disabled: ${startGameBtn.disabled}`);
         } else {
             startGameBtn.style.display = 'none';
+            console.log(`[renderGameControls] ❌ Botón de iniciar oculto - isHost: ${isHost}, gameStarted: ${gameStarted}, currentGameSettings: ${!!currentGameSettings}`);
         }
     }
 
