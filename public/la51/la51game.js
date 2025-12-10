@@ -3918,7 +3918,15 @@ function updatePlayersView(seats, inGame = false) {
 
         // Si no hay un jugador local o la partida no ha comenzado, no hay mano que renderizar.
         // Esto es especialmente importante para la vista del espectador.
+        console.log('[renderHands] Verificando condiciones:', {
+            hasHumanPlayer: !!humanPlayer,
+            gameStarted: gameStarted,
+            hasHand: humanPlayer ? !!humanPlayer.hand : false,
+            handLength: humanPlayer && humanPlayer.hand ? humanPlayer.hand.length : 0
+        });
+        
         if (!humanPlayer || !gameStarted || !humanPlayer.hand) {
+            console.warn('[renderHands] ⚠️ No se renderizan cartas. Condiciones no cumplidas.');
             // Nos aseguramos de que otras partes de la UI se refresquen, pero no se renderizan cartas.
             renderDiscard();
             renderMelds();
@@ -3926,6 +3934,8 @@ function updatePlayersView(seats, inGame = false) {
             updateDebugInfo();
             return;
         }
+        
+        console.log('[renderHands] ✅ Renderizando', humanPlayer.hand.length, 'cartas');
       
       const fragment = document.createDocumentFragment();
       humanPlayer.hand.forEach((card, idx) => {
