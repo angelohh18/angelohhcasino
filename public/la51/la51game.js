@@ -1979,14 +1979,17 @@ function showRoomsOverview() {
         });
 
         // --- INICIO DE LA LÓGICA DE "BISTURÍ" ---
-        // 2. Creamos SOLO la nueva carta en el DOM.
-        const newCardElement = createCardElement(data.card, p.hand.length); // Le pasamos el nuevo índice
-
-        // 3. La añadimos al final de la mano.
-        handEl.appendChild(newCardElement);
-
-        // 4. Actualizamos el array de datos interno.
+        // 2. Actualizamos el array de datos interno PRIMERO (al final del array).
         p.hand.push(data.card);
+        
+        // 3. Obtenemos el índice visual correcto (número de cartas visibles en el DOM).
+        const visualIndex = handEl.children.length;
+        
+        // 4. Creamos SOLO la nueva carta en el DOM con el índice visual correcto.
+        const newCardElement = createCardElement(data.card, visualIndex);
+
+        // 5. La añadimos al final de la mano visualmente.
+        handEl.appendChild(newCardElement);
         // --- FIN DE LA LÓGICA DE "BISTURÍ" ---
 
         hasDrawn = true;
@@ -2014,15 +2017,18 @@ function showRoomsOverview() {
         }
 
         // --- INICIO DE LA LÓGICA DE "BISTURÍ" ---
-        // 1. Creamos SOLO la nueva carta en el DOM.
-        const newCardElement = createCardElement(data.card, p.hand.length);
-
-        // 2. La añadimos al final de la mano.
-        handEl.appendChild(newCardElement);
-
-        // 3. Actualizamos el array de datos y el estado del descarte.
+        // 1. Actualizamos el array de datos PRIMERO (al final del array).
         p.hand.push(data.card);
         discardPile = data.newDiscardPile;
+        
+        // 2. Obtenemos el índice visual correcto (número de cartas visibles en el DOM).
+        const visualIndex = handEl.children.length;
+        
+        // 3. Creamos SOLO la nueva carta en el DOM con el índice visual correcto.
+        const newCardElement = createCardElement(data.card, visualIndex);
+
+        // 4. La añadimos al final de la mano visualmente.
+        handEl.appendChild(newCardElement);
         // --- FIN DE LA LÓGICA DE "BISTURÍ" ---
 
         hasDrawn = true;
