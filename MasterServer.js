@@ -656,16 +656,20 @@ function updatePlayerStatus(socketId, userId, roomId, roomState, gameType, io) {
     let currentLobby = '';
     
     if (!roomId || !roomState) {
-        // Jugador está en el lobby
+        // Jugador está en el lobby (no en ninguna mesa)
         status = gameType === 'Ludo' ? 'En el lobby de Ludo' : 'En el lobby de La 51';
         currentLobby = gameType || 'Ludo';
     } else if (roomState === 'playing') {
         // Jugador está en partida activa
         status = gameType === 'Ludo' ? 'En partida de Ludo' : 'En partida de La 51';
         currentLobby = gameType || 'Ludo';
-    } else if (roomState === 'waiting' || roomState === 'post-game') {
-        // Jugador está en sala pero no jugando (esperando o post-game)
-        status = gameType === 'Ludo' ? 'En el lobby de Ludo' : 'En el lobby de La 51';
+    } else if (roomState === 'waiting') {
+        // ▼▼▼ CRÍTICO: Si hay roomId, el jugador está en una mesa esperando, NO en el lobby ▼▼▼
+        status = gameType === 'Ludo' ? 'En mesa de Ludo' : 'En mesa de La 51';
+        currentLobby = gameType || 'Ludo';
+    } else if (roomState === 'post-game') {
+        // Jugador está en post-game (revancha)
+        status = gameType === 'Ludo' ? 'En mesa de Ludo' : 'En mesa de La 51';
         currentLobby = gameType || 'Ludo';
     } else {
         // Estado desconocido, usar lobby por defecto
@@ -1947,20 +1951,13 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 }
                 // ▲▲▲ FIN DEL FIX CRÍTICO ▲▲▲
                 
-                // ▼▼▼ CRÍTICO: Actualizar connectedUsers para reflejar que el jugador está en el lobby ▼▼▼
+                // ▼▼▼ CRÍTICO: Actualizar estado usando updatePlayerStatus para reflejar que el jugador está en el lobby ▼▼▼
                 if (leavingPlayerSocket && leavingPlayerSeat.userId) {
-                    // Actualizar el estado del jugador en connectedUsers para reflejar que está en el lobby
-                    if (connectedUsers[leavingPlayerSocket.id]) {
-                        connectedUsers[leavingPlayerSocket.id].status = 'En el lobby de Ludo';
-                        connectedUsers[leavingPlayerSocket.id].currentLobby = 'Ludo';
-                        // Limpiar currentRoomId si existe
-                        if (leavingPlayerSocket.currentRoomId) {
-                            delete leavingPlayerSocket.currentRoomId;
-                        }
-                        console.log(`[${roomId}] ✅ Estado actualizado en connectedUsers para ${leavingPlayerUsername} - ahora está en el lobby`);
-                    }
+                    // Usar updatePlayerStatus para asegurar actualización correcta y emisión a todos los clientes
+                    updatePlayerStatus(leavingPlayerSocket.id, leavingPlayerSeat.userId, null, null, 'Ludo', io);
+                    console.log(`[${roomId}] ✅ Estado actualizado para ${leavingPlayerUsername} - ahora está en el lobby`);
                 }
-                // ▲▲▲ FIN ACTUALIZACIÓN DE CONNECTEDUSERS ▲▲▲
+                // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
                 
                 leavingPlayerSocket.emit('playerLeft', sanitizedRoom);
                 leavingPlayerSocket.emit('gameEnded', { 
