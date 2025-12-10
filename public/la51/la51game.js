@@ -3110,18 +3110,27 @@ function showRoomsOverview() {
             gameStarted = true;
         }
         
+        // ▼▼▼ CRÍTICO: Guardar la mano ANTES de llamar a updatePlayersView para que se preserve ▼▼▼
+        const savedHand = gameState.hand || [];
+        console.log('[gameStateSync] Mano recibida del servidor:', savedHand.length, 'cartas');
+        // ▲▲▲ FIN GUARDAR MANO ▲▲▲
+        
         // Actualizar estado del juego sin reiniciar
-        if (gameState.hand) {
+        if (savedHand && savedHand.length > 0) {
             if (players.length === 0 || !players[0]) {
                 // Si no hay players, inicializar con la mano recibida
                 players = [{
                     playerId: socket.id,
-                    hand: gameState.hand,
+                    hand: savedHand,
                     playerName: currentUser.username || 'Jugador'
                 }];
+                console.log('[gameStateSync] ✅ Jugador creado con mano:', savedHand.length, 'cartas');
             } else {
-                players[0].hand = gameState.hand;
+                players[0].hand = savedHand;
+                console.log('[gameStateSync] ✅ Mano asignada a players[0]:', savedHand.length, 'cartas');
             }
+        } else {
+            console.warn('[gameStateSync] ⚠️ No se recibió mano del servidor o está vacía');
         }
         
         discardPile = gameState.discardPile || [];
@@ -3134,8 +3143,15 @@ function showRoomsOverview() {
         }
         
         // Actualizar vista de jugadores (esto también actualiza orderedSeats)
+        // IMPORTANTE: updatePlayersView ahora preserva la mano si el juego ya comenzó
         if (gameState.seats) {
             updatePlayersView(gameState.seats, gameStarted);
+            // ▼▼▼ CRÍTICO: Asegurar que la mano se preserve después de updatePlayersView ▼▼▼
+            if (players[0] && savedHand && savedHand.length > 0) {
+                players[0].hand = savedHand;
+                console.log('[gameStateSync] ✅ Mano preservada después de updatePlayersView:', savedHand.length, 'cartas');
+            }
+            // ▲▲▲ FIN PRESERVAR MANO ▲▲▲
         }
         
         // Actualizar contadores de cartas
