@@ -678,18 +678,20 @@ function updatePlayerStatus(socketId, userId, roomId, roomState, gameType, io) {
     }
     
     // Actualizar o crear entrada en connectedUsers
+    const username = userId.replace('user_', '');
     if (connectedUsers[socketId]) {
+        const oldStatus = connectedUsers[socketId].status;
         connectedUsers[socketId].status = status;
         connectedUsers[socketId].currentLobby = currentLobby;
+        connectedUsers[socketId].userId = userId; // Asegurar que userId esté siempre presente
         if (roomId) {
             socket.currentRoomId = roomId;
         } else {
             delete socket.currentRoomId;
         }
-        console.log(`[Status Update] ${connectedUsers[socketId].username || userId.replace('user_', '')} (${socketId}) -> ${status}`);
+        console.log(`[updatePlayerStatus] ✅ ${username} (${socketId}): "${oldStatus}" -> "${status}" | roomId: ${roomId || 'null'}, roomState: ${roomState || 'null'}, gameType: ${gameType}`);
     } else {
         // Crear nueva entrada si no existe
-        const username = userId.replace('user_', '');
         connectedUsers[socketId] = {
             username: username,
             status: status,
@@ -699,11 +701,14 @@ function updatePlayerStatus(socketId, userId, roomId, roomState, gameType, io) {
         if (roomId) {
             socket.currentRoomId = roomId;
         }
-        console.log(`[Status Update] Nuevo jugador ${username} (${socketId}) -> ${status}`);
+        console.log(`[updatePlayerStatus] ✅ NUEVO jugador ${username} (${socketId}) -> "${status}" | roomId: ${roomId || 'null'}, roomState: ${roomState || 'null'}, gameType: ${gameType}`);
     }
     
-    // Emitir actualización inmediatamente
+    // ▼▼▼ CRÍTICO: Emitir actualización inmediatamente con verificación ▼▼▼
+    console.log(`[updatePlayerStatus] 📤 Emitiendo broadcastUserListUpdate para ${username}...`);
     broadcastUserListUpdate(io);
+    console.log(`[updatePlayerStatus] ✅ broadcastUserListUpdate emitido para ${username}`);
+    // ▲▲▲ FIN EMISIÓN CON VERIFICACIÓN ▲▲▲
 }
 // ▲▲▲ FIN FUNCIÓN HELPER ▲▲▲
 
@@ -9239,8 +9244,9 @@ socket.on('accionDescartar', async (data) => {
       // ▼▼▼ CRÍTICO: Actualizar el estado del jugador usando updatePlayerStatus ▼▼▼
       // Esto asegura que el estado se actualice correctamente y se emita a todos los clientes
       const hostUserId = settings.userId || userId;
+      console.log(`[${roomId}] 🔄 LLAMANDO updatePlayerStatus para ${username} (Socket ${socket.id}) después de crear mesa - roomId: ${roomId}, room.state: ${newRoom.state}, gameType: Ludo`);
       updatePlayerStatus(socket.id, hostUserId, roomId, newRoom.state, 'Ludo', io);
-      console.log(`[${roomId}] ✅ Estado actualizado para ${username} (Socket ${socket.id}) después de crear la mesa. Estado: ${newRoom.state}`);
+      console.log(`[${roomId}] ✅ updatePlayerStatus COMPLETADO para ${username} (Socket ${socket.id}) después de crear la mesa`);
 
       // NOTIFICA A TODOS (INCLUYENDO A "B") DE LA NUEVA LISTA DE SALAS DE LUDO
       console.log(`[DEBUG LUDO] Emitiendo lista de salas de Ludo. Total salas: ${Object.keys(ludoRooms).length}`);
