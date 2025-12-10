@@ -258,6 +258,7 @@ let lastKnownRooms = []; // <-- AÑADE ESTA LÍNEA
 let shouldRedirectToLobbyAfterElimination = false; // Variable global para rastrear si debe redirigir al lobby después de cerrar el modal de eliminación
 let eliminationGameType = null; // Variable global para guardar el tipo de juego (la51, ludo, parchis) cuando el jugador es eliminado
 let currentGameSettings = null; // ▼▼▼ CRÍTICO: Declarar currentGameSettings como variable global para evitar ReferenceError ▼▼▼
+let welcomeModalShownForRoom = null; // ▼▼▼ CRÍTICO: Rastrear si el modal de bienvenida ya se mostró para esta sala ▼▼▼
 
 // Variables globales para el estado del usuario (migración segura)
 let currentUser = {
