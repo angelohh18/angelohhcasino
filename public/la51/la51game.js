@@ -3003,6 +3003,11 @@ function showRoomsOverview() {
     selectedCards = new Set();
     isDrawing = false;
     
+    // ▼▼▼ CRÍTICO: Guardar la mano ANTES de llamar a updatePlayersView para que se preserve ▼▼▼
+    const savedHand = initialState.hand || [];
+    console.log('[gameStarted] Mano guardada antes de updatePlayersView:', savedHand.length, 'cartas');
+    // ▲▲▲ FIN GUARDAR MANO ▲▲▲
+    
     updatePlayersView(initialState.seats, true);
     
     // El mensaje del primer turno se mostrará a través del evento firstTurnInfo
@@ -3011,18 +3016,18 @@ function showRoomsOverview() {
     // ▼▼▼ CORRECCIÓN ▼▼▼
     // Asignamos la mano directamente al jugador local, que la lógica de la UI 
     // siempre posiciona en el índice 0 del array 'players'.
-    console.log('[gameStarted] Verificando players[0] y initialState.hand:', {
+    // IMPORTANTE: Esto debe hacerse DESPUÉS de updatePlayersView para que la mano se preserve
+    console.log('[gameStarted] Verificando players[0] después de updatePlayersView:', {
         hasPlayers0: !!players[0],
         playersLength: players.length,
-        hasInitialStateHand: !!initialState.hand,
-        handLength: initialState.hand ? initialState.hand.length : 0
+        savedHandLength: savedHand.length
     });
     
     if (players[0]) {
-        players[0].hand = initialState.hand || [];
+        players[0].hand = savedHand;
         console.log('[gameStarted] ✅ Mano asignada a players[0]. Longitud:', players[0].hand ? players[0].hand.length : 0);
     } else {
-        console.error('[gameStarted] ❌ ERROR: players[0] no existe. players.length:', players.length);
+        console.error('[gameStarted] ❌ ERROR: players[0] no existe después de updatePlayersView. players.length:', players.length);
     }
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     
