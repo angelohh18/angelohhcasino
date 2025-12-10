@@ -790,16 +790,13 @@ function broadcastUserListUpdate(io) {
         }
     });
     
+    // ▼▼▼ CRÍTICO: NO modificar el estado aquí - ya fue establecido correctamente por updatePlayerStatus ▼▼▼
     const userList = Object.keys(connectedUsers).map(socketId => {
-            const user = { ...connectedUsers[socketId] };
-        // Aseguramos que el estado visual coincida con la lógica interna
-        if (user.currentLobby === 'Ludo' && !user.status.includes('Jugando')) {
-            user.status = 'En el lobby de Ludo';
-        } else if (user.currentLobby === 'La 51' && !user.status.includes('Jugando')) {
-            user.status = 'En el lobby de La 51';
-        }
-            return user;
+        const user = { ...connectedUsers[socketId] };
+        // NO sobrescribir el estado - mantener el que fue establecido por updatePlayerStatus
+        return user;
     }).filter(u => u && u.username); // Filtro simple
+    // ▲▲▲ FIN: NO MODIFICAR ESTADO ▲▲▲
     
     console.log(`[broadcastUserListUpdate] 📊 Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
     console.log(`[broadcastUserListUpdate] 📋 Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status, currentLobby: u.currentLobby })));
