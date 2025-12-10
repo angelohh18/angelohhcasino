@@ -3200,14 +3200,48 @@ function showRoomsOverview() {
             console.log(`[playerJoined] hostId actualizado: ${roomData.hostId}`);
         }
         // ▲▲▲ FIN ESTABLECER HOSTID ▲▲▲
+        
+        // ▼▼▼ CRÍTICO: Preservar la mano antes de updatePlayersView si el juego ya comenzó ▼▼▼
+        let savedHand = null;
+        if (gameStarted && players && players[0] && players[0].hand && players[0].hand.length > 0) {
+            savedHand = players[0].hand;
+            console.log('[playerJoined] ✅ Mano preservada antes de updatePlayersView:', savedHand.length, 'cartas');
+        }
+        // ▲▲▲ FIN PRESERVAR MANO ▲▲▲
+        
         updatePlayersView(roomData.seats, gameStarted);
+        
+        // ▼▼▼ CRÍTICO: Restaurar la mano después de updatePlayersView si el juego ya comenzó ▼▼▼
+        if (gameStarted && savedHand && savedHand.length > 0 && players && players[0]) {
+            players[0].hand = savedHand;
+            console.log('[playerJoined] ✅ Mano restaurada después de updatePlayersView:', savedHand.length, 'cartas');
+        }
+        // ▲▲▲ FIN RESTAURAR MANO ▲▲▲
+        
         renderGameControls();
     });
 
     socket.on('playerLeft', (roomData) => {
         console.log('Un jugador ha abandonado la sala:', roomData);
         currentGameSettings = { ...currentGameSettings, ...roomData };
+        
+        // ▼▼▼ CRÍTICO: Preservar la mano antes de updatePlayersView si el juego ya comenzó ▼▼▼
+        let savedHand = null;
+        if (gameStarted && players && players[0] && players[0].hand && players[0].hand.length > 0) {
+            savedHand = players[0].hand;
+            console.log('[playerLeft] ✅ Mano preservada antes de updatePlayersView:', savedHand.length, 'cartas');
+        }
+        // ▲▲▲ FIN PRESERVAR MANO ▲▲▲
+        
         updatePlayersView(roomData.seats, gameStarted); // Pasamos el estado actual del juego
+        
+        // ▼▼▼ CRÍTICO: Restaurar la mano después de updatePlayersView si el juego ya comenzó ▼▼▼
+        if (gameStarted && savedHand && savedHand.length > 0 && players && players[0]) {
+            players[0].hand = savedHand;
+            console.log('[playerLeft] ✅ Mano restaurada después de updatePlayersView:', savedHand.length, 'cartas');
+        }
+        // ▲▲▲ FIN RESTAURAR MANO ▲▲▲
+        
         renderGameControls();
     });
     
