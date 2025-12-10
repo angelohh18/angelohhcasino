@@ -3011,8 +3011,18 @@ function showRoomsOverview() {
     // ▼▼▼ CORRECCIÓN ▼▼▼
     // Asignamos la mano directamente al jugador local, que la lógica de la UI 
     // siempre posiciona en el índice 0 del array 'players'.
+    console.log('[gameStarted] Verificando players[0] y initialState.hand:', {
+        hasPlayers0: !!players[0],
+        playersLength: players.length,
+        hasInitialStateHand: !!initialState.hand,
+        handLength: initialState.hand ? initialState.hand.length : 0
+    });
+    
     if (players[0]) {
-        players[0].hand = initialState.hand;
+        players[0].hand = initialState.hand || [];
+        console.log('[gameStarted] ✅ Mano asignada a players[0]. Longitud:', players[0].hand ? players[0].hand.length : 0);
+    } else {
+        console.error('[gameStarted] ❌ ERROR: players[0] no existe. players.length:', players.length);
     }
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     
@@ -3062,9 +3072,17 @@ function showRoomsOverview() {
     setupMeldDropZone();
     
     animateDealing(initialState).then(() => {
+        console.log('[gameStarted] Animación de reparto completada. Renderizando manos...');
+        console.log('[gameStarted] Estado antes de renderHands:', {
+            playersLength: players.length,
+            hasPlayers0: !!players[0],
+            hasHand: players[0] ? !!players[0].hand : false,
+            handLength: players[0] && players[0].hand ? players[0].hand.length : 0
+        });
         renderHands();
         updateTurnIndicator();
         updateActionButtons();
+        console.log('[gameStarted] ✅ renderHands completado');
     });
 });
 
