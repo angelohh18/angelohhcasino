@@ -7001,12 +7001,21 @@ io.on('connection', (socket) => {
             
             // Si el juego está en curso, enviar el estado del juego
             if (room.state === 'playing') {
-                // ▼▼▼ CRÍTICO: Actualizar playerHands y currentPlayerId si es necesario ▼▼▼
+                // ▼▼▼ CRÍTICO: Actualizar playerHands y currentPlayerId ANTES de enviar gameStateSync ▼▼▼
                 if (room.playerHands && room.playerHands[oldPlayerId]) {
                     // Actualizar la clave en playerHands al nuevo socket.id
                     room.playerHands[socket.id] = room.playerHands[oldPlayerId];
                     delete room.playerHands[oldPlayerId];
-                    console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}`);
+                    console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id]?.length || 0} cartas`);
+                } else if (room.playerHands && !room.playerHands[socket.id]) {
+                    // Si no hay mano con oldPlayerId, buscar por userId en los asientos
+                    const seat = room.seats.find(s => s && s.userId === userId);
+                    if (seat && room.playerHands[seat.playerId]) {
+                        room.playerHands[socket.id] = room.playerHands[seat.playerId];
+                        console.log(`[${roomId}] ✅ Actualizado playerHands desde seat.playerId ${seat.playerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id]?.length || 0} cartas`);
+                    } else {
+                        console.warn(`[${roomId}] ⚠️ No se encontró playerHands para ${oldPlayerId} ni para userId ${userId}`);
+                    }
                 }
                 
                 // Si es el turno de este jugador, actualizar currentPlayerId INMEDIATAMENTE
