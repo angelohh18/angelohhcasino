@@ -425,11 +425,12 @@ function showPwaInstallModal() {
 
         userList.forEach(user => {
             const li = document.createElement('li');
-            // Determinar la clase CSS basándose en si está jugando
-            const statusClass = user.status && user.status.includes('Jugando') ? 'status-playing' : 'status-lobby';
-            
-            // Construir el texto del estado
-            let statusText = user.status || 'En el Lobby';
+            // ▼▼▼ Determinar la clase CSS: naranja para "Jugando", "En mesa de Ludo" o "En mesa de La 51" ▼▼▼
+            const statusText = user.status || 'En el Lobby';
+            const isPlaying = statusText.includes('Jugando') || statusText.includes('En partida');
+            const isInTable = statusText.includes('En mesa de');
+            const statusClass = (isPlaying || isInTable) ? 'status-playing' : 'status-lobby';
+            // ▲▲▲ FIN DETERMINACIÓN DE CLASE CSS ▲▲▲
             
             li.innerHTML = `
                 <span>${user.username}</span>
