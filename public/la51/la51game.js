@@ -1753,7 +1753,23 @@ function showRoomsOverview() {
         console.log('Un jugador se ha sentado para esperar. Actualizando vista de jugadores.');
         
         const newSeats = data.seats;
-        updatePlayersView(newSeats, true); 
+        
+        // ▼▼▼ CRÍTICO: Preservar la mano antes de updatePlayersView si el juego ya comenzó ▼▼▼
+        let savedHand = null;
+        if (gameStarted && players && players[0] && players[0].hand && players[0].hand.length > 0) {
+            savedHand = players[0].hand;
+            console.log('[playerSatDownToWait] ✅ Mano preservada antes de updatePlayersView:', savedHand.length, 'cartas');
+        }
+        // ▲▲▲ FIN PRESERVAR MANO ▲▲▲
+        
+        updatePlayersView(newSeats, true);
+        
+        // ▼▼▼ CRÍTICO: Restaurar la mano después de updatePlayersView si el juego ya comenzó ▼▼▼
+        if (gameStarted && savedHand && savedHand.length > 0 && players && players[0]) {
+            players[0].hand = savedHand;
+            console.log('[playerSatDownToWait] ✅ Mano restaurada después de updatePlayersView:', savedHand.length, 'cartas');
+        }
+        // ▲▲▲ FIN RESTAURAR MANO ▲▲▲ 
 
 
         showToast(`${data.waitingPlayerName} se sentará en la próxima partida.`, 3000);
@@ -3530,18 +3546,24 @@ function updatePlayersView(seats, inGame = false) {
     
     // 3. Crear un array de jugadores FRESCO. NO reutilizamos datos viejos.
     const newPlayers = [];
-    // ▼▼▼ CRÍTICO: Preservar la mano del jugador local SIEMPRE, incluso si el juego ya comenzó ▼▼▼
+    // ▼▼▼ CRÍTICO: Preservar la mano del jugador local SIEMPRE si el juego ya comenzó ▼▼▼
     // Si el juego ya comenzó, NO debemos perder la mano del jugador local
     let myCurrentHand = [];
-    if (players && players[0] && players[0].hand && Array.isArray(players[0].hand) && players[0].hand.length > 0) {
-        myCurrentHand = players[0].hand; // Preservar la mano existente
-        console.log('[updatePlayersView] ✅ Mano del jugador local preservada:', myCurrentHand.length, 'cartas');
-    } else if (gameStarted && players && players[0]) {
-        // Si el juego comenzó pero no hay mano, intentar preservar lo que haya
-        myCurrentHand = players[0].hand || [];
-        console.log('[updatePlayersView] ⚠️ Juego en curso pero mano vacía o no definida. Longitud:', myCurrentHand.length);
+    if (gameStarted) {
+        // Si el juego ya comenzó, preservar la mano existente sin importar si está vacía o no
+        if (players && players[0] && players[0].hand) {
+            if (Array.isArray(players[0].hand)) {
+                myCurrentHand = players[0].hand; // Preservar la mano existente (puede estar vacía)
+                console.log('[updatePlayersView] ✅ Mano del jugador local preservada (juego en curso):', myCurrentHand.length, 'cartas');
+            } else {
+                console.log('[updatePlayersView] ⚠️ players[0].hand no es un array:', typeof players[0].hand);
+            }
+        } else {
+            console.log('[updatePlayersView] ⚠️ Juego en curso pero players[0] o players[0].hand no existe');
+        }
     } else {
-        console.log('[updatePlayersView] ℹ️ No hay mano que preservar (juego no iniciado o jugador no existe)');
+        // Si el juego no ha comenzado, no hay mano que preservar
+        console.log('[updatePlayersView] ℹ️ Juego no iniciado - no hay mano que preservar');
     }
     // ▲▲▲ FIN PRESERVAR MANO ▲▲▲
 
@@ -3584,18 +3606,15 @@ function updatePlayersView(seats, inGame = false) {
 
             // Si este asiento corresponde al jugador local, le asignamos su mano.
             if (i === 0) {
-                // ▼▼▼ CRÍTICO: Solo asignar la mano preservada si tiene cartas, o si el juego no ha comenzado ▼▼▼
-                if (myCurrentHand && myCurrentHand.length > 0) {
-                    playerObject.hand = myCurrentHand;
-                    console.log('[updatePlayersView] ✅ Mano preservada asignada al jugador local (índice 0):', playerObject.hand.length, 'cartas');
-                } else if (!gameStarted) {
+                // ▼▼▼ CRÍTICO: Asignar la mano preservada si el juego ya comenzó, o mano vacía si no ▼▼▼
+                if (gameStarted) {
+                    // Si el juego ya comenzó, SIEMPRE usar la mano preservada (puede estar vacía, pero es la correcta)
+                    playerObject.hand = Array.isArray(myCurrentHand) ? myCurrentHand : [];
+                    console.log('[updatePlayersView] ✅ Mano preservada asignada al jugador local (juego en curso):', playerObject.hand.length, 'cartas');
+                } else {
                     // Si el juego no ha comenzado, está bien tener mano vacía
                     playerObject.hand = [];
                     console.log('[updatePlayersView] ℹ️ Juego no iniciado - mano vacía asignada');
-                } else {
-                    // Si el juego ya comenzó pero no hay mano preservada, mantener lo que haya
-                    playerObject.hand = myCurrentHand || [];
-                    console.log('[updatePlayersView] ⚠️ Juego en curso pero sin mano preservada. Asignando:', playerObject.hand.length, 'cartas');
                 }
                 // ▲▲▲ FIN ASIGNAR MANO ▲▲▲
             }
