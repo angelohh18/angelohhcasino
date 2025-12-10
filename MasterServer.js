@@ -6935,23 +6935,34 @@ io.on('connection', (socket) => {
             
             // ▼▼▼ CRÍTICO: Buscar y actualizar playerHands ANTES de actualizar seat.playerId ▼▼▼
             // Esto es crucial porque necesitamos buscar usando oldPlayerId antes de que se actualice
+            console.log(`[${roomId}] [RECONEXIÓN] Iniciando búsqueda de mano para ${user.username} (${userId})...`);
+            console.log(`[${roomId}] [RECONEXIÓN] oldPlayerId: ${oldPlayerId}, nuevo socket.id: ${socket.id}`);
+            console.log(`[${roomId}] [RECONEXIÓN] room.playerHands existe?: ${!!room.playerHands}`);
+            if (room.playerHands) {
+                console.log(`[${roomId}] [RECONEXIÓN] Claves en playerHands:`, Object.keys(room.playerHands));
+                console.log(`[${roomId}] [RECONEXIÓN] playerHands[${oldPlayerId}] existe?: ${!!room.playerHands[oldPlayerId]}`);
+                if (room.playerHands[oldPlayerId]) {
+                    console.log(`[${roomId}] [RECONEXIÓN] playerHands[${oldPlayerId}] tiene ${room.playerHands[oldPlayerId].length} cartas`);
+                }
+            }
+            
             let playerHandToRestore = null;
             
             // Primero intentar obtener la mano usando oldPlayerId
-            if (room.playerHands && room.playerHands[oldPlayerId] && Array.isArray(room.playerHands[oldPlayerId])) {
-                playerHandToRestore = room.playerHands[oldPlayerId];
+            if (room.playerHands && room.playerHands[oldPlayerId] && Array.isArray(room.playerHands[oldPlayerId]) && room.playerHands[oldPlayerId].length > 0) {
+                playerHandToRestore = [...room.playerHands[oldPlayerId]]; // Crear copia para evitar referencias
                 console.log(`[${roomId}] ✅ [RECONEXIÓN] Mano encontrada usando oldPlayerId ${oldPlayerId}. Tiene ${playerHandToRestore.length} cartas`);
             } else {
                 // Si no se encuentra con oldPlayerId, buscar en todos los playerHands por userId
-                console.log(`[${roomId}] ⚠️ [RECONEXIÓN] No se encontró mano con oldPlayerId ${oldPlayerId}. Buscando en todos los playerHands...`);
+                console.log(`[${roomId}] ⚠️ [RECONEXIÓN] No se encontró mano con oldPlayerId ${oldPlayerId}. Buscando en todos los playerHands por userId ${userId}...`);
                 if (room.playerHands) {
                     // Buscar en todos los playerHands existentes
                     for (const [playerIdKey, hand] of Object.entries(room.playerHands)) {
                         if (Array.isArray(hand) && hand.length > 0) {
                             // Verificar si este playerId corresponde a un asiento con el mismo userId
-                            const seatWithThisPlayerId = room.seats.find(s => s && s.playerId === playerIdKey);
-                            if (seatWithThisPlayerId && seatWithThisPlayerId.userId === userId) {
-                                playerHandToRestore = hand;
+                            const seatWithThisPlayerId = room.seats.find(s => s && s.playerId === playerIdKey && s.userId === userId);
+                            if (seatWithThisPlayerId) {
+                                playerHandToRestore = [...hand]; // Crear copia para evitar referencias
                                 console.log(`[${roomId}] ✅ [RECONEXIÓN] Mano encontrada en playerHands[${playerIdKey}]. Tiene ${playerHandToRestore.length} cartas`);
                                 break;
                             }
@@ -6965,13 +6976,21 @@ io.on('connection', (socket) => {
             
             // Actualizar playerHands con la mano encontrada
             if (playerHandToRestore && playerHandToRestore.length > 0) {
+                // Asegurar que playerHands existe
+                if (!room.playerHands) {
+                    room.playerHands = {};
+                }
+                // Eliminar la entrada antigua si existe
                 if (room.playerHands[oldPlayerId]) {
                     delete room.playerHands[oldPlayerId];
                 }
+                // Asignar la mano al nuevo socket.id
                 room.playerHands[socket.id] = playerHandToRestore;
                 console.log(`[${roomId}] ✅ [RECONEXIÓN] playerHands actualizado a socket.id ${socket.id}. Mano tiene ${playerHandToRestore.length} cartas`);
+                console.log(`[${roomId}] [RECONEXIÓN] Verificación: playerHands[${socket.id}] ahora tiene ${room.playerHands[socket.id].length} cartas`);
             } else {
                 console.error(`[${roomId}] ❌ [RECONEXIÓN] ERROR: No se pudo encontrar la mano del jugador ${user.username} (${userId})`);
+                console.error(`[${roomId}] [RECONEXIÓN] playerHands completo:`, room.playerHands);
             }
             // ▲▲▲ FIN ACTUALIZACIÓN DE playerHands ▲▲▲
             
