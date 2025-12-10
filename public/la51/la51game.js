@@ -3282,27 +3282,43 @@ function showRoomsOverview() {
             // Lógica original para un jugador que se une a una mesa en espera
             console.log('Inicializando la vista de juego como JUGADOR.');
             gameStarted = false;
-            welcomeMsg.textContent = `Bienvenido a la mesa de ${settings.settings.username}`;
-            betInfo.textContent = `Apuesta: ${settings.settings.bet}`;
-            penaltyInfo.textContent = `Multa: ${settings.settings.penalty}`;
-            mainButton.style.display = 'block';
-            spectatorButton.style.display = 'none';
             
-            if (settings.isPractice) {
-                mainButton.textContent = 'Empezar Práctica';
-                mainButton.onclick = () => {
-                    hideOverlay('ready-overlay');
-                    // Esta parte necesita ser implementada o revisada
-                    console.error("Lógica de práctica debe ser iniciada desde el servidor.");
-                };
-            } else {
-                mainButton.textContent = 'Sentarse';
-                mainButton.onclick = handleSitDown;
-            }
+            // ▼▼▼ CRÍTICO: Solo mostrar el modal de bienvenida UNA VEZ por sala ▼▼▼
+            const roomId = settings.roomId;
+            if (welcomeModalShownForRoom !== roomId) {
+                welcomeMsg.textContent = `Bienvenido a la mesa de ${settings.settings.username}`;
+                betInfo.textContent = `Apuesta: ${settings.settings.bet}`;
+                penaltyInfo.textContent = `Multa: ${settings.settings.penalty}`;
+                mainButton.style.display = 'block';
+                spectatorButton.style.display = 'none';
+                
+                if (settings.isPractice) {
+                    mainButton.textContent = 'Empezar Práctica';
+                    mainButton.onclick = () => {
+                        hideOverlay('ready-overlay');
+                        // Esta parte necesita ser implementada o revisada
+                        console.error("Lógica de práctica debe ser iniciada desde el servidor.");
+                    };
+                } else {
+                    mainButton.textContent = 'Sentarse';
+                    mainButton.onclick = handleSitDown;
+                }
 
-            updatePlayersView(settings.seats, false);
-            document.querySelector('.player-actions').style.display = 'flex';
-            showOverlay('ready-overlay');
+                updatePlayersView(settings.seats, false);
+                document.querySelector('.player-actions').style.display = 'flex';
+                showOverlay('ready-overlay');
+                
+                // Marcar que el modal ya se mostró para esta sala
+                welcomeModalShownForRoom = roomId;
+                console.log(`[initializeGame] Modal de bienvenida mostrado para sala ${roomId}`);
+            } else {
+                // El modal ya se mostró antes, solo ocultarlo y continuar
+                hideOverlay('ready-overlay');
+                updatePlayersView(settings.seats, false);
+                document.querySelector('.player-actions').style.display = 'flex';
+                console.log(`[initializeGame] Modal de bienvenida ya se mostró para sala ${roomId}, omitiendo.`);
+            }
+            // ▲▲▲ FIN: SOLO MOSTRAR MODAL UNA VEZ ▲▲▲
         }
 
         // Configuración común
