@@ -3047,7 +3047,11 @@ function showRoomsOverview() {
     }
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
     
-    discardPile = initialState.discardPile;
+    discardPile = initialState.discardPile || [];
+    
+    // ▼▼▼ CRÍTICO: Renderizar el descarte después de actualizarlo ▼▼▼
+    renderDiscard();
+    // ▲▲▲ FIN RENDERIZAR DESCARTE ▲▲▲
     
     const startingPlayer = initialState.seats.find(sp => sp && sp.playerId === initialState.currentPlayerId);
     if (startingPlayer) {
@@ -3191,17 +3195,9 @@ function showRoomsOverview() {
         updateTurnIndicator();
         updateActionButtons();
         
-        // Actualizar pila de descarte visualmente
-        const discardEl = document.getElementById('discard');
-        if (discardEl) {
-            if (discardPile.length > 0) {
-                const topCard = discardPile[discardPile.length - 1];
-                const suitSymbol = topCard.suit === 'hearts' ? '♥' : topCard.suit === 'diamonds' ? '♦' : topCard.suit === 'clubs' ? '♣' : '♠';
-                discardEl.innerHTML = `<div class="card ${topCard.suit}">${topCard.rank}${suitSymbol}</div>`;
-            } else {
-                discardEl.innerHTML = 'Descarte<br>Vacío';
-            }
-        }
+        // ▼▼▼ CRÍTICO: Renderizar el descarte usando la función renderDiscard() ▼▼▼
+        renderDiscard();
+        // ▲▲▲ FIN RENDERIZAR DESCARTE ▲▲▲
         
         console.log('[gameStateSync] ✅ Estado sincronizado correctamente sin reiniciar el juego');
     });
