@@ -7102,9 +7102,23 @@ io.on('connection', (socket) => {
                     if(s) playerHandCounts[s.playerId] = room.playerHands[s.playerId]?.length || 0; 
                 });
                 
+                // ▼▼▼ CRÍTICO: Verificar que la mano existe antes de enviar gameStateSync ▼▼▼
+                const playerHand = room.playerHands[socket.id] || [];
+                if (playerHand.length === 0) {
+                    console.warn(`[${roomId}] ⚠️ ADVERTENCIA: playerHands[${socket.id}] está vacío. Buscando por userId...`);
+                    // Intentar buscar la mano por userId en los asientos
+                    const seat = room.seats.find(s => s && s.userId === userId);
+                    if (seat && room.playerHands[seat.playerId]) {
+                        room.playerHands[socket.id] = room.playerHands[seat.playerId];
+                        console.log(`[${roomId}] ✅ Mano encontrada y actualizada desde seat.playerId ${seat.playerId}. Mano tiene ${room.playerHands[socket.id].length} cartas`);
+                    }
+                }
+                // ▲▲▲ FIN VERIFICACIÓN DE MANO ▲▲▲
+                
                 // Enviar evento de sincronización que NO reinicia el juego
+                const finalHand = room.playerHands[socket.id] || [];
                 socket.emit('gameStateSync', {
-                    hand: room.playerHands[socket.id] || [],
+                    hand: finalHand,
                     discardPile: room.discardPile || [],
                     seats: room.seats,
                     currentPlayerId: room.currentPlayerId,
@@ -7113,7 +7127,7 @@ io.on('connection', (socket) => {
                     isPractice: room.isPractice || false,
                     isReconnection: true // Flag para indicar que es una reconexión
                 });
-                console.log(`[${roomId}] ✅ Enviado gameStateSync (reconexión) a ${user.username} (${socket.id}) - NO se reinicia el juego`);
+                console.log(`[${roomId}] ✅ Enviado gameStateSync (reconexión) a ${user.username} (${socket.id}) - NO se reinicia el juego. Mano enviada: ${finalHand.length} cartas`);
             }
             
             // Notificar a todos que el jugador se reconectó
