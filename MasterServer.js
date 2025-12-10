@@ -723,15 +723,16 @@ function broadcastUserListUpdate(io) {
             
             let shouldKeep = false;
             
-            // Verificar si está en partida activa por userId (no por socket.id porque puede estar desconectado)
+            // Verificar si está en partida activa o en una mesa esperando por userId (no por socket.id porque puede estar desconectado)
             if (userId) {
-                // Buscar en todas las salas de Ludo
+                // Buscar en todas las salas de Ludo (incluyendo 'waiting', 'playing' y 'post-game')
                 for (const [roomIdKey, ludoRoom] of Object.entries(ludoRooms)) {
-                    if (ludoRoom && (ludoRoom.state === 'playing' || ludoRoom.state === 'post-game')) {
+                    if (ludoRoom && (ludoRoom.state === 'playing' || ludoRoom.state === 'post-game' || ludoRoom.state === 'waiting')) {
                         const seatIndex = ludoRoom.seats.findIndex(s => s && s.userId === userId);
                         if (seatIndex !== -1) {
                             const seat = ludoRoom.seats[seatIndex];
-                            if (seat && seat.status !== 'waiting') {
+                            // ▼▼▼ CRÍTICO: Mantener jugador si está en cualquier estado de mesa (waiting, playing, post-game) ▼▼▼
+                            if (seat && (seat.status === 'waiting' || seat.status === 'playing')) {
                                 shouldKeep = true;
                                 break;
                             }
