@@ -6933,8 +6933,26 @@ io.on('connection', (socket) => {
             // ▼▼▼ CRÍTICO: Guardar el playerId antiguo ANTES de actualizarlo para cancelar timeouts correctamente ▼▼▼
             const oldPlayerId = existingSeat.playerId;
             
-            // Actualizar el playerId con el nuevo socket.id
+            // Actualizar el playerId con el nuevo socket.id INMEDIATAMENTE
             existingSeat.playerId = socket.id;
+            
+            // ▼▼▼ CRÍTICO: Actualizar playerHands ANTES de cualquier otra operación ▼▼▼
+            if (room.playerHands && room.playerHands[oldPlayerId]) {
+                // Actualizar la clave en playerHands al nuevo socket.id
+                room.playerHands[socket.id] = room.playerHands[oldPlayerId];
+                delete room.playerHands[oldPlayerId];
+                console.log(`[${roomId}] ✅ [RECONEXIÓN] Actualizado playerHands de ${oldPlayerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id]?.length || 0} cartas`);
+            } else if (room.playerHands && !room.playerHands[socket.id]) {
+                // Si no hay mano con oldPlayerId, buscar en todos los asientos por userId
+                for (const seat of room.seats) {
+                    if (seat && seat.userId === userId && room.playerHands[seat.playerId]) {
+                        room.playerHands[socket.id] = room.playerHands[seat.playerId];
+                        console.log(`[${roomId}] ✅ [RECONEXIÓN] Actualizado playerHands desde seat.playerId ${seat.playerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id]?.length || 0} cartas`);
+                        break;
+                    }
+                }
+            }
+            // ▲▲▲ FIN ACTUALIZACIÓN DE playerHands ▲▲▲
             
             // Asegurar que el socket esté en la sala
             socket.join(roomId);
@@ -7001,22 +7019,22 @@ io.on('connection', (socket) => {
             
             // Si el juego está en curso, enviar el estado del juego
             if (room.state === 'playing') {
-                // ▼▼▼ CRÍTICO: Actualizar playerHands y currentPlayerId ANTES de enviar gameStateSync ▼▼▼
-                if (room.playerHands && room.playerHands[oldPlayerId]) {
-                    // Actualizar la clave en playerHands al nuevo socket.id
-                    room.playerHands[socket.id] = room.playerHands[oldPlayerId];
-                    delete room.playerHands[oldPlayerId];
-                    console.log(`[${roomId}] ✅ Actualizado playerHands de ${oldPlayerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id]?.length || 0} cartas`);
-                } else if (room.playerHands && !room.playerHands[socket.id]) {
-                    // Si no hay mano con oldPlayerId, buscar por userId en los asientos
-                    const seat = room.seats.find(s => s && s.userId === userId);
-                    if (seat && room.playerHands[seat.playerId]) {
-                        room.playerHands[socket.id] = room.playerHands[seat.playerId];
-                        console.log(`[${roomId}] ✅ Actualizado playerHands desde seat.playerId ${seat.playerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id]?.length || 0} cartas`);
-                    } else {
-                        console.warn(`[${roomId}] ⚠️ No se encontró playerHands para ${oldPlayerId} ni para userId ${userId}`);
+                // ▼▼▼ CRÍTICO: Verificar que playerHands esté actualizado correctamente ▼▼▼
+                // La actualización de playerHands ya se hizo arriba, solo verificar aquí
+                if (!room.playerHands || !room.playerHands[socket.id] || room.playerHands[socket.id].length === 0) {
+                    console.warn(`[${roomId}] ⚠️ [RECONEXIÓN] playerHands[${socket.id}] está vacío o no existe. Buscando alternativas...`);
+                    // Buscar en todos los asientos por userId
+                    for (const seat of room.seats) {
+                        if (seat && seat.userId === userId && room.playerHands && room.playerHands[seat.playerId] && room.playerHands[seat.playerId].length > 0) {
+                            room.playerHands[socket.id] = room.playerHands[seat.playerId];
+                            console.log(`[${roomId}] ✅ [RECONEXIÓN] Mano encontrada y actualizada desde seat.playerId ${seat.playerId} a ${socket.id}. Mano tiene ${room.playerHands[socket.id].length} cartas`);
+                            break;
+                        }
                     }
+                } else {
+                    console.log(`[${roomId}] ✅ [RECONEXIÓN] playerHands[${socket.id}] ya está actualizado. Mano tiene ${room.playerHands[socket.id].length} cartas`);
                 }
+                // ▲▲▲ FIN VERIFICACIÓN DE playerHands ▲▲▲
                 
                 // Si es el turno de este jugador, actualizar currentPlayerId INMEDIATAMENTE
                 // Verificar si el currentPlayerId apunta al asiento de este jugador (por userId o por oldPlayerId)
