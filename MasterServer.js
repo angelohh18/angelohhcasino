@@ -801,10 +801,11 @@ function broadcastUserListUpdate(io) {
             return user;
     }).filter(u => u && u.username); // Filtro simple
     
-    console.log(`[User List] Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
-    console.log(`[User List] Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status })));
+    console.log(`[broadcastUserListUpdate] 📊 Preparando lista de ${userList.length} usuarios. Usuarios en connectedUsers:`, Object.keys(connectedUsers).length);
+    console.log(`[broadcastUserListUpdate] 📋 Detalles de usuarios:`, userList.map(u => ({ username: u.username, status: u.status, currentLobby: u.currentLobby })));
+    console.log(`[broadcastUserListUpdate] 📤 EMITIENDO 'updateUserList' a TODOS los clientes...`);
     io.emit('updateUserList', userList);
-    console.log(`[User List] ✅ Lista transmitida a todos los clientes: ${userList.length} usuarios.`);
+    console.log(`[broadcastUserListUpdate] ✅ Lista transmitida a todos los clientes: ${userList.length} usuarios.`);
 }
 // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
