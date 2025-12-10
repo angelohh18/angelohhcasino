@@ -545,12 +545,21 @@ function showPwaInstallModal() {
         }
         // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
         
+        // ▼▼▼ CRÍTICO: Asegurar que hostId esté establecido correctamente ▼▼▼
+        if (roomData.hostId) {
+            currentGameSettings = { ...currentGameSettings, ...roomData };
+            currentGameSettings.hostId = roomData.hostId;
+            console.log(`[joinedRoomSuccessfully] hostId establecido: ${roomData.hostId}, socket.id: ${socket.id}`);
+        } else {
+            currentGameSettings = { ...currentGameSettings, ...roomData };
+            console.log(`[joinedRoomSuccessfully] ⚠️ hostId no incluido en roomData`);
+        }
+        // ▲▲▲ FIN ESTABLECER HOSTID ▲▲▲
+        
         // ▼▼▼ CRÍTICO: Si el juego ya está en curso, NO llamar a showGameView (evita reiniciar el juego) ▼▼▼
         // Si el juego está en curso, solo actualizar el estado sin reiniciar
         if (roomData.state === 'playing' && typeof gameStarted !== 'undefined' && gameStarted) {
             console.log('[joinedRoomSuccessfully] Juego ya en curso - NO reiniciando. Solo actualizando estado.');
-            // Actualizar currentGameSettings sin reiniciar el juego
-            currentGameSettings = { ...currentGameSettings, ...roomData };
             // NO actualizar la vista aquí - gameStateSync se encargará de eso
             // Solo retornar para evitar que se reinicie el juego
             return; // NO llamar a showGameView - el juego ya está en curso
@@ -3146,6 +3155,12 @@ function showRoomsOverview() {
     socket.on('playerJoined', (roomData) => {
         console.log('Un jugador se ha unido a la sala:', roomData);
         currentGameSettings = { ...currentGameSettings, ...roomData };
+        // ▼▼▼ CRÍTICO: Asegurar que hostId esté establecido correctamente ▼▼▼
+        if (roomData.hostId) {
+            currentGameSettings.hostId = roomData.hostId;
+            console.log(`[playerJoined] hostId actualizado: ${roomData.hostId}`);
+        }
+        // ▲▲▲ FIN ESTABLECER HOSTID ▲▲▲
         updatePlayersView(roomData.seats, gameStarted);
         renderGameControls();
     });
