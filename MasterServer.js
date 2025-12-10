@@ -607,9 +607,19 @@ function checkAndCleanRoom(roomId, io) {
 
     const playersInSeats = room.seats.filter(s => s !== null && s !== undefined).length;
 
-    // UNA SALA ESTÁ VACÍA SI NO HAY NADIE EN LOS ASIENTOS.
-    if (playersInSeats === 0) {
-        console.log(`Mesa ${roomId} está completamente vacía. Eliminando...`);
+    // ▼▼▼ CRÍTICO: Verificar si hay sockets conectados a la sala ▼▼▼
+    const roomSockets = io.sockets.adapter.rooms.get(roomId);
+    const hasConnectedSockets = roomSockets && roomSockets.size > 0;
+    // ▲▲▲ FIN VERIFICACIÓN DE SOCKETS ▲▲▲
+
+    // ▼▼▼ CRÍTICO: NO eliminar salas durante el juego o post-game ▼▼▼
+    // Solo eliminar salas en estado 'waiting' que estén completamente vacías
+    const isGameActive = room.state === 'playing' || room.state === 'post-game';
+    
+    // UNA SALA ESTÁ VACÍA SI NO HAY NADIE EN LOS ASIENTOS Y NO HAY SOCKETS CONECTADOS.
+    // PERO NUNCA ELIMINAR SALAS DURANTE EL JUEGO O POST-GAME
+    if (playersInSeats === 0 && !hasConnectedSockets && !isGameActive) {
+        console.log(`[LA51 Cleanup] Mesa ${roomId} está completamente vacía (estado: ${room.state}). Eliminando...`);
         
         // Limpiar todos los timeouts relacionados con esta sala
         Object.keys(la51InactivityTimeouts).forEach(key => {
@@ -634,7 +644,12 @@ function checkAndCleanRoom(roomId, io) {
         });
         
         delete la51Rooms[roomId];
+    } else if (isGameActive) {
+        console.log(`[LA51 Cleanup] Mesa ${roomId} NO se elimina - juego activo (estado: ${room.state}, jugadores: ${playersInSeats}, sockets: ${hasConnectedSockets})`);
+    } else if (hasConnectedSockets) {
+        console.log(`[LA51 Cleanup] Mesa ${roomId} NO se elimina - hay sockets conectados (jugadores: ${playersInSeats}, sockets: ${hasConnectedSockets})`);
     }
+    // ▲▲▲ FIN PROTECCIÓN DE SALAS ACTIVAS ▲▲▲
 
     // Se emite la actualización SIEMPRE que un jugador sale,
     // para que el contador (ej: 3/4 -> 2/4) se actualice en tiempo real.
