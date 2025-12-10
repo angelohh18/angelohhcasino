@@ -9206,21 +9206,17 @@ socket.on('accionDescartar', async (data) => {
           gameState: newRoom.gameState // <-- AÑADE ESTA LÍNEA
       });
 
-      // ▼▼▼ INICIO DE LA CORRECCIÓN EXACTA ▼▼▼
+      // ▼▼▼ CRÍTICO: Actualizar el estado del jugador usando updatePlayerStatus ▼▼▼
+      // Esto asegura que el estado se actualice correctamente y se emita a todos los clientes
+      const hostUserId = settings.userId || userId;
+      updatePlayerStatus(socket.id, hostUserId, roomId, newRoom.state, 'Ludo', io);
+      console.log(`[${roomId}] ✅ Estado actualizado para ${username} (Socket ${socket.id}) después de crear la mesa. Estado: ${newRoom.state}`);
 
-      // 1. ACTUALIZA EL ESTADO DEL JUGADOR "A" A "JUGANDO"
-      if (connectedUsers[socket.id]) {
-          connectedUsers[socket.id].status = 'Jugando';
-          // 2. NOTIFICA A TODOS (INCLUYENDO A "B") DE LA NUEVA LISTA DE USUARIOS
-          broadcastUserListUpdate(io); 
-      }
-
-      // 3. NOTIFICA A TODOS (INCLUYENDO A "B") DE LA NUEVA LISTA DE SALAS DE LUDO
+      // NOTIFICA A TODOS (INCLUYENDO A "B") DE LA NUEVA LISTA DE SALAS DE LUDO
       console.log(`[DEBUG LUDO] Emitiendo lista de salas de Ludo. Total salas: ${Object.keys(ludoRooms).length}`);
       broadcastLudoRoomListUpdate(io);
       console.log(`[DEBUG LUDO] Lista de salas de Ludo emitida. Sala creada: ${roomId}`);
-
-      // ▲▲▲ FIN DE LA CORRECCIÓN EXACTA ▲▲▲
+      // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
       // ▲▲▲ FIN DE LA ACTUALIZACIÓN DE `createLudoRoom` ▲▲▲
     });
 
