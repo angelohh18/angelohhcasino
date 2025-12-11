@@ -8466,8 +8466,24 @@ socket.on('accionDescartar', async (data) => {
       }
       // ▲▲▲ FIN VALIDACIÓN DE TURNO CON RECONEXIÓN ▲▲▲
       
-      // Cancelar timeout de inactividad: el jugador está actuando
-      cancelLa51InactivityTimeout(roomId, socket.id);
+      // ▼▼▼ Cancelar timeout de inactividad: el jugador está actuando ▼▼▼
+      const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
+      const timeoutKeyByUserId = userId ? `${roomId}_${userId}` : null;
+      if (la51InactivityTimeouts[timeoutKeyByPlayerId]) {
+          clearTimeout(la51InactivityTimeouts[timeoutKeyByPlayerId]);
+          delete la51InactivityTimeouts[timeoutKeyByPlayerId];
+      }
+      if (timeoutKeyByUserId && la51InactivityTimeouts[timeoutKeyByUserId]) {
+          clearTimeout(la51InactivityTimeouts[timeoutKeyByUserId]);
+          delete la51InactivityTimeouts[timeoutKeyByUserId];
+      }
+      Object.keys(la51InactivityTimeouts).forEach(key => {
+          if (key.startsWith(`${roomId}_`) && (key.includes(socket.id) || (userId && key.includes(userId)))) {
+              clearTimeout(la51InactivityTimeouts[key]);
+              delete la51InactivityTimeouts[key];
+          }
+      });
+      // ▲▲▲ FIN CANCELACIÓN TIMEOUT ▲▲▲
 
 
       if (room.hasDrawn) {
