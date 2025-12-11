@@ -4543,18 +4543,28 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
                     color = '#ff4444';
                 }
             } else if (!finalSeatState.doneFirstMeld) {
-                // Jugador no bajó los 51 puntos
+                // Jugador no bajó los 51 puntos pero sigue activo (no cometió falta)
+                // ▼▼▼ CRÍTICO: Solo mostrar multa si realmente se cobró (hay registro en penaltiesPaid) ▼▼▼
                 if (penaltyInfo) {
+                    // Hay registro de multa - se cobró por alguna razón
                     reasonText = `por no bajar (multa aplicada)`;
                     baseText = 'Pagó apuesta y multa';
                     amountPaid = bet + penalty;
                     color = '#ff4444';
                 } else {
-                    reasonText = 'por no bajar';
-                    baseText = 'Pagó apuesta y multa';
-                    amountPaid = bet + penalty;
-                    color = '#ff4444';
+                    // NO hay registro de multa - no se cobró porque no cometió falta
+                    reasonText = 'por no bajar (sin multa - no cometió falta)';
+                    baseText = 'Pagó apuesta';
+                    amountPaid = bet;
+                    color = '#ffff00';
                 }
+                // ▲▲▲ FIN: SOLO MOSTRAR MULTA SI SE COBRÓ ▲▲▲
+            } else {
+                // Jugador completó el primer meld y sigue activo - solo pagó apuesta
+                reasonText = '';
+                baseText = 'Pagó apuesta';
+                amountPaid = bet;
+                color = '#ffff00';
             }
 
             statusText = `<span style="color:${color};">${baseText} ${reasonText}</span>`.trim();
