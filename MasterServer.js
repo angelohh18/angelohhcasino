@@ -2143,12 +2143,37 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▼▼▼ CRÍTICO: Manejar salida durante post-game (revancha) ▼▼▼
         console.log(`Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
         
-        // El asiento ya fue liberado arriba (línea 1487), así que solo necesitamos verificar y limpiar
+        // El asiento ya fue liberado arriba (línea 1510), así que solo necesitamos verificar y limpiar
         // Verificar si quedan jugadores después de que este salga
         const remainingSeats = room.seats.filter(s => s !== null && s !== undefined);
         const remainingCount = remainingSeats.length;
         
         console.log(`[${roomId}] Jugadores restantes después de salida durante post-game: ${remainingCount}`);
+        
+        // ▼▼▼ CRÍTICO: Desconectar el socket de la sala cuando el jugador sale al lobby desde el modal de revancha ▼▼▼
+        // Buscar el socket del jugador que está saliendo
+        let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
+        
+        // Si no encontramos el socket por playerId, buscar por userId
+        if (!leavingPlayerSocket && leavingPlayerSeat.userId) {
+            for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                if (socketUserId === leavingPlayerSeat.userId) {
+                    leavingPlayerSocket = socket;
+                    break;
+                }
+            }
+        }
+        
+        // Desconectar el socket de la sala y limpiar currentRoomId
+        if (leavingPlayerSocket) {
+            if (leavingPlayerSocket.currentRoomId === roomId) {
+                leavingPlayerSocket.leave(roomId);
+                delete leavingPlayerSocket.currentRoomId;
+                console.log(`[${roomId}] Socket ${leavingPlayerId} desconectado de la sala después de salir desde modal de revancha.`);
+            }
+        }
+        // ▲▲▲ FIN DESCONEXIÓN DE SOCKET ▲▲▲
         
         // Notificar a los demás jugadores (si quedan) que este jugador salió
         if (remainingCount > 0) {
