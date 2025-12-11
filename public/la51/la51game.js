@@ -2380,12 +2380,26 @@ function showRoomsOverview() {
             updatePlayersView(data.finalRoomState.seats, true); 
         }
 
-        const wasPlayerInGame = data.finalRoomState.seats.some(s => s && s.playerId === socket.id);
+        // ▼▼▼ CRÍTICO: Verificar si el jugador está en el juego (incluyendo anfitrión) ▼▼▼
+        const wasPlayerInGame = data.finalRoomState && data.finalRoomState.seats && 
+                                data.finalRoomState.seats.some(s => s && s.playerId === socket.id);
+        
+        // También verificar si es el anfitrión
+        const isHost = currentGameSettings?.hostId === socket.id || 
+                      (data.finalRoomState?.settings?.userId && data.finalRoomState.settings.userId === currentUser.userId);
+        
+        const wasInGame = wasPlayerInGame || isHost;
+        // ▲▲▲ FIN VERIFICACIÓN ▲▲▲
 
         const victoryOverlay = document.getElementById('victory-overlay');
         const victoryMessage = document.getElementById('victory-message');
         const finalScores = document.getElementById('final-scores');
         const setupRematchBtn = document.getElementById('btn-setup-rematch');
+
+        if (!victoryOverlay || !victoryMessage || !finalScores) {
+            console.error('[gameEnd] Elementos del modal de victoria no encontrados');
+            return;
+        }
 
         let headerText = `¡${data.winnerName} ha ganado la partida!`;
         if (data.abandonment && data.abandonment.name) {
@@ -2417,14 +2431,23 @@ function showRoomsOverview() {
         finalScores.innerHTML = finalHTML;
         // --- FIN DE LA LÓGICA DE EQUIVALENCIA ---
 
-        if (wasPlayerInGame) {
+        // ▼▼▼ CRÍTICO: Mostrar botón de revancha si el jugador estaba en el juego (incluyendo anfitrión) ▼▼▼
+        if (wasInGame && setupRematchBtn) {
             setupRematchBtn.style.display = 'inline-block';
             setupRematchBtn.onclick = setupRematchScreen;
-        } else {
+        } else if (setupRematchBtn) {
              setupRematchBtn.style.display = 'none';
         }
+        // ▲▲▲ FIN MOSTRAR BOTÓN DE REVANCHA ▲▲▲
 
-        showOverlay('victory-overlay');
+        // ▼▼▼ CRÍTICO: Mostrar modal de victoria siempre que el jugador esté en el juego ▼▼▼
+        if (wasInGame) {
+            showOverlay('victory-overlay');
+            console.log('[gameEnd] Modal de victoria mostrado para jugador (anfitrión: ' + isHost + ')');
+        } else {
+            console.log('[gameEnd] Jugador no estaba en el juego, no se muestra modal de victoria');
+        }
+        // ▲▲▲ FIN MOSTRAR MODAL DE VICTORIA ▲▲▲
     });
     // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
 
@@ -3430,26 +3453,48 @@ function showRoomsOverview() {
             console.log('Inicializando la vista de juego como JUGADOR.');
             gameStarted = false;
             
-            // ▼▼▼ CRÍTICO: Mostrar el modal de bienvenida cuando el jugador se une a la sala ▼▼▼
+            // ▼▼▼ CRÍTICO: Mostrar el modal de bienvenida cuando el jugador se une a la sala (incluyendo anfitrión) ▼▼▼
             const roomId = settings.roomId;
+            // Verificar si el jugador (incluyendo anfitrión) está sentado
+            const isPlayerSeated = settings.seats && settings.seats.some(seat => 
+                seat && seat.playerId === socket.id
+            );
+            const isHost = currentGameSettings?.hostId === socket.id || 
+                          (settings.settings?.userId && settings.settings.userId === currentUser.userId);
+            
             // Mostrar el modal si no se ha mostrado para esta sala específica
-            if (!welcomeModalShownForRoom[roomId]) {
+            // IMPORTANTE: Mostrar también si el anfitrión ya está sentado (creó la sala)
+            if (!welcomeModalShownForRoom[roomId] || (isHost && isPlayerSeated && !welcomeModalShownForRoom[roomId])) {
                 welcomeMsg.textContent = `Bienvenido a la mesa de ${settings.settings.username}`;
                 betInfo.textContent = `Apuesta: ${settings.settings.bet}`;
                 penaltyInfo.textContent = `Multa: ${settings.settings.penalty}`;
-                mainButton.style.display = 'block';
-                spectatorButton.style.display = 'none';
                 
-                if (settings.isPractice) {
-                    mainButton.textContent = 'Empezar Práctica';
+                // Si el jugador ya está sentado (como anfitrión), mostrar mensaje diferente
+                if (isPlayerSeated) {
+                    mainButton.textContent = 'Continuar';
+                    mainButton.style.display = 'block';
                     mainButton.onclick = () => {
                         hideOverlay('ready-overlay');
-                        // Esta parte necesita ser implementada o revisada
-                        console.error("Lógica de práctica debe ser iniciada desde el servidor.");
+                        // Si es el anfitrión y ya está sentado, mostrar modal de funciones
+                        if (isHost) {
+                            showFunctionsModalOnce();
+                        }
                     };
                 } else {
-                    mainButton.textContent = 'Sentarse';
-                    mainButton.onclick = handleSitDown;
+                    mainButton.style.display = 'block';
+                    spectatorButton.style.display = 'none';
+                    
+                    if (settings.isPractice) {
+                        mainButton.textContent = 'Empezar Práctica';
+                        mainButton.onclick = () => {
+                            hideOverlay('ready-overlay');
+                            // Esta parte necesita ser implementada o revisada
+                            console.error("Lógica de práctica debe ser iniciada desde el servidor.");
+                        };
+                    } else {
+                        mainButton.textContent = 'Sentarse';
+                        mainButton.onclick = handleSitDown;
+                    }
                 }
 
                 updatePlayersView(settings.seats, false);
@@ -3458,7 +3503,7 @@ function showRoomsOverview() {
                 
                 // Marcar que el modal ya se mostró para esta sala
                 welcomeModalShownForRoom[roomId] = true;
-                console.log(`[initializeGame] Modal de bienvenida mostrado para sala ${roomId}`);
+                console.log(`[initializeGame] Modal de bienvenida mostrado para sala ${roomId} (anfitrión: ${isHost}, sentado: ${isPlayerSeated})`);
             } else {
                 // El modal ya se mostró antes, solo ocultarlo y continuar
                 hideOverlay('ready-overlay');
@@ -3519,11 +3564,30 @@ function showRoomsOverview() {
     function handleSitDown() {
         hideOverlay('ready-overlay');
         
-        // ▼▼▼ AÑADIR ESTA LÍNEA PARA MOSTRAR EL MODAL EN MESAS REALES ▼▼▼
+        // ▼▼▼ AÑADIR ESTA LÍNEA PARA MOSTRAR EL MODAL EN MESAS REALES (incluyendo anfitrión) ▼▼▼
         showFunctionsModalOnce();
         
         renderGameControls();
     }
+    
+    // ▼▼▼ CRÍTICO: Función para mostrar modales al anfitrión cuando ya está sentado ▼▼▼
+    function showModalsForHostIfSeated() {
+        if (!currentGameSettings || !currentGameSettings.roomId) return;
+        
+        const isHost = currentGameSettings.hostId === socket.id || 
+                      (currentGameSettings.settings?.userId && currentGameSettings.settings.userId === currentUser.userId);
+        
+        if (!isHost) return;
+        
+        // Verificar si el anfitrión está sentado
+        const isHostSeated = players && players.some(p => p && p.playerId === socket.id);
+        
+        if (isHostSeated && !gameStarted) {
+            // Mostrar modal de funciones si no se ha mostrado
+            showFunctionsModalOnce();
+        }
+    }
+    // ▲▲▲ FIN FUNCIÓN PARA ANFITRIÓN ▲▲▲
     
     function renderGameControls() {
         const startGameBtn = document.getElementById('start-game-btn');
