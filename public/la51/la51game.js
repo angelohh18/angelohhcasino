@@ -3524,6 +3524,25 @@ function showRoomsOverview() {
         // ▼▼▼ CRÍTICO: Llamar a renderGameControls después de inicializar para mostrar el botón de iniciar si es el host ▼▼▼
         renderGameControls();
         // ▲▲▲ FIN LLAMADA A RENDERGAMECONTROLS ▲▲▲
+        
+        // ▼▼▼ CRÍTICO: Mostrar modal de funciones al anfitrión si ya está sentado ▼▼▼
+        const isHost = currentGameSettings?.hostId === socket.id || 
+                      (settings.settings?.userId && settings.settings.userId === currentUser.userId);
+        const isHostSeated = settings.seats && settings.seats.some(seat => 
+            seat && seat.playerId === socket.id
+        );
+        
+        if (isHost && isHostSeated && !gameStarted) {
+            // Esperar un momento para que el modal de bienvenida se muestre primero
+            setTimeout(() => {
+                // Si el modal de bienvenida ya se cerró, mostrar el de funciones
+                const readyOverlay = document.getElementById('ready-overlay');
+                if (!readyOverlay || readyOverlay.style.display === 'none') {
+                    showFunctionsModalOnce();
+                }
+            }, 3500); // 3.5 segundos después (después de que se cierre el modal de bienvenida)
+        }
+        // ▲▲▲ FIN MOSTRAR MODAL DE FUNCIONES AL ANFITRIÓN ▲▲▲
     }
 
     function setupInGameLeaveButton() {
