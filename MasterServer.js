@@ -8174,8 +8174,12 @@ socket.on('accionDescartar', async (data) => {
 
   // ▼▼▼ LISTENER drawFromDeck CON SINCRONIZACIÓN MEJORADA ▼▼▼
   socket.on('drawFromDeck', async (roomId) => { // <-- Se añade 'async'
+    try {
     const room = la51Rooms[roomId];
-    if (!room) return;
+    if (!room) {
+        console.error(`[drawFromDeck] Sala ${roomId} no encontrada`);
+        return socket.emit('fault', { reason: 'La sala no existe.' });
+    }
     
     // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
     const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
@@ -8293,7 +8297,59 @@ socket.on('accionDescartar', async (data) => {
         }
     }
     
+    // ▼▼▼ CRÍTICO: Asegurar que playerHands existe y está inicializado ▼▼▼
+    if (!room.playerHands) {
+        console.error(`[${roomId}] ERROR: room.playerHands no existe`);
+        return socket.emit('fault', { reason: 'Error interno: la mano del jugador no está inicializada.' });
+    }
+    
+    // Asegurar que la mano del jugador existe
+    if (!room.playerHands[socket.id]) {
+        // Si no existe por socket.id, buscar por oldPlayerId o userId
+        let playerHandToUse = null;
+        let handKey = socket.id;
+        
+        if (oldPlayerId && room.playerHands[oldPlayerId]) {
+            // La mano está bajo el oldPlayerId - moverla
+            room.playerHands[socket.id] = room.playerHands[oldPlayerId];
+            delete room.playerHands[oldPlayerId];
+            playerHandToUse = room.playerHands[socket.id];
+            console.log(`[${roomId}] ✅ Movida mano de ${oldPlayerId} a ${socket.id} (drawFromDeck)`);
+        } else if (userId) {
+            // Buscar por userId en todas las manos
+            for (const [key, hand] of Object.entries(room.playerHands)) {
+                if (hand && hand.length > 0) {
+                    // Verificar si esta mano pertenece al userId buscando en los asientos
+                    const seatWithThisKey = room.seats.find(s => s && s.playerId === key);
+                    if (seatWithThisKey && seatWithThisKey.userId === userId) {
+                        // Esta es la mano correcta - moverla
+                        room.playerHands[socket.id] = hand;
+                        if (key !== socket.id) {
+                            delete room.playerHands[key];
+                        }
+                        playerHandToUse = room.playerHands[socket.id];
+                        handKey = socket.id;
+                        console.log(`[${roomId}] ✅ Movida mano de ${key} a ${socket.id} por userId ${userId} (drawFromDeck)`);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Si aún no existe, inicializar como array vacío
+        if (!room.playerHands[socket.id]) {
+            console.warn(`[${roomId}] ⚠️ Inicializando mano vacía para ${socket.id} (drawFromDeck)`);
+            room.playerHands[socket.id] = [];
+        }
+    }
+    // ▲▲▲ FIN VALIDACIÓN DE PLAYERHANDS ▲▲▲
+    
     const cardDrawn = room.deck.shift();
+    if (!cardDrawn) {
+        console.error(`[${roomId}] ERROR: No se pudo obtener carta del mazo`);
+        return socket.emit('fault', { reason: 'Error: el mazo está vacío.' });
+    }
+    
     room.playerHands[socket.id].push(cardDrawn);
 
     const playerHandCounts = {};
@@ -8321,12 +8377,20 @@ socket.on('accionDescartar', async (data) => {
     io.to(roomId).emit('handCountsUpdate', {
         playerHandCounts: playerHandCounts
     });
+    } catch (error) {
+        console.error(`[drawFromDeck] ERROR en sala ${roomId}:`, error);
+        socket.emit('fault', { reason: 'Error interno al tomar carta del mazo.' });
+    }
   });
 
   // AÑADE este nuevo listener para el robo del descarte
   socket.on('drawFromDiscard', (roomId) => {
+      try {
       const room = la51Rooms[roomId];
-      if (!room) return;
+      if (!room) {
+          console.error(`[drawFromDiscard] Sala ${roomId} no encontrada`);
+          return socket.emit('fault', { reason: 'La sala no existe.' });
+      }
       
       // ▼▼▼ CRÍTICO: Buscar asiento por socket.id primero, luego por userId (para reconexión) ▼▼▼
       const userId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
@@ -8414,7 +8478,59 @@ socket.on('accionDescartar', async (data) => {
           return;
       }
 
+      // ▼▼▼ CRÍTICO: Asegurar que playerHands existe y está inicializado ▼▼▼
+      if (!room.playerHands) {
+          console.error(`[${roomId}] ERROR: room.playerHands no existe`);
+          return socket.emit('fault', { reason: 'Error interno: la mano del jugador no está inicializada.' });
+      }
+      
+      // Asegurar que la mano del jugador existe
+      if (!room.playerHands[socket.id]) {
+          // Si no existe por socket.id, buscar por oldPlayerId o userId
+          let playerHandToUse = null;
+          let handKey = socket.id;
+          
+          if (oldPlayerId && room.playerHands[oldPlayerId]) {
+              // La mano está bajo el oldPlayerId - moverla
+              room.playerHands[socket.id] = room.playerHands[oldPlayerId];
+              delete room.playerHands[oldPlayerId];
+              playerHandToUse = room.playerHands[socket.id];
+              console.log(`[${roomId}] ✅ Movida mano de ${oldPlayerId} a ${socket.id} (drawFromDiscard)`);
+          } else if (userId) {
+              // Buscar por userId en todas las manos
+              for (const [key, hand] of Object.entries(room.playerHands)) {
+                  if (hand && hand.length > 0) {
+                      // Verificar si esta mano pertenece al userId buscando en los asientos
+                      const seatWithThisKey = room.seats.find(s => s && s.playerId === key);
+                      if (seatWithThisKey && seatWithThisKey.userId === userId) {
+                          // Esta es la mano correcta - moverla
+                          room.playerHands[socket.id] = hand;
+                          if (key !== socket.id) {
+                              delete room.playerHands[key];
+                          }
+                          playerHandToUse = room.playerHands[socket.id];
+                          handKey = socket.id;
+                          console.log(`[${roomId}] ✅ Movida mano de ${key} a ${socket.id} por userId ${userId} (drawFromDiscard)`);
+                          break;
+                      }
+                  }
+              }
+          }
+          
+          // Si aún no existe, inicializar como array vacío
+          if (!room.playerHands[socket.id]) {
+              console.warn(`[${roomId}] ⚠️ Inicializando mano vacía para ${socket.id} (drawFromDiscard)`);
+              room.playerHands[socket.id] = [];
+          }
+      }
+      // ▲▲▲ FIN VALIDACIÓN DE PLAYERHANDS ▲▲▲
+
       const cardDrawn = room.discardPile.pop();
+      if (!cardDrawn) {
+          console.error(`[${roomId}] ERROR: No se pudo obtener carta del descarte`);
+          return socket.emit('fault', { reason: 'Error: el descarte está vacío.' });
+      }
+      
       room.playerHands[socket.id].push(cardDrawn);
 
       const playerHandCounts = {};
@@ -8447,6 +8563,10 @@ socket.on('accionDescartar', async (data) => {
       io.to(roomId).emit('handCountsUpdate', {
           playerHandCounts: playerHandCounts
       });
+      } catch (error) {
+          console.error(`[drawFromDiscard] ERROR en sala ${roomId}:`, error);
+          socket.emit('fault', { reason: 'Error interno al tomar carta del descarte.' });
+      }
   });
 
   socket.on('playerFault', ({ roomId, faultReason }) => {
