@@ -532,11 +532,28 @@ function showPwaInstallModal() {
         renderRoomsOverview(lastKnownRooms);
     });
 
+    // ▼▼▼ VARIABLE PARA EVITAR PROCESAMIENTO DUPLICADO ▼▼▼
+    let isProcessingRoomJoin = false;
+    let lastProcessedRoomId = null;
+    // ▲▲▲ FIN VARIABLE DE PROTECCIÓN ▲▲▲
+    
     // ▼▼▼ FUNCIÓN UNIFICADA PARA MANEJAR UNIÓN A SALA (CREAR O UNIRSE) ▼▼▼
     function handleRoomJoin(roomData, isCreating = false) {
+        // ▼▼▼ PROTECCIÓN CONTRA PROCESAMIENTO DUPLICADO ▼▼▼
+        // Si ya estamos procesando esta sala o es la misma sala que acabamos de procesar, ignorar
+        if (isProcessingRoomJoin || (lastProcessedRoomId === roomData.roomId && !gameStarted)) {
+            console.log(`[handleRoomJoin] ⚠️ Ya procesando unión a sala ${roomData.roomId}, ignorando duplicado`);
+            return;
+        }
+        
+        isProcessingRoomJoin = true;
+        lastProcessedRoomId = roomData.roomId;
+        // ▲▲▲ FIN PROTECCIÓN ▲▲▲
+        
         // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO ANTES DE MOSTRAR LA VISTA DEL JUEGO ▼▼▼
         if (shouldRedirectToLobbyAfterElimination) {
             console.log(`[handleRoomJoin] Jugador fue eliminado, ignorando unión a la sala (creando: ${isCreating})`);
+            isProcessingRoomJoin = false;
             return; // No mostrar la vista del juego
         }
         // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
@@ -555,12 +572,18 @@ function showPwaInstallModal() {
         // ▼▼▼ CRÍTICO: Si el juego ya está en curso, NO llamar a showGameView (evita reiniciar el juego) ▼▼▼
         if (roomData.state === 'playing' && typeof gameStarted !== 'undefined' && gameStarted) {
             console.log('[handleRoomJoin] Juego ya en curso - NO reiniciando. Solo actualizando estado.');
+            isProcessingRoomJoin = false;
             return; // NO llamar a showGameView - el juego ya está en curso
         }
         // ▲▲▲ FIN VERIFICACIÓN DE JUEGO EN CURSO ▲▲▲
         
         // Solo llamar a showGameView si el juego NO está en curso (nueva unión o juego en espera)
         showGameView({ ...roomData, isPractice: false });
+        
+        // Resetear la bandera después de un breve delay para permitir que initializeGame se ejecute
+        setTimeout(() => {
+            isProcessingRoomJoin = false;
+        }, 1000);
     }
     // ▲▲▲ FIN FUNCIÓN UNIFICADA ▲▲▲
     
