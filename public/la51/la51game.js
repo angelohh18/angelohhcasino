@@ -258,7 +258,7 @@ let lastKnownRooms = []; // <-- AÑADE ESTA LÍNEA
 let shouldRedirectToLobbyAfterElimination = false; // Variable global para rastrear si debe redirigir al lobby después de cerrar el modal de eliminación
 let eliminationGameType = null; // Variable global para guardar el tipo de juego (la51, ludo, parchis) cuando el jugador es eliminado
 let currentGameSettings = null; // ▼▼▼ CRÍTICO: Declarar currentGameSettings como variable global para evitar ReferenceError ▼▼▼
-let welcomeModalShownForRoom = null; // ▼▼▼ CRÍTICO: Rastrear si el modal de bienvenida ya se mostró para esta sala ▼▼▼
+let welcomeModalShownForRoom = {}; // ▼▼▼ CRÍTICO: Rastrear si el modal de bienvenida ya se mostró para cada sala {roomId: true} ▼▼▼
 
 // Variables globales para el estado del usuario (migración segura)
 let currentUser = {
@@ -3236,6 +3236,42 @@ function showRoomsOverview() {
         }
         // ▲▲▲ FIN RESTAURAR MANO ▲▲▲
         
+        // ▼▼▼ CRÍTICO: Mostrar modal de bienvenida si el jugador está en la sala pero aún no se ha mostrado ▼▼▼
+        // Solo mostrar si el juego no ha comenzado y el jugador está en la sala
+        if (!gameStarted && currentGameSettings && currentGameSettings.roomId) {
+            const roomId = currentGameSettings.roomId;
+            const readyOverlay = document.getElementById('ready-overlay');
+            const welcomeMsg = document.getElementById('welcome-message');
+            const betInfo = document.getElementById('bet-info');
+            const penaltyInfo = document.getElementById('penalty-info');
+            const mainButton = document.getElementById('btn-ready-main');
+            const spectatorButton = document.getElementById('btn-spectator-sit');
+            
+            // Verificar si el jugador está sentado en algún asiento
+            const isPlayerSeated = roomData.seats && roomData.seats.some(seat => 
+                seat && seat.playerId === socket.id
+            );
+            
+            // Si el jugador está sentado y el modal no se ha mostrado para esta sala, mostrarlo
+            if (isPlayerSeated && !welcomeModalShownForRoom[roomId] && readyOverlay && welcomeMsg) {
+                welcomeMsg.textContent = `Bienvenido a la mesa de ${roomData.settings?.username || 'La 51'}`;
+                betInfo.textContent = `Apuesta: ${roomData.settings?.bet || 0}`;
+                penaltyInfo.textContent = `Multa: ${roomData.settings?.penalty || 0}`;
+                mainButton.style.display = 'none'; // Ya está sentado, no necesita el botón
+                spectatorButton.style.display = 'none';
+                
+                showOverlay('ready-overlay');
+                welcomeModalShownForRoom[roomId] = true;
+                console.log(`[playerJoined] Modal de bienvenida mostrado para sala ${roomId}`);
+                
+                // Ocultar el modal después de 3 segundos automáticamente
+                setTimeout(() => {
+                    hideOverlay('ready-overlay');
+                }, 3000);
+            }
+        }
+        // ▲▲▲ FIN MOSTRAR MODAL DE BIENVENIDA ▲▲▲
+        
         renderGameControls();
     });
 
@@ -3394,9 +3430,10 @@ function showRoomsOverview() {
             console.log('Inicializando la vista de juego como JUGADOR.');
             gameStarted = false;
             
-            // ▼▼▼ CRÍTICO: Solo mostrar el modal de bienvenida UNA VEZ por sala ▼▼▼
+            // ▼▼▼ CRÍTICO: Mostrar el modal de bienvenida cuando el jugador se une a la sala ▼▼▼
             const roomId = settings.roomId;
-            if (welcomeModalShownForRoom !== roomId) {
+            // Mostrar el modal si no se ha mostrado para esta sala específica
+            if (!welcomeModalShownForRoom[roomId]) {
                 welcomeMsg.textContent = `Bienvenido a la mesa de ${settings.settings.username}`;
                 betInfo.textContent = `Apuesta: ${settings.settings.bet}`;
                 penaltyInfo.textContent = `Multa: ${settings.settings.penalty}`;
@@ -3420,7 +3457,7 @@ function showRoomsOverview() {
                 showOverlay('ready-overlay');
                 
                 // Marcar que el modal ya se mostró para esta sala
-                welcomeModalShownForRoom = roomId;
+                welcomeModalShownForRoom[roomId] = true;
                 console.log(`[initializeGame] Modal de bienvenida mostrado para sala ${roomId}`);
             } else {
                 // El modal ya se mostró antes, solo ocultarlo y continuar
@@ -3429,7 +3466,7 @@ function showRoomsOverview() {
                 document.querySelector('.player-actions').style.display = 'flex';
                 console.log(`[initializeGame] Modal de bienvenida ya se mostró para sala ${roomId}, omitiendo.`);
             }
-            // ▲▲▲ FIN: SOLO MOSTRAR MODAL UNA VEZ ▲▲▲
+            // ▲▲▲ FIN: MOSTRAR MODAL DE BIENVENIDA ▲▲▲
         }
 
         // Configuración común
