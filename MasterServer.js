@@ -4405,43 +4405,46 @@ async function endGameAndCalculateScores(room, winnerSeat, io, abandonmentInfo =
             const wasEliminatedByFault = finalSeatState && finalSeatState.active === false;
             const hasExistingPenalty = room.penaltiesPaid && room.penaltiesPaid[seat.userId];
             
-            // Solo cobrar multa si el jugador fue eliminado por falta O si ya hay un registro de penalización
-            // NO cobrar multa solo por no completar el primer meld si el jugador sigue activo
-            if (wasEliminatedByFault || hasExistingPenalty) {
-                // Si ya hay un registro de penalización, la multa ya fue cobrada, no cobrar de nuevo
-                if (hasExistingPenalty) {
-                    console.log(`[${room.roomId}] Jugador ${seat.playerName} ya tiene multa registrada, no se cobra de nuevo.`);
-                    continue;
+            // ▼▼▼ CRÍTICO: Solo cobrar multa si el jugador fue ELIMINADO por falta, NO si solo no completó el primer meld ▼▼▼
+            // La multa SOLO se cobra si:
+            // 1. El jugador fue eliminado por una falta (active === false) Y
+            // 2. No hay un registro previo en penaltiesPaid (para evitar cobrar dos veces)
+            // NO se cobra multa si:
+            // - El jugador sigue activo (active === true) aunque no haya completado el primer meld
+            // - El jugador completó el primer meld (doneFirstMeld === true) aunque haya perdido
+            
+            if (wasEliminatedByFault && !hasExistingPenalty && finalSeatState) {
+                // El jugador fue eliminado por falta y aún no se cobró la multa - cobrarla ahora
+                const penalty = room.settings.penalty || 0;
+                const playerInfo = users[finalSeatState.userId];
+                if (penalty > 0 && playerInfo) {
+                    const penaltyInPlayerCurrency = convertCurrency(penalty, room.settings.betCurrency, playerInfo.currency, exchangeRates);
+                    playerInfo.credits -= penaltyInPlayerCurrency;
+                    room.pot = (room.pot || 0) + penalty;
+                    
+                    // ▼▼▼ IMPORTANTE: Guardar la multa en penaltiesPaid SOLO cuando realmente se cobra ▼▼▼
+                    if (!room.penaltiesPaid) room.penaltiesPaid = {};
+                    room.penaltiesPaid[finalSeatState.userId] = {
+                        playerName: finalSeatState.playerName || seat.playerName,
+                        amount: parseFloat(penalty), // Usar la multa configurada en el modal
+                        reason: 'Eliminado por falta'
+                    };
+                    // ▲▲▲ FIN DE GUARDAR EN penaltiesPaid ▲▲▲
+                    
+                    await updateUserCredits(finalSeatState.userId, playerInfo.credits, playerInfo.currency);
+                    io.to(finalSeatState.playerId).emit('userStateUpdated', playerInfo);
+                    io.to(room.roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: true });
+                    console.log(`[${room.roomId}] 💰 Multa cobrada a ${finalSeatState.playerName} por ser eliminado por falta.`);
                 }
-                
-                // Si el jugador fue eliminado por falta y aún no se cobró la multa, cobrarla ahora
-                if (wasEliminatedByFault && finalSeatState) {
-                    const penalty = room.settings.penalty || 0;
-                    const playerInfo = users[finalSeatState.userId];
-                    if (penalty > 0 && playerInfo) {
-                        const penaltyInPlayerCurrency = convertCurrency(penalty, room.settings.betCurrency, playerInfo.currency, exchangeRates);
-                        playerInfo.credits -= penaltyInPlayerCurrency;
-                        room.pot = (room.pot || 0) + penalty;
-                        
-                        // ▼▼▼ IMPORTANTE: Guardar la multa en penaltiesPaid para el desglose correcto ▼▼▼
-                        if (!room.penaltiesPaid) room.penaltiesPaid = {};
-                        room.penaltiesPaid[finalSeatState.userId] = {
-                            playerName: finalSeatState.playerName || seat.playerName,
-                            amount: parseFloat(penalty), // Usar la multa configurada en el modal
-                            reason: 'Eliminado por falta'
-                        };
-                        // ▲▲▲ FIN DE GUARDAR EN penaltiesPaid ▲▲▲
-                        
-                        await updateUserCredits(finalSeatState.userId, playerInfo.credits, playerInfo.currency);
-                        io.to(finalSeatState.playerId).emit('userStateUpdated', playerInfo);
-                        io.to(room.roomId).emit('potUpdated', { newPotValue: room.pot, isPenalty: true });
-                        console.log(`[${room.roomId}] 💰 Multa cobrada a ${finalSeatState.playerName} por ser eliminado por falta.`);
-                    }
-                }
+            } else if (hasExistingPenalty) {
+                // Ya hay un registro de penalización - la multa ya fue cobrada anteriormente (por handlePlayerElimination)
+                console.log(`[${room.roomId}] Jugador ${seat.playerName} ya tiene multa registrada de falta anterior, no se cobra de nuevo.`);
             } else if (finalSeatState) {
-                // El jugador sigue activo y no cometió falta - NO se cobra multa
-                console.log(`[${room.roomId}] Jugador ${finalSeatState.playerName || seat.playerName} no cometió falta, NO se cobra multa.`);
+                // El jugador sigue activo (no fue eliminado) - NO se cobra multa, incluso si no completó el primer meld
+                const completedFirstMeld = finalSeatState.doneFirstMeld === true;
+                console.log(`[${room.roomId}] ✅ Jugador ${finalSeatState.playerName || seat.playerName} NO cometió falta (activo: ${finalSeatState.active}, primer meld: ${completedFirstMeld}), NO se cobra multa.`);
             }
+            // ▲▲▲ FIN: SOLO COBRAR MULTA SI HUBO FALTA REAL (ELIMINACIÓN) ▲▲▲
             // ▲▲▲ FIN: SOLO COBRAR MULTA SI HUBO FALTA ▲▲▲
         }
     }
