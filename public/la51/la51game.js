@@ -532,15 +532,11 @@ function showPwaInstallModal() {
         renderRoomsOverview(lastKnownRooms);
     });
 
-    socket.on('roomCreatedSuccessfully', (roomData) => {
-        showGameView({ ...roomData, isPractice: false });
-    });
-    
-    socket.on('joinedRoomSuccessfully', (roomData) => {
+    // ▼▼▼ FUNCIÓN UNIFICADA PARA MANEJAR UNIÓN A SALA (CREAR O UNIRSE) ▼▼▼
+    function handleRoomJoin(roomData, isCreating = false) {
         // ▼▼▼ VERIFICAR SI EL JUGADOR FUE ELIMINADO ANTES DE MOSTRAR LA VISTA DEL JUEGO ▼▼▼
-        // Si shouldRedirectToLobbyAfterElimination está activo, no mostrar la vista del juego
         if (shouldRedirectToLobbyAfterElimination) {
-            console.log('[joinedRoomSuccessfully] Jugador fue eliminado, ignorando unión a la sala');
+            console.log(`[handleRoomJoin] Jugador fue eliminado, ignorando unión a la sala (creando: ${isCreating})`);
             return; // No mostrar la vista del juego
         }
         // ▲▲▲ FIN DE VERIFICACIÓN ▲▲▲
@@ -549,26 +545,36 @@ function showPwaInstallModal() {
         if (roomData.hostId) {
             currentGameSettings = { ...currentGameSettings, ...roomData };
             currentGameSettings.hostId = roomData.hostId;
-            console.log(`[joinedRoomSuccessfully] hostId establecido: ${roomData.hostId}, socket.id: ${socket.id}`);
+            console.log(`[handleRoomJoin] hostId establecido: ${roomData.hostId}, socket.id: ${socket.id} (creando: ${isCreating})`);
         } else {
             currentGameSettings = { ...currentGameSettings, ...roomData };
-            console.log(`[joinedRoomSuccessfully] ⚠️ hostId no incluido en roomData`);
+            console.log(`[handleRoomJoin] ⚠️ hostId no incluido en roomData`);
         }
         // ▲▲▲ FIN ESTABLECER HOSTID ▲▲▲
         
         // ▼▼▼ CRÍTICO: Si el juego ya está en curso, NO llamar a showGameView (evita reiniciar el juego) ▼▼▼
-        // Si el juego está en curso, solo actualizar el estado sin reiniciar
         if (roomData.state === 'playing' && typeof gameStarted !== 'undefined' && gameStarted) {
-            console.log('[joinedRoomSuccessfully] Juego ya en curso - NO reiniciando. Solo actualizando estado.');
-            // NO actualizar la vista aquí - gameStateSync se encargará de eso
-            // Solo retornar para evitar que se reinicie el juego
+            console.log('[handleRoomJoin] Juego ya en curso - NO reiniciando. Solo actualizando estado.');
             return; // NO llamar a showGameView - el juego ya está en curso
         }
         // ▲▲▲ FIN VERIFICACIÓN DE JUEGO EN CURSO ▲▲▲
         
         // Solo llamar a showGameView si el juego NO está en curso (nueva unión o juego en espera)
         showGameView({ ...roomData, isPractice: false });
+    }
+    // ▲▲▲ FIN FUNCIÓN UNIFICADA ▲▲▲
+    
+    // ▼▼▼ HANDLERS UNIFICADOS - AMBOS USAN LA MISMA LÓGICA ▼▼▼
+    socket.on('roomCreatedSuccessfully', (roomData) => {
+        console.log('[roomCreatedSuccessfully] Sala creada, manejando unión...');
+        handleRoomJoin(roomData, true);
     });
+    
+    socket.on('joinedRoomSuccessfully', (roomData) => {
+        console.log('[joinedRoomSuccessfully] Unido a sala, manejando unión...');
+        handleRoomJoin(roomData, false);
+    });
+    // ▲▲▲ FIN HANDLERS UNIFICADOS ▲▲▲
 
     socket.on('joinError', (message) => {
         console.error('Error al unirse a la sala:', message);
@@ -3453,7 +3459,7 @@ function showRoomsOverview() {
             console.log('Inicializando la vista de juego como JUGADOR.');
             gameStarted = false;
             
-            // ▼▼▼ CRÍTICO: Mostrar el modal de bienvenida cuando el jugador se une a la sala (incluyendo anfitrión) ▼▼▼
+            // ▼▼▼ CRÍTICO: Mostrar el modal de bienvenida SIEMPRE cuando el jugador se une a la sala (incluyendo anfitrión) ▼▼▼
             const roomId = settings.roomId;
             // Verificar si el jugador (incluyendo anfitrión) está sentado
             const isPlayerSeated = settings.seats && settings.seats.some(seat => 
@@ -3462,12 +3468,11 @@ function showRoomsOverview() {
             const isHost = currentGameSettings?.hostId === socket.id || 
                           (settings.settings?.userId && settings.settings.userId === currentUser.userId);
             
-            // Mostrar el modal si no se ha mostrado para esta sala específica
-            // IMPORTANTE: Mostrar también si el anfitrión ya está sentado (creó la sala)
-            if (!welcomeModalShownForRoom[roomId] || (isHost && isPlayerSeated && !welcomeModalShownForRoom[roomId])) {
-                welcomeMsg.textContent = `Bienvenido a la mesa de ${settings.settings.username}`;
-                betInfo.textContent = `Apuesta: ${settings.settings.bet}`;
-                penaltyInfo.textContent = `Multa: ${settings.settings.penalty}`;
+            // ▼▼▼ SIMPLIFICADO: Mostrar el modal SIEMPRE si no se ha mostrado para esta sala ▼▼▼
+            if (!welcomeModalShownForRoom[roomId]) {
+                welcomeMsg.textContent = `Bienvenido a la mesa de ${settings.settings?.username || 'La 51'}`;
+                betInfo.textContent = `Apuesta: ${settings.settings?.bet || 0}`;
+                penaltyInfo.textContent = `Multa: ${settings.settings?.penalty || 0}`;
                 
                 // Si el jugador ya está sentado (como anfitrión), mostrar mensaje diferente
                 if (isPlayerSeated) {
@@ -3475,9 +3480,11 @@ function showRoomsOverview() {
                     mainButton.style.display = 'block';
                     mainButton.onclick = () => {
                         hideOverlay('ready-overlay');
-                        // Si es el anfitrión y ya está sentado, mostrar modal de funciones
+                        // Si es el anfitrión y ya está sentado, mostrar modal de funciones después de un momento
                         if (isHost) {
-                            showFunctionsModalOnce();
+                            setTimeout(() => {
+                                showFunctionsModalOnce();
+                            }, 500);
                         }
                     };
                 } else {
@@ -3488,7 +3495,6 @@ function showRoomsOverview() {
                         mainButton.textContent = 'Empezar Práctica';
                         mainButton.onclick = () => {
                             hideOverlay('ready-overlay');
-                            // Esta parte necesita ser implementada o revisada
                             console.error("Lógica de práctica debe ser iniciada desde el servidor.");
                         };
                     } else {
@@ -3503,7 +3509,7 @@ function showRoomsOverview() {
                 
                 // Marcar que el modal ya se mostró para esta sala
                 welcomeModalShownForRoom[roomId] = true;
-                console.log(`[initializeGame] Modal de bienvenida mostrado para sala ${roomId} (anfitrión: ${isHost}, sentado: ${isPlayerSeated})`);
+                console.log(`[initializeGame] ✅ Modal de bienvenida mostrado para sala ${roomId} (anfitrión: ${isHost}, sentado: ${isPlayerSeated})`);
             } else {
                 // El modal ya se mostró antes, solo ocultarlo y continuar
                 hideOverlay('ready-overlay');
@@ -3525,24 +3531,9 @@ function showRoomsOverview() {
         renderGameControls();
         // ▲▲▲ FIN LLAMADA A RENDERGAMECONTROLS ▲▲▲
         
-        // ▼▼▼ CRÍTICO: Mostrar modal de funciones al anfitrión si ya está sentado ▼▼▼
-        const isHost = currentGameSettings?.hostId === socket.id || 
-                      (settings.settings?.userId && settings.settings.userId === currentUser.userId);
-        const isHostSeated = settings.seats && settings.seats.some(seat => 
-            seat && seat.playerId === socket.id
-        );
-        
-        if (isHost && isHostSeated && !gameStarted) {
-            // Esperar un momento para que el modal de bienvenida se muestre primero
-            setTimeout(() => {
-                // Si el modal de bienvenida ya se cerró, mostrar el de funciones
-                const readyOverlay = document.getElementById('ready-overlay');
-                if (!readyOverlay || readyOverlay.style.display === 'none') {
-                    showFunctionsModalOnce();
-                }
-            }, 3500); // 3.5 segundos después (después de que se cierre el modal de bienvenida)
-        }
-        // ▲▲▲ FIN MOSTRAR MODAL DE FUNCIONES AL ANFITRIÓN ▲▲▲
+        // ▼▼▼ CRÍTICO: El modal de funciones se mostrará cuando el anfitrión haga clic en "Continuar" en el modal de bienvenida ▼▼▼
+        // La lógica está en el onclick del botón "Continuar" arriba
+        // ▲▲▲ FIN NOTA SOBRE MODAL DE FUNCIONES ▲▲▲
     }
 
     function setupInGameLeaveButton() {
