@@ -2288,26 +2288,37 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▲▲▲ FIN VERIFICACIÓN Y FORZADO DE LIBERACIÓN ▲▲▲
         
         // Verificar si quedan jugadores después de que este salga
-        // ▼▼▼ CRÍTICO: Verificar también que los sockets estén conectados, no solo que el asiento tenga datos ▼▼▼
+        // ▼▼▼ CRÍTICO: Limpiar TODOS los asientos fantasma ANTES de contar remainingCount ▼▼▼
+        // IMPORTANTE: Limpiar TODOS los asientos fantasma antes de contar
+        room.seats.forEach((s, idx) => {
+            if (s !== null && s !== undefined && s !== '') {
+                // Verificar que el socket del jugador esté realmente conectado
+                const socket = io.sockets.sockets.get(s.playerId);
+                if (!socket || !socket.connected) {
+                    // Asiento fantasma - limpiarlo
+                    console.log(`[${roomId}] 🧹 Limpiando asiento fantasma ${idx} durante post-game: jugador ${s.playerName} no tiene socket conectado`);
+                    room.seats[idx] = null;
+                } else {
+                    // Verificar que el userId coincida
+                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                    if (socketUserId !== s.userId) {
+                        // Asiento inválido - limpiarlo
+                        console.log(`[${roomId}] 🧹 Limpiando asiento inválido ${idx} durante post-game: userId no coincide`);
+                        room.seats[idx] = null;
+                    }
+                }
+            }
+        });
+        
+        // Ahora contar solo los asientos que realmente tienen jugadores conectados
         const remainingSeats = room.seats.filter((s, idx) => {
             if (s === null || s === undefined || s === '') return false;
             // Verificar que el socket del jugador esté realmente conectado
             const socket = io.sockets.sockets.get(s.playerId);
-            if (!socket || !socket.connected) {
-                // Asiento fantasma - limpiarlo
-                console.log(`[${roomId}] 🧹 Limpiando asiento fantasma ${idx} durante post-game: jugador ${s.playerName} no tiene socket conectado`);
-                room.seats[idx] = null;
-                return false;
-            }
+            if (!socket || !socket.connected) return false;
             // Verificar que el userId coincida
             const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
-            if (socketUserId !== s.userId) {
-                // Asiento inválido - limpiarlo
-                console.log(`[${roomId}] 🧹 Limpiando asiento inválido ${idx} durante post-game: userId no coincide`);
-                room.seats[idx] = null;
-                return false;
-            }
-            return true;
+            return socketUserId === s.userId;
         });
         const remainingCount = remainingSeats.length;
         
