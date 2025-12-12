@@ -1217,15 +1217,39 @@ function ludoCheckAndCleanRoom(roomId, io) {
 function broadcastLudoRoomListUpdate(io) {
     // 1. Emite a un evento NUEVO llamado 'updateLudoRoomList'
     // 2. Envía la lista de 'ludoRooms' (NO la51Rooms)
-    // ▼▼▼ CRÍTICO: Filtrar salas vacías antes de emitir ▼▼▼
+    // ▼▼▼ CRÍTICO: Filtrar salas vacías ANTES de emitir, verificando que los jugadores estén REALMENTE conectados ▼▼▼
     const roomsArray = Object.values(ludoRooms).filter(room => {
         if (!room || !room.seats) return false;
-        // Contar asientos ocupados (no null)
-        const occupiedSeats = room.seats.filter(s => s !== null && s !== undefined).length;
-        // Solo incluir salas que tengan al menos un jugador
+        
+        // Contar asientos ocupados por jugadores REALMENTE conectados
+        let occupiedSeats = 0;
+        room.seats.forEach(seat => {
+            if (seat && seat !== null && seat !== undefined) {
+                // Verificar que el socket del jugador esté conectado
+                const socket = io.sockets.sockets.get(seat.playerId);
+                if (socket && socket.connected) {
+                    // Verificar que el userId coincida
+                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                    if (socketUserId === seat.userId) {
+                        occupiedSeats++;
+                    } else {
+                        // El socket existe pero el userId no coincide - asiento inválido
+                        console.log(`[Broadcast LUDO] Asiento inválido: socket userId (${socketUserId}) no coincide con seat userId (${seat.userId})`);
+                    }
+                } else {
+                    // El socket no está conectado - asiento fantasma
+                    console.log(`[Broadcast LUDO] Asiento fantasma detectado: jugador ${seat.playerName} (${seat.playerId}) no tiene socket conectado`);
+                }
+            }
+        });
+        
+        // Solo incluir salas que tengan al menos un jugador REALMENTE conectado
+        if (occupiedSeats === 0) {
+            console.log(`[Broadcast LUDO] Sala ${room.roomId} filtrada: no tiene jugadores realmente conectados (asientos con datos pero sin sockets conectados)`);
+        }
         return occupiedSeats > 0;
     });
-    console.log(`[Broadcast LUDO] Emitiendo ${roomsArray.length} salas de Ludo a todos los clientes (filtradas: ${Object.values(ludoRooms).length - roomsArray.length} salas vacías eliminadas).`);
+    console.log(`[Broadcast LUDO] Emitiendo ${roomsArray.length} salas de Ludo a todos los clientes (filtradas: ${Object.values(ludoRooms).length - roomsArray.length} salas vacías/fantasma eliminadas).`);
     io.emit('updateLudoRoomList', roomsArray);
     console.log('[Broadcast LUDO] Lista de mesas de LUDO actualizada y emitida.');
 }
