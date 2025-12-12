@@ -1217,11 +1217,34 @@ function ludoCheckAndCleanRoom(roomId, io) {
 function broadcastLudoRoomListUpdate(io) {
     // 1. Emite a un evento NUEVO llamado 'updateLudoRoomList'
     // 2. Envía la lista de 'ludoRooms' (NO la51Rooms)
+    // ▼▼▼ CRÍTICO: Limpiar asientos fantasma ANTES de filtrar y emitir ▼▼▼
+    // Primero, limpiar asientos que tienen datos pero sin sockets conectados
+    Object.values(ludoRooms).forEach(room => {
+        if (!room || !room.seats) return;
+        
+        room.seats.forEach((seat, index) => {
+            if (seat && seat !== null && seat !== undefined) {
+                // Verificar que el socket del jugador esté conectado
+                const socket = io.sockets.sockets.get(seat.playerId);
+                const isSocketConnected = socket && socket.connected;
+                const socketUserId = socket ? (socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId)) : null;
+                const userIdMatches = socketUserId === seat.userId;
+                
+                // Si el socket no está conectado o el userId no coincide, limpiar el asiento fantasma
+                if (!isSocketConnected || !userIdMatches) {
+                    console.log(`[Broadcast LUDO] 🧹 Limpiando asiento fantasma ${index} en sala ${room.roomId}: jugador ${seat.playerName} (socket conectado: ${isSocketConnected}, userId coincide: ${userIdMatches})`);
+                    room.seats[index] = null;
+                }
+            }
+        });
+    });
+    // ▲▲▲ FIN LIMPIEZA DE ASIENTOS FANTASMA ▲▲▲
+    
     // ▼▼▼ CRÍTICO: Filtrar salas vacías ANTES de emitir, verificando que los jugadores estén REALMENTE conectados ▼▼▼
     const roomsArray = Object.values(ludoRooms).filter(room => {
         if (!room || !room.seats) return false;
         
-        // Contar asientos ocupados por jugadores REALMENTE conectados
+        // Contar asientos ocupados por jugadores REALMENTE conectados (después de limpiar fantasmas)
         let occupiedSeats = 0;
         room.seats.forEach(seat => {
             if (seat && seat !== null && seat !== undefined) {
@@ -1232,20 +1255,14 @@ function broadcastLudoRoomListUpdate(io) {
                     const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
                     if (socketUserId === seat.userId) {
                         occupiedSeats++;
-                    } else {
-                        // El socket existe pero el userId no coincide - asiento inválido
-                        console.log(`[Broadcast LUDO] Asiento inválido: socket userId (${socketUserId}) no coincide con seat userId (${seat.userId})`);
                     }
-                } else {
-                    // El socket no está conectado - asiento fantasma
-                    console.log(`[Broadcast LUDO] Asiento fantasma detectado: jugador ${seat.playerName} (${seat.playerId}) no tiene socket conectado`);
                 }
             }
         });
         
         // Solo incluir salas que tengan al menos un jugador REALMENTE conectado
         if (occupiedSeats === 0) {
-            console.log(`[Broadcast LUDO] Sala ${room.roomId} filtrada: no tiene jugadores realmente conectados (asientos con datos pero sin sockets conectados)`);
+            console.log(`[Broadcast LUDO] Sala ${room.roomId} filtrada: no tiene jugadores realmente conectados`);
         }
         return occupiedSeats > 0;
     });
