@@ -2360,8 +2360,10 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▲▲▲ FIN DESCONEXIÓN DE SOCKET ▲▲▲
         
         // ▼▼▼ CRÍTICO: Si no quedan jugadores, eliminar la sala INMEDIATAMENTE y actualizar lista ▼▼▼
-        if (remainingCount === 0) {
-            console.log(`[${roomId}] ⚠️ No quedan jugadores en la sala después de salida durante post-game. Eliminando sala INMEDIATAMENTE.`);
+        // IMPORTANTE: Verificar una vez más que realmente no queden jugadores antes de eliminar
+        const finalCheck = room.seats.filter(s => s !== null && s !== undefined && s !== '').length;
+        if (remainingCount === 0 || finalCheck === 0) {
+            console.log(`[${roomId}] ⚠️ No quedan jugadores en la sala después de salida durante post-game (remainingCount: ${remainingCount}, finalCheck: ${finalCheck}). Eliminando sala INMEDIATAMENTE.`);
             
             // ▼▼▼ CRÍTICO: Actualizar estados de TODOS los jugadores que estaban en esta sala antes de eliminarla ▼▼▼
             // Esto asegura que ningún jugador quede con estado "En mesa de Ludo" después de que la sala se elimine
