@@ -751,10 +751,22 @@ function broadcastUserListUpdate(io) {
                         const seatIndex = ludoRoom.seats.findIndex(s => s && s.userId === userId);
                         if (seatIndex !== -1) {
                             const seat = ludoRoom.seats[seatIndex];
-                            // ▼▼▼ CRÍTICO: Mantener jugador si está en cualquier estado de mesa (waiting, playing, post-game) ▼▼▼
-                            if (seat && (seat.status === 'waiting' || seat.status === 'playing')) {
-                                shouldKeep = true;
-                                break;
+                            // ▼▼▼ CRÍTICO: Verificar que el asiento NO esté liberado (null) y que el socket esté conectado ▼▼▼
+                            if (seat && seat !== null && seat !== undefined) {
+                                // Verificar que el socket del jugador esté realmente conectado
+                                const seatSocket = io.sockets.sockets.get(seat.playerId);
+                                const isSocketConnected = seatSocket && seatSocket.connected;
+                                const socketUserId = seatSocket ? (seatSocket.userId || (seatSocket.handshake && seatSocket.handshake.auth && seatSocket.handshake.auth.userId)) : null;
+                                const userIdMatches = socketUserId === seat.userId;
+                                
+                                // Solo mantener si el asiento tiene datos, el socket está conectado y el userId coincide
+                                if (isSocketConnected && userIdMatches && (seat.status === 'waiting' || seat.status === 'playing')) {
+                                    shouldKeep = true;
+                                    break;
+                                } else {
+                                    // Asiento fantasma - el jugador ya no está en la sala
+                                    console.log(`[broadcastUserListUpdate] 🧹 Asiento fantasma detectado en sala ${roomIdKey}: jugador ${seat.playerName} (socket conectado: ${isSocketConnected}, userId coincide: ${userIdMatches})`);
+                                }
                             }
                         }
                     }
