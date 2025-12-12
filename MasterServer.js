@@ -2209,14 +2209,18 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         broadcastLudoRoomListUpdate(io);
     } else if (room.state === 'post-game') {
         // ▼▼▼ CRÍTICO: Manejar salida durante post-game (revancha) ▼▼▼
-        console.log(`Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
+        console.log(`[${roomId}] 🚨 Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
         
-        // El asiento ya fue liberado arriba (línea 1510), así que solo necesitamos verificar y limpiar
+        // ▼▼▼ CRÍTICO: Verificar asientos DESPUÉS de que el asiento fue liberado arriba ▼▼▼
+        // El asiento ya fue liberado arriba (línea 1565), así que verificamos los asientos actuales
         // Verificar si quedan jugadores después de que este salga
-        const remainingSeats = room.seats.filter(s => s !== null && s !== undefined);
+        const remainingSeats = room.seats.filter(s => s !== null && s !== undefined && s !== '');
         const remainingCount = remainingSeats.length;
         
-        console.log(`[${roomId}] Jugadores restantes después de salida durante post-game: ${remainingCount}`);
+        console.log(`[${roomId}] 🔍 Verificación de asientos después de salida durante post-game:`);
+        console.log(`[${roomId}]   - Asientos totales: ${room.seats.length}`);
+        console.log(`[${roomId}]   - Asientos ocupados: ${remainingCount}`);
+        console.log(`[${roomId}]   - Asientos:`, room.seats.map((s, i) => s ? `${i}:${s.playerName}` : `${i}:null`).join(', '));
         
         // ▼▼▼ CRÍTICO: Actualizar estado del jugador a "En el lobby" cuando sale de la sala ▼▼▼
         if (leavingPlayerSeat.userId) {
