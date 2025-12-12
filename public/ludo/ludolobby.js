@@ -304,7 +304,16 @@ function showPwaInstallModal() {
 
     socket.on('updateLudoRoomList', (serverRooms) => {
         console.log('[CLIENTE LUDO] Recibida lista de salas de Ludo:', serverRooms ? serverRooms.length : 0, 'salas');
-        lastKnownRooms = serverRooms || [];
+        // ▼▼▼ CRÍTICO: Filtrar salas vacías en el cliente también para evitar mesas fantasma ▼▼▼
+        const filteredRooms = (serverRooms || []).filter(room => {
+            if (!room || !room.seats) return false;
+            // Contar asientos ocupados (no null)
+            const occupiedSeats = room.seats.filter(s => s !== null && s !== undefined).length;
+            // Solo incluir salas que tengan al menos un jugador
+            return occupiedSeats > 0;
+        });
+        console.log('[CLIENTE LUDO] Salas filtradas (eliminadas vacías):', filteredRooms.length, 'de', (serverRooms || []).length);
+        lastKnownRooms = filteredRooms;
         renderRoomsOverview(lastKnownRooms);
     });
 

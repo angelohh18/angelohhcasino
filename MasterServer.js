@@ -2250,30 +2250,53 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         }
         // ▲▲▲ FIN DESCONEXIÓN DE SOCKET ▲▲▲
         
-        // Notificar a los demás jugadores (si quedan) que este jugador salió
-        if (remainingCount > 0) {
-            io.to(roomId).emit('playerLeft', ludoGetSanitizedRoomForClient(room));
-        } else {
-            // Si no quedan jugadores, emitir actualización inmediata de la lista de salas
-            // para que todos vean que la sala está vacía
-            console.log(`[${roomId}] No quedan jugadores en la sala. Emitiendo actualización inmediata de lista de salas.`);
+        // ▼▼▼ CRÍTICO: Si no quedan jugadores, eliminar la sala INMEDIATAMENTE y actualizar lista ▼▼▼
+        if (remainingCount === 0) {
+            console.log(`[${roomId}] ⚠️ No quedan jugadores en la sala después de salida durante post-game. Eliminando sala INMEDIATAMENTE.`);
+            
+            // Limpiar todos los timeouts relacionados con esta sala
+            Object.keys(ludoReconnectTimeouts).forEach(key => {
+                if (key.startsWith(`${roomId}_`)) {
+                    clearTimeout(ludoReconnectTimeouts[key]);
+                    delete ludoReconnectTimeouts[key];
+                }
+            });
+            
+            Object.keys(ludoInactivityTimeouts).forEach(key => {
+                if (key.startsWith(`${roomId}_`)) {
+                    clearTimeout(ludoInactivityTimeouts[key]);
+                    delete ludoInactivityTimeouts[key];
+                }
+            });
+            
+            // Eliminar la sala completamente
+            delete ludoRooms[roomId];
+            console.log(`[${roomId}] ✅ Sala eliminada INMEDIATAMENTE después de quedar vacía durante post-game.`);
+            
+            // Emitir actualización INMEDIATA de la lista de salas para que todos vean que la sala fue eliminada
             broadcastLudoRoomListUpdate(io);
+            console.log(`[${roomId}] ✅ Lista de salas actualizada INMEDIATAMENTE después de eliminar sala vacía.`);
+        } else {
+            // Si quedan jugadores, notificarles que este jugador salió
+            io.to(roomId).emit('playerLeft', ludoGetSanitizedRoomForClient(room));
         }
+        // ▲▲▲ FIN ELIMINACIÓN INMEDIATA DE SALA VACÍA ▲▲▲
     }
     // ▲▲▲ FIN MANEJO DE POST-GAME ▲▲▲
     
-    ludoHandleHostLeaving(room, leavingPlayerId, io);
-    // ▼▼▼ CRÍTICO: Llamar a checkAndCleanRoom SIEMPRE, incluso durante post-game ▼▼▼
-    // checkAndCleanRoom se encargará de eliminar la sala si está vacía Y de transmitir la lista actualizada.
-    // IMPORTANTE: Esto debe llamarse DESPUÉS de liberar el asiento para que la limpieza detecte correctamente que no hay jugadores
-    ludoCheckAndCleanRoom(roomId, io);
-    // ▲▲▲ FIN LLAMADA A LIMPIEZA ▲▲▲
-    
-    // ▼▼▼ CRÍTICO: Asegurar actualización en tiempo real de la lista de salas después de cualquier abandono ▼▼▼
-    // Esto es especialmente importante durante post-game para que la sala vacía no aparezca como ocupada
-    // (ludoCheckAndCleanRoom ya emite broadcastLudoRoomListUpdate, pero lo hacemos aquí también para asegurar sincronización inmediata)
-    broadcastLudoRoomListUpdate(io);
-    // ▲▲▲ FIN ACTUALIZACIÓN DE LISTA DE SALAS ▲▲▲
+    // ▼▼▼ CRÍTICO: Solo llamar a checkAndCleanRoom si la sala aún existe (no fue eliminada arriba) ▼▼▼
+    // Si la sala ya fue eliminada durante post-game, no necesitamos llamar a checkAndCleanRoom
+    if (ludoRooms[roomId]) {
+        ludoHandleHostLeaving(ludoRooms[roomId], leavingPlayerId, io);
+        // checkAndCleanRoom se encargará de eliminar la sala si está vacía Y de transmitir la lista actualizada.
+        // IMPORTANTE: Esto debe llamarse DESPUÉS de liberar el asiento para que la limpieza detecte correctamente que no hay jugadores
+        ludoCheckAndCleanRoom(roomId, io);
+    } else {
+        // La sala ya fue eliminada, solo actualizar la lista una vez más para asegurar sincronización
+        console.log(`[${roomId}] Sala ya fue eliminada, emitiendo actualización final de lista de salas.`);
+        broadcastLudoRoomListUpdate(io);
+    }
+    // ▲▲▲ FIN LLAMADA A LIMPIEZA (CONDICIONAL) ▲▲▲
 }
 
 // === boardJumps ===
