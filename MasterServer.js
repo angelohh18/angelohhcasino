@@ -1541,24 +1541,35 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         return; // Salir de la función - el timeout se encargará del abandono
     }
     
-    // Si es abandono voluntario O NO hay timeout activo, entonces procesar el abandono
-    // Limpiar cualquier reconexión pendiente para este usuario
-    if (ludoReconnectTimeouts[timeoutKey]) {
-        clearTimeout(ludoReconnectTimeouts[timeoutKey]);
-        delete ludoReconnectTimeouts[timeoutKey];
-    }
+    // ▼▼▼ CRÍTICO: Si el estado es post-game, SIEMPRE procesar el abandono (salida desde modal de revancha) ▼▼▼
+    // Durante post-game, el jugador está saliendo voluntariamente al lobby, así que debemos procesar inmediatamente
+    const isPostGameExit = room.state === 'post-game';
     
-    // Limpiar reconnectSeats si existe
-    if (room.reconnectSeats && room.reconnectSeats[leavingPlayerSeat.userId]) {
-        delete room.reconnectSeats[leavingPlayerSeat.userId];
-        if (Object.keys(room.reconnectSeats).length === 0) {
-            delete room.reconnectSeats;
+    // Si es abandono voluntario, post-game, O NO hay timeout activo, entonces procesar el abandono
+    if (isVoluntaryAbandonment || isPostGameExit || (!hasActiveInactivityTimeout && !hasActiveReconnectTimeout && !isInReconnectSeats)) {
+        // Limpiar cualquier reconexión pendiente para este usuario
+        if (ludoReconnectTimeouts[timeoutKey]) {
+            clearTimeout(ludoReconnectTimeouts[timeoutKey]);
+            delete ludoReconnectTimeouts[timeoutKey];
         }
+        
+        // Limpiar reconnectSeats si existe
+        if (room.reconnectSeats && room.reconnectSeats[leavingPlayerSeat.userId]) {
+            delete room.reconnectSeats[leavingPlayerSeat.userId];
+            if (Object.keys(room.reconnectSeats).length === 0) {
+                delete room.reconnectSeats;
+            }
+        }
+        
+        // ▼▼▼ CRÍTICO: Liberar el asiento SIEMPRE cuando es post-game o abandono voluntario ▼▼▼
+        room.seats[seatIndex] = null;
+        console.log(`[${roomId}] ✅ Jugador ${playerName} (asiento ${seatIndex}) abandonó la mesa ${isVoluntaryAbandonment ? 'VOLUNTARIAMENTE' : isPostGameExit ? 'DESDE MODAL DE REVANCHA' : 'intencionalmente'}. Asiento liberado.`);
+        // ▲▲▲ FIN LIBERACIÓN DE ASIENTO ▲▲▲
+    } else {
+        // Si hay timeout activo y no es post-game ni abandono voluntario, NO procesar aquí
+        console.log(`[${roomId}] ⚠️ Jugador ${playerName} tiene timeout activo y NO es post-game ni abandono voluntario. NO procesando abandono aquí.`);
+        return; // Salir de la función - el timeout se encargará del abandono
     }
-    
-    // Liberar el asiento (solo para abandonos intencionales, no para desconexiones)
-    room.seats[seatIndex] = null;
-    console.log(`[${roomId}] Jugador ${playerName} (asiento ${seatIndex}) abandonó la mesa ${isVoluntaryAbandonment ? 'VOLUNTARIAMENTE' : 'intencionalmente'}. Asiento liberado.`);
     // ▲▲▲ FIN DE LA CORRECCIÓN ▲▲▲
 
     if (room.state === 'playing' && leavingPlayerSeat.status !== 'waiting') {
@@ -2235,6 +2246,11 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // Notificar a los demás jugadores (si quedan) que este jugador salió
         if (remainingCount > 0) {
             io.to(roomId).emit('playerLeft', ludoGetSanitizedRoomForClient(room));
+        } else {
+            // Si no quedan jugadores, emitir actualización inmediata de la lista de salas
+            // para que todos vean que la sala está vacía
+            console.log(`[${roomId}] No quedan jugadores en la sala. Emitiendo actualización inmediata de lista de salas.`);
+            broadcastLudoRoomListUpdate(io);
         }
     }
     // ▲▲▲ FIN MANEJO DE POST-GAME ▲▲▲
@@ -2246,9 +2262,11 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
     ludoCheckAndCleanRoom(roomId, io);
     // ▲▲▲ FIN LLAMADA A LIMPIEZA ▲▲▲
     
-    // Asegurar actualización en tiempo real de la lista de salas después de cualquier abandono
-    // (ludoCheckAndCleanRoom ya emite broadcastLudoRoomListUpdate, pero lo hacemos aquí también para asegurar sincronización)
+    // ▼▼▼ CRÍTICO: Asegurar actualización en tiempo real de la lista de salas después de cualquier abandono ▼▼▼
+    // Esto es especialmente importante durante post-game para que la sala vacía no aparezca como ocupada
+    // (ludoCheckAndCleanRoom ya emite broadcastLudoRoomListUpdate, pero lo hacemos aquí también para asegurar sincronización inmediata)
     broadcastLudoRoomListUpdate(io);
+    // ▲▲▲ FIN ACTUALIZACIÓN DE LISTA DE SALAS ▲▲▲
 }
 
 // === boardJumps ===
