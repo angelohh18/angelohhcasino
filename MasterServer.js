@@ -2264,14 +2264,19 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▼▼▼ CRÍTICO: Manejar salida durante post-game (revancha) ▼▼▼
         console.log(`[${roomId}] 🚨 Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
         
-        // ▼▼▼ CRÍTICO: Verificar asientos DESPUÉS de que el asiento fue liberado arriba ▼▼▼
-        // El asiento ya fue liberado arriba (línea 1572), así que verificamos los asientos actuales
-        // ▼▼▼ CRÍTICO: Asegurar que el asiento esté realmente liberado antes de verificar ▼▼▼
-        // Verificar que el asiento del jugador que salió esté realmente null
+        // ▼▼▼ CRÍTICO: Asegurar que el asiento esté realmente liberado ANTES de verificar remainingCount ▼▼▼
+        // El asiento debería haberse liberado arriba (línea 1572), pero lo verificamos y forzamos aquí para estar seguros
         if (room.seats[seatIndex] !== null) {
             console.log(`[${roomId}] ⚠️ ADVERTENCIA: El asiento ${seatIndex} NO está null después de liberarlo. Forzando liberación...`);
             room.seats[seatIndex] = null;
         }
+        
+        // Verificar una vez más que el asiento esté realmente null
+        if (room.seats[seatIndex] !== null) {
+            console.log(`[${roomId}] 🚨 ERROR CRÍTICO: El asiento ${seatIndex} AÚN NO está null después de forzar liberación. Forzando nuevamente...`);
+            room.seats[seatIndex] = null;
+        }
+        console.log(`[${roomId}] ✅ Verificación final: asiento ${seatIndex} está ${room.seats[seatIndex] === null ? 'null (liberado)' : 'NO null (ERROR)'}`);
         // ▲▲▲ FIN VERIFICACIÓN Y FORZADO DE LIBERACIÓN ▲▲▲
         
         // Verificar si quedan jugadores después de que este salga
