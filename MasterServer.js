@@ -1145,6 +1145,56 @@ function ludoCheckAndCleanRoom(roomId, io) {
             });
         }
         
+        // ▼▼▼ CRÍTICO: Actualizar estado de todos los jugadores que estaban en esta sala a "En el lobby" ▼▼▼
+        // Esto asegura que cuando la sala se elimina, los jugadores no queden con estado "En mesa de Ludo"
+        if (room.initialSeats) {
+            room.initialSeats.forEach(seat => {
+                if (seat && seat.userId && seat.playerId) {
+                    // Buscar el socket actual del jugador (puede haber cambiado si se reconectó)
+                    let currentSocket = io.sockets.sockets.get(seat.playerId);
+                    if (!currentSocket && seat.userId) {
+                        // Buscar por userId si no se encuentra por playerId
+                        for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                            if (socketUserId === seat.userId) {
+                                currentSocket = socket;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Actualizar estado solo si el jugador sigue conectado
+                    if (currentSocket && currentSocket.connected) {
+                        updatePlayerStatus(currentSocket.id, seat.userId, null, 'En el Lobby', 'Ludo', io);
+                        console.log(`[Ludo Cleanup] ✅ Estado del jugador ${seat.playerName} (${seat.userId}) actualizado a "En el Lobby" después de eliminar sala vacía.`);
+                    }
+                }
+            });
+        }
+        // También verificar los asientos actuales por si acaso
+        room.seats.forEach((seat, index) => {
+            if (seat && seat.userId && seat.playerId) {
+                // Buscar el socket actual del jugador
+                let currentSocket = io.sockets.sockets.get(seat.playerId);
+                if (!currentSocket && seat.userId) {
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === seat.userId) {
+                            currentSocket = socket;
+                            break;
+                        }
+                    }
+                }
+                
+                // Actualizar estado solo si el jugador sigue conectado
+                if (currentSocket && currentSocket.connected) {
+                    updatePlayerStatus(currentSocket.id, seat.userId, null, 'En el Lobby', 'Ludo', io);
+                    console.log(`[Ludo Cleanup] ✅ Estado del jugador ${seat.playerName} (${seat.userId}) actualizado a "En el Lobby" después de eliminar sala vacía (desde asientos actuales).`);
+                }
+            }
+        });
+        // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADOS DE JUGADORES ▲▲▲
+        
         // Eliminar la sala completamente
         delete ludoRooms[roomId];
         console.log(`[Ludo Cleanup] ✅ Sala ${roomId} eliminada completamente.`);
@@ -2149,6 +2199,13 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         const remainingCount = remainingSeats.length;
         
         console.log(`[${roomId}] Jugadores restantes después de salida durante post-game: ${remainingCount}`);
+        
+        // ▼▼▼ CRÍTICO: Actualizar estado del jugador a "En el lobby" cuando sale de la sala ▼▼▼
+        if (leavingPlayerSeat.userId) {
+            updatePlayerStatus(leavingPlayerId, leavingPlayerSeat.userId, null, 'En el Lobby', 'Ludo', io);
+            console.log(`[${roomId}] ✅ Estado del jugador ${playerName} actualizado a "En el Lobby" después de salir desde modal de revancha.`);
+        }
+        // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
         
         // ▼▼▼ CRÍTICO: Desconectar el socket de la sala cuando el jugador sale al lobby desde el modal de revancha ▼▼▼
         // Buscar el socket del jugador que está saliendo
