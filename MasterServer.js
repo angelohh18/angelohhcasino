@@ -1624,6 +1624,14 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         // ▼▼▼ CRÍTICO: Liberar el asiento SIEMPRE cuando es post-game o abandono voluntario ▼▼▼
         room.seats[seatIndex] = null;
         console.log(`[${roomId}] ✅ Jugador ${playerName} (asiento ${seatIndex}) abandonó la mesa ${isVoluntaryAbandonment ? 'VOLUNTARIAMENTE' : isPostGameExit ? 'DESDE MODAL DE REVANCHA' : 'intencionalmente'}. Asiento liberado.`);
+        
+        // ▼▼▼ CRÍTICO: Verificar que el asiento esté realmente null después de liberarlo ▼▼▼
+        if (room.seats[seatIndex] !== null) {
+            console.log(`[${roomId}] 🚨 ERROR: El asiento ${seatIndex} NO está null después de liberarlo. Forzando liberación...`);
+            room.seats[seatIndex] = null;
+        }
+        console.log(`[${roomId}] ✅ Verificación: asiento ${seatIndex} está ${room.seats[seatIndex] === null ? 'null (liberado correctamente)' : 'NO null (ERROR)'}`);
+        // ▲▲▲ FIN VERIFICACIÓN DE LIBERACIÓN ▲▲▲
         // ▲▲▲ FIN LIBERACIÓN DE ASIENTO ▲▲▲
     } else {
         // Si hay timeout activo y no es post-game ni abandono voluntario, NO procesar aquí
