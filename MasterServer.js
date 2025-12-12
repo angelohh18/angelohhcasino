@@ -2253,14 +2253,42 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         console.log(`[${roomId}] 🚨 Jugador ${playerName} ha salido durante post-game (revancha). Estado: ${room.state}`);
         
         // ▼▼▼ CRÍTICO: Verificar asientos DESPUÉS de que el asiento fue liberado arriba ▼▼▼
-        // El asiento ya fue liberado arriba (línea 1565), así que verificamos los asientos actuales
+        // El asiento ya fue liberado arriba (línea 1572), así que verificamos los asientos actuales
+        // ▼▼▼ CRÍTICO: Asegurar que el asiento esté realmente liberado antes de verificar ▼▼▼
+        // Verificar que el asiento del jugador que salió esté realmente null
+        if (room.seats[seatIndex] !== null) {
+            console.log(`[${roomId}] ⚠️ ADVERTENCIA: El asiento ${seatIndex} NO está null después de liberarlo. Forzando liberación...`);
+            room.seats[seatIndex] = null;
+        }
+        // ▲▲▲ FIN VERIFICACIÓN Y FORZADO DE LIBERACIÓN ▲▲▲
+        
         // Verificar si quedan jugadores después de que este salga
-        const remainingSeats = room.seats.filter(s => s !== null && s !== undefined && s !== '');
+        // ▼▼▼ CRÍTICO: Verificar también que los sockets estén conectados, no solo que el asiento tenga datos ▼▼▼
+        const remainingSeats = room.seats.filter((s, idx) => {
+            if (s === null || s === undefined || s === '') return false;
+            // Verificar que el socket del jugador esté realmente conectado
+            const socket = io.sockets.sockets.get(s.playerId);
+            if (!socket || !socket.connected) {
+                // Asiento fantasma - limpiarlo
+                console.log(`[${roomId}] 🧹 Limpiando asiento fantasma ${idx} durante post-game: jugador ${s.playerName} no tiene socket conectado`);
+                room.seats[idx] = null;
+                return false;
+            }
+            // Verificar que el userId coincida
+            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+            if (socketUserId !== s.userId) {
+                // Asiento inválido - limpiarlo
+                console.log(`[${roomId}] 🧹 Limpiando asiento inválido ${idx} durante post-game: userId no coincide`);
+                room.seats[idx] = null;
+                return false;
+            }
+            return true;
+        });
         const remainingCount = remainingSeats.length;
         
         console.log(`[${roomId}] 🔍 Verificación de asientos después de salida durante post-game:`);
         console.log(`[${roomId}]   - Asientos totales: ${room.seats.length}`);
-        console.log(`[${roomId}]   - Asientos ocupados: ${remainingCount}`);
+        console.log(`[${roomId}]   - Asientos ocupados (con sockets conectados): ${remainingCount}`);
         console.log(`[${roomId}]   - Asientos:`, room.seats.map((s, i) => s ? `${i}:${s.playerName}` : `${i}:null`).join(', '));
         
         // ▼▼▼ CRÍTICO: Actualizar estado del jugador a "En el lobby" cuando sale de la sala ▼▼▼
