@@ -2733,16 +2733,25 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         // Verificar que el turno todavía es de este jugador
         const currentRoom = ludoRooms[roomId];
         if (!currentRoom || !currentRoom.gameState || !currentRoom.gameState.turn) {
+            console.log(`[${roomId}] ⚠️ Sala o gameState no existe. Cancelando eliminación por inactividad.`);
             delete ludoInactivityTimeouts[newTimeoutKey];
             return;
         }
         
         const currentTurnPlayerIndex = currentRoom.gameState.turn.playerIndex;
         if (currentTurnPlayerIndex !== nextPlayerIndex) {
-            console.log(`[${roomId}] El turno ya cambió. No se elimina al jugador por inactividad.`);
+            console.log(`[${roomId}] ⚠️ El turno ya cambió (era ${nextPlayerIndex}, ahora es ${currentTurnPlayerIndex}). No se elimina al jugador por inactividad.`);
             delete ludoInactivityTimeouts[newTimeoutKey];
             return;
         }
+        
+        // ▼▼▼ CRÍTICO: Verificar que el juego sigue activo (no terminó) ▼▼▼
+        if (currentRoom.state !== 'playing') {
+            console.log(`[${roomId}] ⚠️ El juego ya no está en estado 'playing' (estado actual: ${currentRoom.state}). No se elimina al jugador por inactividad.`);
+            delete ludoInactivityTimeouts[newTimeoutKey];
+            return;
+        }
+        // ▲▲▲ FIN VERIFICACIÓN DE ESTADO DEL JUEGO ▲▲▲
         
         // Verificar que el jugador todavía está en la sala (usar userId en lugar de playerId porque puede estar desconectado)
         const currentSeat = currentRoom.seats[nextPlayerIndex];
@@ -2937,28 +2946,20 @@ async function ludoHandleParchisRoll(room, io, socket, dice1, dice2) {
     turnData.isForcedBlockadeBreak = false;
     const isDouble = dice1 === dice2;
 
-    // ▼▼▼ CRÍTICO: Cancelar timeout de inactividad y limpiar estado de desconexión cuando el jugador actúa ▼▼▼
+    // ▼▼▼ CRÍTICO: NO cancelar el timeout aquí - solo se cancela cuando el jugador realmente actúa (mueve una ficha) ▼▼▼
+    // El timeout solo se cancela en ludoMovePiece cuando el jugador mueve una ficha
+    // Si el jugador tira los dados pero no puede hacer nada, el timeout debe seguir activo
+    // Solo limpiar estado de desconexión si el jugador se reconectó
     const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
     if (socketUserId) {
-        const timeoutKey = `${roomId}_${socketUserId}`;
-        if (ludoInactivityTimeouts[timeoutKey]) {
-            clearTimeout(ludoInactivityTimeouts[timeoutKey]);
-            delete ludoInactivityTimeouts[timeoutKey];
-        }
-        // Limpiar estado de desconexión
+        // Limpiar estado de desconexión (pero NO cancelar timeout - eso se hace en ludoMovePiece)
         const disconnectKey = `${roomId}_${socketUserId}`;
         if (ludoDisconnectedPlayers[disconnectKey]) {
             delete ludoDisconnectedPlayers[disconnectKey];
-            console.log(`[${roomId}] ✅ Jugador ${playerName} se reconectó y actuó. Limpiando estado de desconexión.`);
+            console.log(`[${roomId}] ✅ Jugador ${playerName} se reconectó. Limpiando estado de desconexión (timeout sigue activo hasta que mueva una ficha).`);
         }
     }
-    // También cancelar por playerId por si acaso
-    const timeoutKeyByPlayerId = `${roomId}_${socket.id}`;
-    if (ludoInactivityTimeouts[timeoutKeyByPlayerId]) {
-        clearTimeout(ludoInactivityTimeouts[timeoutKeyByPlayerId]);
-        delete ludoInactivityTimeouts[timeoutKeyByPlayerId];
-    }
-    // ▲▲▲ FIN CANCELACIÓN DE TIMEOUT Y LIMPIEZA DE DESCONEXIÓN ▲▲▲
+    // ▲▲▲ FIN LIMPIEZA DE DESCONEXIÓN (SIN CANCELAR TIMEOUT) ▲▲▲
 
     console.log(`[Parchís Roll] ${playerName} (${playerColor}) lanzó: ${dice1}-${dice2}`);
 
@@ -13119,4 +13120,5 @@ server.listen(PORT, '0.0.0.0', async () => {
       io.emit('la51LobbyChatCleared');
     }
   }, 60000);
+}); // Fin del server.listen
 }); // Fin del server.listen

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.193'; // Actualizado: Timeout de 2 minutos aplicado igualmente a Parchís y Ludo
+const CACHE_NAME = 'mutijuego-v1.12.194'; // Actualizado: Corrección de timeout en Parchís - solo se cancela al mover ficha, no al tirar dados
 const urlsToCache = [
   '/',
   '/index.html',
