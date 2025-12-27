@@ -2724,9 +2724,11 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
     // ▲▲▲ FIN CANCELACIÓN DE TODOS LOS TIMEOUTS ▲▲▲
     
     // Solo iniciar timeout si el jugador NO fue eliminado
+    // ▼▼▼ CRÍTICO: El timeout de 2 minutos se aplica tanto para Ludo como para Parchís ▼▼▼
+    const roomGameType = room.settings?.gameType || 'ludo';
     if (!alreadyPenalized) {
         ludoInactivityTimeouts[newTimeoutKey] = setTimeout(() => {
-        console.log(`[${roomId}] ⏰ TIMEOUT DE INACTIVIDAD: El jugador ${nextPlayer.playerName} (asiento ${nextPlayerIndex}) no hizo nada en 2 minutos. Eliminando por falta.`);
+        console.log(`[${roomId}] ⏰ TIMEOUT DE INACTIVIDAD (${roomGameType.toUpperCase()}): El jugador ${nextPlayer.playerName} (asiento ${nextPlayerIndex}) no hizo nada en 2 minutos. Eliminando por falta.`);
         
         // Verificar que el turno todavía es de este jugador
         const currentRoom = ludoRooms[roomId];
@@ -2829,10 +2831,11 @@ function ludoPassTurn(room, io, isPunishmentTurn = false) {
         delete ludoDisconnectedPlayers[nextPlayerDisconnectKey];
     }, LUDO_INACTIVITY_TIMEOUT_MS);
     
+    // ▼▼▼ CRÍTICO: El timeout de 2 minutos se aplica tanto para Ludo como para Parchís ▼▼▼
     if (isDisconnected && !alreadyPenalized) {
-        console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (DESCONECTADO, asiento ${nextPlayerIndex}). Si no vuelve y actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+        console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (${roomGameType.toUpperCase()}, DESCONECTADO, asiento ${nextPlayerIndex}). Si no vuelve y actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     } else if (!alreadyPenalized) {
-        console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (asiento ${nextPlayerIndex}). Si no actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
+        console.log(`[${roomId}] ⏰ Timeout de inactividad iniciado para ${nextPlayer.playerName} (${roomGameType.toUpperCase()}, asiento ${nextPlayerIndex}). Si no actúa en ${LUDO_INACTIVITY_TIMEOUT_MS/1000} segundos, será eliminado.`);
     }
     // ▲▲▲ FIN TIMEOUT DE INACTIVIDAD ▲▲▲
 

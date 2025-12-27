@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.192'; // Actualizado: Corrección definitiva de mesas fantasma - verificación mejorada de sockets en sala y actualización de estado del jugador
+const CACHE_NAME = 'mutijuego-v1.12.193'; // Actualizado: Timeout de 2 minutos aplicado igualmente a Parchís y Ludo
 const urlsToCache = [
   '/',
   '/index.html',
