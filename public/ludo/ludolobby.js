@@ -311,9 +311,15 @@ function showPwaInstallModal() {
                 return false;
             }
             // Contar asientos ocupados (no null, no undefined, no string vacío)
-            const occupiedSeats = room.seats.filter(s => s !== null && s !== undefined && s !== '').length;
+            // Verificar que los asientos tengan datos válidos
+            const occupiedSeats = room.seats.filter(s => {
+                if (s === null || s === undefined || s === '') return false;
+                // Verificar que tenga al menos playerId y userId
+                if (!s.playerId || !s.userId) return false;
+                return true;
+            }).length;
             if (occupiedSeats === 0) {
-                console.log('[CLIENTE LUDO] Sala filtrada:', room.roomId, '- no tiene asientos ocupados');
+                console.log('[CLIENTE LUDO] Sala filtrada:', room.roomId, '- no tiene asientos ocupados válidos');
             }
             // Solo incluir salas que tengan al menos un jugador
             return occupiedSeats > 0;

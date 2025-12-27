@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.190'; // Actualizado: ELIMINADA toda la lógica conflictiva - simplificado handler de disconnect para La 51 igual que Ludo
+const CACHE_NAME = 'mutijuego-v1.12.191'; // Actualizado: Corrección de mesas fantasma en Ludo - limpieza mejorada cuando todos los jugadores salen desde modal de revancha
 const urlsToCache = [
   '/',
   '/index.html',
