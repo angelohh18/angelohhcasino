@@ -751,7 +751,7 @@ function broadcastUserListUpdate(io) {
                         const seatIndex = ludoRoom.seats.findIndex(s => s && s.userId === userId);
                         if (seatIndex !== -1) {
                             const seat = ludoRoom.seats[seatIndex];
-                            // ▼▼▼ CRÍTICO: Verificar que el asiento NO esté liberado (null) y que el socket esté conectado ▼▼▼
+                            // ▼▼▼ CRÍTICO: Verificar que el asiento NO esté liberado (null) y que el socket esté conectado Y en la sala ▼▼▼
                             if (seat && seat !== null && seat !== undefined) {
                                 // Verificar que el socket del jugador esté realmente conectado
                                 const seatSocket = io.sockets.sockets.get(seat.playerId);
@@ -759,13 +759,17 @@ function broadcastUserListUpdate(io) {
                                 const socketUserId = seatSocket ? (seatSocket.userId || (seatSocket.handshake && seatSocket.handshake.auth && seatSocket.handshake.auth.userId)) : null;
                                 const userIdMatches = socketUserId === seat.userId;
                                 
-                                // Solo mantener si el asiento tiene datos, el socket está conectado y el userId coincide
-                                if (isSocketConnected && userIdMatches && (seat.status === 'waiting' || seat.status === 'playing')) {
+                                // Verificar que el socket esté realmente en la sala de Socket.IO
+                                const roomSockets = io.sockets.adapter.rooms.get(roomIdKey);
+                                const isSocketInRoom = roomSockets && roomSockets.has(seatSocket ? seatSocket.id : '');
+                                
+                                // Solo mantener si el asiento tiene datos, el socket está conectado, el userId coincide Y el socket está en la sala
+                                if (isSocketConnected && userIdMatches && isSocketInRoom && (seat.status === 'waiting' || seat.status === 'playing' || ludoRoom.state === 'post-game')) {
                                     shouldKeep = true;
                                     break;
                                 } else {
                                     // Asiento fantasma - el jugador ya no está en la sala
-                                    console.log(`[broadcastUserListUpdate] 🧹 Asiento fantasma detectado en sala ${roomIdKey}: jugador ${seat.playerName} (socket conectado: ${isSocketConnected}, userId coincide: ${userIdMatches})`);
+                                    console.log(`[broadcastUserListUpdate] 🧹 Asiento fantasma detectado en sala ${roomIdKey}: jugador ${seat.playerName} (socket conectado: ${isSocketConnected}, userId coincide: ${userIdMatches}, socket en sala: ${isSocketInRoom})`);
                                 }
                             }
                         }
@@ -2356,14 +2360,7 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         console.log(`[${roomId}]   - Asientos ocupados (con sockets conectados): ${remainingCount}`);
         console.log(`[${roomId}]   - Asientos:`, room.seats.map((s, i) => s ? `${i}:${s.playerName}` : `${i}:null`).join(', '));
         
-        // ▼▼▼ CRÍTICO: Actualizar estado del jugador a "En el lobby" cuando sale de la sala ▼▼▼
-        if (leavingPlayerSeat.userId) {
-            updatePlayerStatus(leavingPlayerId, leavingPlayerSeat.userId, null, 'En el Lobby', 'Ludo', io);
-            console.log(`[${roomId}] ✅ Estado del jugador ${playerName} actualizado a "En el Lobby" después de salir desde modal de revancha.`);
-        }
-        // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
-        
-        // ▼▼▼ CRÍTICO: Desconectar el socket de la sala cuando el jugador sale al lobby desde el modal de revancha ▼▼▼
+        // ▼▼▼ CRÍTICO: Desconectar el socket de la sala PRIMERO, antes de actualizar el estado ▼▼▼
         // Buscar el socket del jugador que está saliendo
         let leavingPlayerSocket = io.sockets.sockets.get(leavingPlayerId);
         
@@ -2387,8 +2384,17 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         }
         // ▲▲▲ FIN DESCONEXIÓN DE SOCKET ▲▲▲
         
+        // ▼▼▼ CRÍTICO: Actualizar estado del jugador a "En el lobby" DESPUÉS de desconectar el socket ▼▼▼
+        // Esto asegura que broadcastUserListUpdate no vea al jugador como "En mesa de Ludo"
+        if (leavingPlayerSeat.userId) {
+            updatePlayerStatus(leavingPlayerId, leavingPlayerSeat.userId, null, 'En el Lobby', 'Ludo', io);
+            console.log(`[${roomId}] ✅ Estado del jugador ${playerName} actualizado a "En el Lobby" después de salir desde modal de revancha.`);
+        }
+        // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
+        
         // ▼▼▼ CRÍTICO: Limpiar TODOS los asientos fantasma DESPUÉS de desconectar el socket ▼▼▼
         // Esto asegura que los asientos sin sockets conectados se limpien antes de verificar si la sala está vacía
+        const roomSocketsForCleanup = io.sockets.adapter.rooms.get(roomId);
         room.seats.forEach((s, idx) => {
             if (s !== null && s !== undefined && s !== '') {
                 const socket = io.sockets.sockets.get(s.playerId);
@@ -2400,6 +2406,13 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                     if (socketUserId !== s.userId) {
                         console.log(`[${roomId}] 🧹 Limpiando asiento inválido ${idx} después de desconexión: userId no coincide`);
                         room.seats[idx] = null;
+                    } else {
+                        // Verificar que el socket esté realmente en la sala de Socket.IO
+                        const isSocketInRoom = roomSocketsForCleanup && roomSocketsForCleanup.has(socket.id);
+                        if (!isSocketInRoom) {
+                            console.log(`[${roomId}] 🧹 Limpiando asiento ${idx} después de desconexión: socket ${s.playerName} no está en la sala de Socket.IO`);
+                            room.seats[idx] = null;
+                        }
                     }
                 }
             }
@@ -2486,6 +2499,14 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
             // Emitir actualización INMEDIATA de la lista de salas para que todos vean que la sala fue eliminada
             broadcastLudoRoomListUpdate(io);
             console.log(`[${roomId}] ✅ Lista de salas actualizada INMEDIATAMENTE después de eliminar sala vacía.`);
+            
+            // ▼▼▼ CRÍTICO: Forzar actualización de la lista de usuarios DESPUÉS de eliminar la sala ▼▼▼
+            // Esto asegura que los jugadores no aparezcan como "En mesa de Ludo" después de que la sala se elimine
+            setTimeout(() => {
+                broadcastUserListUpdate(io);
+                console.log(`[${roomId}] ✅ Lista de usuarios actualizada después de eliminar sala vacía.`);
+            }, 100);
+            // ▲▲▲ FIN ACTUALIZACIÓN DE LISTA DE USUARIOS ▲▲▲
         } else {
             // Si quedan jugadores, notificarles que este jugador salió
             io.to(roomId).emit('playerLeft', ludoGetSanitizedRoomForClient(room));

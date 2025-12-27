@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.191'; // Actualizado: Corrección de mesas fantasma en Ludo - limpieza mejorada cuando todos los jugadores salen desde modal de revancha
+const CACHE_NAME = 'mutijuego-v1.12.192'; // Actualizado: Corrección definitiva de mesas fantasma - verificación mejorada de sockets en sala y actualización de estado del jugador
 const urlsToCache = [
   '/',
   '/index.html',
