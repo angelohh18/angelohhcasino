@@ -465,7 +465,22 @@ function showPwaInstallModal() {
     }
 
     socket.on('updateRoomList', (serverRooms) => {
-        lastKnownRooms = serverRooms || [];
+        // ▼▼▼ CRÍTICO: Filtrar salas vacías en el cliente (doble verificación) ▼▼▼
+        const filteredRooms = (serverRooms || []).filter(room => {
+            if (!room || !room.seats) return false;
+            
+            // Contar asientos ocupados con playerId y userId válidos
+            const occupiedSeats = room.seats.filter(seat => {
+                return seat && seat.playerId && seat.userId && 
+                       seat.playerId.trim() !== '' && seat.userId.trim() !== '';
+            }).length;
+            
+            // Solo incluir salas con al menos un jugador realmente sentado
+            return occupiedSeats > 0;
+        });
+        // ▲▲▲ FIN FILTRADO DE SALAS VACÍAS ▲▲▲
+        
+        lastKnownRooms = filteredRooms;
         renderRoomsOverview(lastKnownRooms);
     });
 

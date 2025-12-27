@@ -571,16 +571,21 @@ function checkAndCleanRoom(roomId, io) {
         return;
     }
 
-    // ▼▼▼ CRÍTICO: Limpiar asientos "fantasma" (sockets desconectados sin timeout activo) ▼▼▼
+    // ▼▼▼ CRÍTICO: Limpieza agresiva de asientos "fantasma" ▼▼▼
     let cleanedGhostSeats = 0;
+    const roomSockets = io.sockets.adapter.rooms.get(roomId);
+    const socketIdsInRoom = roomSockets ? new Set(roomSockets) : new Set();
+    
     room.seats.forEach((seat, index) => {
         if (seat && seat.playerId) {
             const socket = io.sockets.sockets.get(seat.playerId);
             const socketUserId = socket ? (socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId)) : null;
             const seatUserId = seat.userId;
             
-            // Verificar si el socket está desconectado o no existe
-            if (!socket || !socket.connected) {
+            // Verificar si el socket está desconectado, no existe, o no está en la sala de Socket.IO
+            const isSocketInRoom = socket && socket.connected && socketIdsInRoom.has(socket.id);
+            
+            if (!socket || !socket.connected || !isSocketInRoom) {
                 // Verificar si hay timeout activo para este jugador
                 const timeoutKey = `${roomId}_${seatUserId}`;
                 const hasActiveTimeout = la51InactivityTimeouts[timeoutKey] || 
@@ -588,7 +593,7 @@ function checkAndCleanRoom(roomId, io) {
                 
                 // Si NO hay timeout activo, limpiar el asiento fantasma
                 if (!hasActiveTimeout) {
-                    console.log(`[LA51 Cleanup] Limpiando asiento fantasma ${index} (socket ${seat.playerId} desconectado sin timeout activo)`);
+                    console.log(`[LA51 Cleanup] Limpiando asiento fantasma ${index} (socket ${seat.playerId} desconectado o no en sala sin timeout activo)`);
                     room.seats[index] = null;
                     cleanedGhostSeats++;
                 }
@@ -607,19 +612,14 @@ function checkAndCleanRoom(roomId, io) {
 
     const playersInSeats = room.seats.filter(s => s !== null && s !== undefined).length;
 
-    // ▼▼▼ CRÍTICO: Verificar si hay sockets conectados a la sala ▼▼▼
-    const roomSockets = io.sockets.adapter.rooms.get(roomId);
-    const hasConnectedSockets = roomSockets && roomSockets.size > 0;
+    // ▼▼▼ CRÍTICO: Verificar si hay sockets conectados REALMENTE en la sala de Socket.IO ▼▼▼
+    const hasConnectedSockets = socketIdsInRoom.size > 0;
     // ▲▲▲ FIN VERIFICACIÓN DE SOCKETS ▲▲▲
 
-    // ▼▼▼ CRÍTICO: NO eliminar salas durante el juego o post-game ▼▼▼
-    // Solo eliminar salas en estado 'waiting' que estén completamente vacías
-    const isGameActive = room.state === 'playing' || room.state === 'post-game';
-    
-    // UNA SALA ESTÁ VACÍA SI NO HAY NADIE EN LOS ASIENTOS Y NO HAY SOCKETS CONECTADOS.
-    // PERO NUNCA ELIMINAR SALAS DURANTE EL JUEGO O POST-GAME
-    if (playersInSeats === 0 && !hasConnectedSockets && !isGameActive) {
-        console.log(`[LA51 Cleanup] Mesa ${roomId} está completamente vacía (estado: ${room.state}). Eliminando...`);
+    // ▼▼▼ CRÍTICO: Eliminar salas vacías incluso en post-game (igual que Ludo) ▼▼▼
+    // Si no hay jugadores en asientos Y no hay sockets conectados, eliminar la sala INMEDIATAMENTE
+    if (playersInSeats === 0 && !hasConnectedSockets) {
+        console.log(`[LA51 Cleanup] Mesa ${roomId} está completamente vacía (estado: ${room.state}, jugadores: ${playersInSeats}, sockets: ${hasConnectedSockets}). Eliminando INMEDIATAMENTE...`);
         
         // Limpiar todos los timeouts relacionados con esta sala
         Object.keys(la51InactivityTimeouts).forEach(key => {
@@ -643,13 +643,42 @@ function checkAndCleanRoom(roomId, io) {
             }
         });
         
+        // ▼▼▼ CRÍTICO: Actualizar estado de todos los jugadores que estaban en esta sala ▼▼▼
+        if (room.initialSeats) {
+            room.initialSeats.forEach(initialSeat => {
+                if (initialSeat && initialSeat.userId) {
+                    // Buscar socket por userId
+                    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId === initialSeat.userId && socket.connected) {
+                            updatePlayerStatus(socketId, initialSeat.userId, null, null, 'La 51', io);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+        // También verificar asientos actuales
+        room.seats.forEach(seat => {
+            if (seat && seat.userId) {
+                for (const [socketId, socket] of io.sockets.sockets.entries()) {
+                    const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                    if (socketUserId === seat.userId && socket.connected) {
+                        updatePlayerStatus(socketId, seat.userId, null, null, 'La 51', io);
+                        break;
+                    }
+                }
+            }
+        });
+        // ▲▲▲ FIN ACTUALIZACIÓN DE ESTADO ▲▲▲
+        
         delete la51Rooms[roomId];
-    } else if (isGameActive) {
-        console.log(`[LA51 Cleanup] Mesa ${roomId} NO se elimina - juego activo (estado: ${room.state}, jugadores: ${playersInSeats}, sockets: ${hasConnectedSockets})`);
-    } else if (hasConnectedSockets) {
-        console.log(`[LA51 Cleanup] Mesa ${roomId} NO se elimina - hay sockets conectados (jugadores: ${playersInSeats}, sockets: ${hasConnectedSockets})`);
+        
+        // Notificar actualización inmediata
+        broadcastRoomListUpdate(io);
+        return; // Salir temprano ya que la sala fue eliminada
     }
-    // ▲▲▲ FIN PROTECCIÓN DE SALAS ACTIVAS ▲▲▲
+    // ▲▲▲ FIN ELIMINACIÓN DE SALAS VACÍAS ▲▲▲
 
     // Se emite la actualización SIEMPRE que un jugador sale,
     // para que el contador (ej: 3/4 -> 2/4) se actualice en tiempo real.
@@ -920,8 +949,65 @@ function convertCurrency(amount, fromCurrency, toCurrency, rates) {
 
 // ▼▼▼ AÑADE ESTA NUEVA FUNCIÓN JUSTO AQUÍ ▼▼▼
 function broadcastRoomListUpdate(io) {
-    io.emit('updateRoomList', Object.values(la51Rooms));
-    console.log('[Broadcast] Se ha actualizado la lista de mesas para todos los clientes.');
+    // ▼▼▼ CRÍTICO: Limpiar asientos fantasma ANTES de filtrar y emitir ▼▼▼
+    // Primero, limpiar asientos que tienen datos pero sin sockets conectados
+    Object.values(la51Rooms).forEach(room => {
+        if (!room || !room.seats) return;
+        
+        const roomSockets = io.sockets.adapter.rooms.get(room.roomId);
+        const socketIdsInRoom = roomSockets ? new Set(roomSockets) : new Set();
+        
+        room.seats.forEach((seat, index) => {
+            if (seat && seat.playerId) {
+                const socket = io.sockets.sockets.get(seat.playerId);
+                const socketUserId = socket ? (socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId)) : null;
+                const seatUserId = seat.userId;
+                
+                // Verificar si el socket está desconectado, no existe, o no está en la sala de Socket.IO
+                const isSocketInRoom = socket && socket.connected && socketIdsInRoom.has(socket.id);
+                
+                if (!socket || !socket.connected || !isSocketInRoom) {
+                    // Verificar si hay timeout activo
+                    const timeoutKey = `${room.roomId}_${seatUserId}`;
+                    const hasActiveTimeout = la51InactivityTimeouts[timeoutKey] || 
+                                            (room.abandonmentTimeouts && room.abandonmentTimeouts[seatUserId]);
+                    
+                    if (!hasActiveTimeout) {
+                        room.seats[index] = null;
+                    }
+                } else if (socketUserId && seatUserId && socketUserId !== seatUserId) {
+                    room.seats[index] = null;
+                }
+            }
+        });
+    });
+    // ▲▲▲ FIN LIMPIEZA DE ASIENTOS FANTASMA ▲▲▲
+    
+    // ▼▼▼ CRÍTICO: Filtrar salas vacías antes de emitir ▼▼▼
+    const roomsArray = Object.values(la51Rooms).filter(room => {
+        if (!room || !room.seats) return false;
+        
+        // Contar asientos ocupados con sockets realmente conectados
+        const roomSockets = io.sockets.adapter.rooms.get(room.roomId);
+        const socketIdsInRoom = roomSockets ? new Set(roomSockets) : new Set();
+        
+        const occupiedSeats = room.seats.filter(seat => {
+            if (!seat || !seat.playerId) return false;
+            const socket = io.sockets.sockets.get(seat.playerId);
+            if (!socket || !socket.connected) return false;
+            const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+            const seatUserId = seat.userId;
+            if (socketUserId !== seatUserId) return false;
+            return socketIdsInRoom.has(socket.id);
+        }).length;
+        
+        // Solo incluir salas con al menos un jugador realmente conectado
+        return occupiedSeats > 0;
+    });
+    // ▲▲▲ FIN FILTRADO DE SALAS VACÍAS ▲▲▲
+    
+    io.emit('updateRoomList', roomsArray);
+    console.log(`[Broadcast] Se ha actualizado la lista de mesas para todos los clientes. Salas activas: ${roomsArray.length}`);
 }
 // ▲▲▲ FIN DE LA NUEVA FUNCIÓN ▲▲▲
 
@@ -6547,6 +6633,83 @@ async function handlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntaryAba
         }
     }
     
+    // ▼▼▼ CRÍTICO: Manejo especial para post-game - limpieza agresiva cuando todos salen ▼▼▼
+    if (room.state === 'post-game') {
+        console.log(`[${roomId}] ⚠️ Jugador ${playerName} sale de sala en estado post-game.`);
+        
+        // Desconectar socket de la sala ANTES de actualizar estado
+        if (leavingSocket) {
+            leavingSocket.leave(roomId);
+            console.log(`[${roomId}] ✅ Socket ${leavingPlayerId} desconectado de la sala de Socket.IO (post-game)`);
+            if (leavingSocket.currentRoomId === roomId) {
+                delete leavingSocket.currentRoomId;
+            }
+        }
+        
+        // Actualizar estado del jugador a "En el Lobby" DESPUÉS de desconectar
+        if (leavingUserId) {
+            updatePlayerStatus(leavingPlayerId, leavingUserId, null, null, 'La 51', io);
+        }
+        
+        // Liberar asiento inmediatamente
+        room.seats[seatIndex] = null;
+        
+        // ▼▼▼ CRÍTICO: Limpieza forzada de TODOS los asientos si remainingCount es 0 ▼▼▼
+        const remainingCount = room.seats.filter(s => s !== null && s !== undefined).length;
+        console.log(`[${roomId}] 🔍 Jugadores restantes en post-game: ${remainingCount}`);
+        
+        if (remainingCount === 0) {
+            console.log(`[${roomId}] 🧹 SALA POST-GAME VACÍA - Limpieza forzada de TODOS los asientos y desconexión de TODOS los sockets`);
+            
+            // Desconectar TODOS los sockets de la sala antes de eliminar
+            const roomSockets = io.sockets.adapter.rooms.get(roomId);
+            if (roomSockets) {
+                roomSockets.forEach(socketId => {
+                    const socket = io.sockets.sockets.get(socketId);
+                    if (socket) {
+                        socket.leave(roomId);
+                        if (socket.currentRoomId === roomId) {
+                            delete socket.currentRoomId;
+                        }
+                        const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                        if (socketUserId) {
+                            updatePlayerStatus(socketId, socketUserId, null, null, 'La 51', io);
+                        }
+                    }
+                });
+            }
+            
+            // Forzar limpieza de TODOS los asientos
+            room.seats.forEach((seat, idx) => {
+                if (seat !== null) {
+                    room.seats[idx] = null;
+                }
+            });
+            
+            // Limpiar timeouts
+            Object.keys(la51InactivityTimeouts).forEach(key => {
+                if (key.startsWith(`${roomId}_`)) {
+                    clearTimeout(la51InactivityTimeouts[key]);
+                    delete la51InactivityTimeouts[key];
+                }
+            });
+            
+            // Eliminar sala inmediatamente
+            delete la51Rooms[roomId];
+            
+            // Notificar actualización inmediata
+            broadcastRoomListUpdate(io);
+            console.log(`[${roomId}] ✅ Sala post-game eliminada completamente`);
+            return; // Salir temprano
+        }
+        // ▲▲▲ FIN LIMPIEZA FORZADA ▲▲▲
+        
+        // Si aún hay jugadores, solo limpiar y notificar
+        checkAndCleanRoom(roomId, io);
+        return; // Salir temprano para post-game
+    }
+    // ▲▲▲ FIN MANEJO POST-GAME ▲▲▲
+    
     // ▼▼▼ CRÍTICO: Solo emitir playerLeft y handleHostLeaving si el juego NO terminó ▼▼▼
     // Si el juego terminó (solo quedó un jugador), endGameAndCalculateScores ya emitió gameEnd
     // y no necesitamos emitir playerLeft porque causaría que se muestre el modal de bienvenido
@@ -9758,14 +9921,18 @@ socket.on('accionDescartar', async (data) => {
         // ▲▲▲ FIN PROCESAMIENTO DE ABANDONO VOLUNTARIO ▲▲▲
     } else if (isLa51Room) {
         // Es una sala de La 51 - usar handlePlayerDeparture
-        // ▼▼▼ CRÍTICO: Si es abandono voluntario durante partida activa, procesar INMEDIATAMENTE ▼▼▼
+        // ▼▼▼ CRÍTICO: Si es abandono voluntario durante partida activa o post-game, procesar INMEDIATAMENTE ▼▼▼
         // El abandono voluntario debe eliminarse inmediatamente, liberar asiento y pasar turno
         const la51Room = la51Rooms[roomId];
-        if (la51Room && la51Room.state === 'playing') {
+        if (la51Room && (la51Room.state === 'playing' || la51Room.state === 'post-game')) {
             const seatIndex = la51Room.seats.findIndex(s => s && s.playerId === socket.id);
             if (seatIndex !== -1) {
                 const playerSeat = la51Room.seats[seatIndex];
-                if (playerSeat && playerSeat.active !== false && playerSeat.status !== 'waiting') {
+                if (la51Room.state === 'post-game') {
+                    // Está en post-game - procesar salida inmediata (igual que Ludo)
+                    console.log(`[leaveGame] 🚨 Jugador ${socket.id} sale de sala post-game de La 51. Procesando salida inmediata.`);
+                    handlePlayerDeparture(roomId, socket.id, io, true, false);
+                } else if (playerSeat && playerSeat.active !== false && playerSeat.status !== 'waiting') {
                     // Está en una partida activa - ABANDONO VOLUNTARIO: procesar INMEDIATAMENTE
                     console.log(`[leaveGame] 🚨 Jugador ${socket.id} abandonó VOLUNTARIAMENTE durante partida activa de La 51. Procesando eliminación inmediata.`);
                     handlePlayerDeparture(roomId, socket.id, io, true, false);

@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.195'; // Actualizado: Limpieza agresiva de mesas fantasma - eliminación forzada cuando todos salen desde modal de revancha
+const CACHE_NAME = 'mutijuego-v1.12.196'; // Actualizado: Limpieza agresiva de mesas fantasma en La 51 - eliminación automática cuando quedan vacías
 const urlsToCache = [
   '/',
   '/index.html',
