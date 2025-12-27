@@ -1135,9 +1135,16 @@ function ludoCheckAndCleanRoom(roomId, io) {
     // 6. Lógica de eliminación mejorada
     // ▼▼▼ CRÍTICO: Eliminar la mesa si NO hay jugadores REALMENTE conectados, sin importar la etapa del juego ▼▼▼
     // Si no hay jugadores conectados, no hay reconexiones pendientes, no hay sockets válidos (o no hay sockets), y la sala no es reciente, eliminar
-    if (!hasValidConnectedPlayers && playersInSeats === 0 && pendingReconnections === 0 && (!hasSockets || !hasValidSockets) && !isRecentRoom) {
+    // ▼▼▼ CRÍTICO: Si es post-game y está vacía, eliminar INMEDIATAMENTE sin importar otros factores ▼▼▼
+    const isPostGameAndEmpty = room.state === 'post-game' && playersInSeats === 0 && !hasValidConnectedPlayers;
+    if (isPostGameAndEmpty || (!hasValidConnectedPlayers && playersInSeats === 0 && pendingReconnections === 0 && (!hasSockets || !hasValidSockets) && !isRecentRoom)) {
         // SOLO si no hay jugadores conectados, no hay reconexiones pendientes, no hay sockets conectados, Y la sala no es reciente
-        console.log(`[Ludo Cleanup] Sala ${roomId} vacía (Jugadores conectados: 0, Reconexiones: 0, Sockets: 0, Edad: ${Math.round(roomAge/1000)}s). Eliminando COMPLETAMENTE sin importar etapa del juego.`);
+        // O si es post-game y está vacía
+        if (isPostGameAndEmpty) {
+            console.log(`[Ludo Cleanup] 🚨 Sala ${roomId} en POST-GAME vacía. Eliminando INMEDIATAMENTE.`);
+        } else {
+            console.log(`[Ludo Cleanup] Sala ${roomId} vacía (Jugadores conectados: 0, Reconexiones: 0, Sockets: 0, Edad: ${Math.round(roomAge/1000)}s). Eliminando COMPLETAMENTE sin importar etapa del juego.`);
+        }
         
         // Limpiar todos los timeouts relacionados con esta sala
         Object.keys(ludoReconnectTimeouts).forEach(key => {
@@ -2428,7 +2435,36 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
         const hasSocketsInRoom = roomSockets && roomSockets.size > 0;
         console.log(`[${roomId}] 🔍 Verificación final antes de eliminar: remainingCount=${remainingCount}, finalCheck=${finalCheck}, hasSocketsInRoom=${hasSocketsInRoom}`);
         
-        if (remainingCount === 0 && finalCheck === 0 && !hasSocketsInRoom) {
+        // ▼▼▼ CRÍTICO: Si remainingCount es 0, forzar limpieza de TODOS los asientos y verificar nuevamente ▼▼▼
+        if (remainingCount === 0) {
+            // Forzar limpieza de TODOS los asientos
+            room.seats = room.seats.map((s, idx) => {
+                if (s === null || s === undefined || s === '') return null;
+                // Verificar que el socket esté realmente conectado y en la sala
+                const socket = io.sockets.sockets.get(s.playerId);
+                if (!socket || !socket.connected) {
+                    console.log(`[${roomId}] 🧹 FORZANDO limpieza de asiento ${idx}: socket no conectado`);
+                    return null;
+                }
+                const socketUserId = socket.userId || (socket.handshake && socket.handshake.auth && socket.handshake.auth.userId);
+                if (socketUserId !== s.userId) {
+                    console.log(`[${roomId}] 🧹 FORZANDO limpieza de asiento ${idx}: userId no coincide`);
+                    return null;
+                }
+                const isSocketInRoom = roomSockets && roomSockets.has(socket.id);
+                if (!isSocketInRoom) {
+                    console.log(`[${roomId}] 🧹 FORZANDO limpieza de asiento ${idx}: socket no está en la sala`);
+                    return null;
+                }
+                return s;
+            });
+            
+            // Recontar después de la limpieza forzada
+            const finalCheckAfterCleanup = room.seats.filter(s => s !== null && s !== undefined && s !== '').length;
+            console.log(`[${roomId}] 🔍 Verificación después de limpieza forzada: finalCheckAfterCleanup=${finalCheckAfterCleanup}`);
+            
+            // Si después de la limpieza forzada sigue siendo 0, eliminar la sala
+            if (finalCheckAfterCleanup === 0 && !hasSocketsInRoom) {
             console.log(`[${roomId}] ⚠️ No quedan jugadores en la sala después de salida durante post-game (remainingCount: ${remainingCount}, finalCheck: ${finalCheck}). Eliminando sala INMEDIATAMENTE.`);
             
             // ▼▼▼ CRÍTICO: Actualizar estados de TODOS los jugadores que estaban en esta sala antes de eliminarla ▼▼▼
@@ -2492,21 +2528,61 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
                 }
             });
             
-            // Eliminar la sala completamente
+                // ▼▼▼ CRÍTICO: Forzar desconexión de TODOS los sockets de la sala antes de eliminar ▼▼▼
+                if (roomSockets) {
+                    roomSockets.forEach(socketId => {
+                        const socket = io.sockets.sockets.get(socketId);
+                        if (socket) {
+                            socket.leave(roomId);
+                            if (socket.currentRoomId === roomId) {
+                                delete socket.currentRoomId;
+                            }
+                            console.log(`[${roomId}] 🧹 Socket ${socketId} forzado a salir de la sala antes de eliminar`);
+                        }
+                    });
+                }
+                // ▲▲▲ FIN DESCONEXIÓN FORZADA DE SOCKETS ▲▲▲
+                
+                // Eliminar la sala completamente
+                delete ludoRooms[roomId];
+                console.log(`[${roomId}] ✅ Sala eliminada INMEDIATAMENTE después de quedar vacía durante post-game.`);
+                
+                // Emitir actualización INMEDIATA de la lista de salas para que todos vean que la sala fue eliminada
+                broadcastLudoRoomListUpdate(io);
+                console.log(`[${roomId}] ✅ Lista de salas actualizada INMEDIATAMENTE después de eliminar sala vacía.`);
+                
+                // ▼▼▼ CRÍTICO: Forzar actualización de la lista de usuarios DESPUÉS de eliminar la sala ▼▼▼
+                // Esto asegura que los jugadores no aparezcan como "En mesa de Ludo" después de que la sala se elimine
+                setTimeout(() => {
+                    broadcastUserListUpdate(io);
+                    console.log(`[${roomId}] ✅ Lista de usuarios actualizada después de eliminar sala vacía.`);
+                }, 100);
+                // ▲▲▲ FIN ACTUALIZACIÓN DE LISTA DE USUARIOS ▲▲▲
+            } else {
+                console.log(`[${roomId}] ⚠️ Después de limpieza forzada, aún hay ${finalCheckAfterCleanup} asientos o ${hasSocketsInRoom ? 'sockets en la sala' : 'no hay sockets'}. No se elimina la sala.`);
+            }
+        } else if (remainingCount === 0 && finalCheck === 0 && !hasSocketsInRoom) {
+            // Fallback: Si remainingCount es 0 pero no pasó por la limpieza forzada, eliminar directamente
+            console.log(`[${roomId}] ⚠️ Eliminando sala directamente (remainingCount=0, finalCheck=0, hasSocketsInRoom=false)`);
+            
+            // Forzar desconexión de TODOS los sockets de la sala antes de eliminar
+            if (roomSockets) {
+                roomSockets.forEach(socketId => {
+                    const socket = io.sockets.sockets.get(socketId);
+                    if (socket) {
+                        socket.leave(roomId);
+                        if (socket.currentRoomId === roomId) {
+                            delete socket.currentRoomId;
+                        }
+                    }
+                });
+            }
+            
             delete ludoRooms[roomId];
-            console.log(`[${roomId}] ✅ Sala eliminada INMEDIATAMENTE después de quedar vacía durante post-game.`);
-            
-            // Emitir actualización INMEDIATA de la lista de salas para que todos vean que la sala fue eliminada
             broadcastLudoRoomListUpdate(io);
-            console.log(`[${roomId}] ✅ Lista de salas actualizada INMEDIATAMENTE después de eliminar sala vacía.`);
-            
-            // ▼▼▼ CRÍTICO: Forzar actualización de la lista de usuarios DESPUÉS de eliminar la sala ▼▼▼
-            // Esto asegura que los jugadores no aparezcan como "En mesa de Ludo" después de que la sala se elimine
             setTimeout(() => {
                 broadcastUserListUpdate(io);
-                console.log(`[${roomId}] ✅ Lista de usuarios actualizada después de eliminar sala vacía.`);
             }, 100);
-            // ▲▲▲ FIN ACTUALIZACIÓN DE LISTA DE USUARIOS ▲▲▲
         } else {
             // Si quedan jugadores, notificarles que este jugador salió
             io.to(roomId).emit('playerLeft', ludoGetSanitizedRoomForClient(room));
@@ -2518,6 +2594,39 @@ async function ludoHandlePlayerDeparture(roomId, leavingPlayerId, io, isVoluntar
     // ▼▼▼ CRÍTICO: Solo llamar a checkAndCleanRoom si la sala aún existe (no fue eliminada arriba) ▼▼▼
     // Si la sala ya fue eliminada durante post-game, no necesitamos llamar a checkAndCleanRoom
     if (ludoRooms[roomId]) {
+        // ▼▼▼ CRÍTICO: Si es post-game y no quedan jugadores, forzar eliminación inmediata ▼▼▼
+        if (ludoRooms[roomId].state === 'post-game') {
+            const room = ludoRooms[roomId];
+            const seatsCount = room.seats.filter(s => s !== null && s !== undefined && s !== '').length;
+            const roomSockets = io.sockets.adapter.rooms.get(roomId);
+            const hasSocketsInRoom = roomSockets && roomSockets.size > 0;
+            
+            if (seatsCount === 0 && !hasSocketsInRoom) {
+                console.log(`[${roomId}] 🚨 POST-GAME: Sala vacía detectada. Eliminando INMEDIATAMENTE.`);
+                
+                // Forzar desconexión de TODOS los sockets
+                if (roomSockets) {
+                    roomSockets.forEach(socketId => {
+                        const socket = io.sockets.sockets.get(socketId);
+                        if (socket) {
+                            socket.leave(roomId);
+                            if (socket.currentRoomId === roomId) {
+                                delete socket.currentRoomId;
+                            }
+                        }
+                    });
+                }
+                
+                delete ludoRooms[roomId];
+                broadcastLudoRoomListUpdate(io);
+                setTimeout(() => {
+                    broadcastUserListUpdate(io);
+                }, 100);
+                return; // Salir de la función - la sala ya fue eliminada
+            }
+        }
+        // ▲▲▲ FIN VERIFICACIÓN POST-GAME ▲▲▲
+        
         ludoHandleHostLeaving(ludoRooms[roomId], leavingPlayerId, io);
         // checkAndCleanRoom se encargará de eliminar la sala si está vacía Y de transmitir la lista actualizada.
         // IMPORTANTE: Esto debe llamarse DESPUÉS de liberar el asiento para que la limpieza detecte correctamente que no hay jugadores

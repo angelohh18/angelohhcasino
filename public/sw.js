@@ -1,6 +1,6 @@
 // sw.js (Service Worker para PWA - La 51)
 
-const CACHE_NAME = 'mutijuego-v1.12.194'; // Actualizado: Corrección de timeout en Parchís - solo se cancela al mover ficha, no al tirar dados
+const CACHE_NAME = 'mutijuego-v1.12.195'; // Actualizado: Limpieza agresiva de mesas fantasma - eliminación forzada cuando todos salen desde modal de revancha
 const urlsToCache = [
   '/',
   '/index.html',
